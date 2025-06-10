@@ -40,8 +40,19 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(data.user))
         console.log('Datos guardados, redirigiendo INMEDIATAMENTE...')
         
-        // Redirección inmediata sin setTimeout
+        // Redirección con múltiples métodos
+        console.log('Probando redirección método 1: location.href')
         window.location.href = '/dashboard'
+        
+        setTimeout(() => {
+          console.log('Probando redirección método 2: location.assign')
+          window.location.assign('/dashboard')
+        }, 500)
+        
+        setTimeout(() => {
+          console.log('Probando redirección método 3: location.replace')
+          window.location.replace('/dashboard')
+        }, 1000)
         
       } else {
         console.log('Login falló:', data.error)
