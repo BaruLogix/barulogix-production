@@ -16,12 +16,14 @@ export default function LoginPage() {
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('=== HANDLESUBMIT EJECUTÁNDOSE ===')
     e.preventDefault()
     setLoading(true)
     setError('')
     setShowEmailVerification(false)
 
     try {
+      console.log('Enviando request a API...')
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -30,14 +32,17 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
 
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Response data:', data)
 
       if (data.success) {
-        // Guardar información del usuario en localStorage
+        console.log('Login exitoso, guardando en localStorage...')
         localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/dashboard')
+        console.log('Redirigiendo al dashboard...')
+        window.location.href = '/dashboard'
       } else {
-        // Manejar diferentes tipos de errores
+        console.log('Login falló:', data.error)
         if (data.error === 'email_not_verified') {
           setShowEmailVerification(true)
           setUserEmail(data.userEmail)
