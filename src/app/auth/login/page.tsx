@@ -18,6 +18,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     console.log('=== HANDLESUBMIT EJECUTÁNDOSE ===')
     e.preventDefault()
+    e.stopPropagation()
+    
     setLoading(true)
     setError('')
     setShowEmailVerification(false)
@@ -39,8 +41,15 @@ export default function LoginPage() {
       if (data.success) {
         console.log('Login exitoso, guardando en localStorage...')
         localStorage.setItem('user', JSON.stringify(data.user))
-        console.log('Redirigiendo al dashboard...')
-        window.location.href = '/dashboard'
+        console.log('Datos guardados, iniciando redirección...')
+        
+        // Método 1: Redirección inmediata
+        setTimeout(() => {
+          console.log('Ejecutando redirección...')
+          document.location.href = '/dashboard'
+        }, 100)
+        
+        return false
       } else {
         console.log('Login falló:', data.error)
         if (data.error === 'email_not_verified') {
@@ -57,6 +66,8 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+    
+    return false
   }
 
   const handleResendVerification = async () => {
