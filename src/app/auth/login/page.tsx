@@ -177,33 +177,8 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Credenciales de prueba */}
-        <div className="card-barulogix bg-blue-50 border-blue-200 animate-slide-up" style={{animationDelay: '0.4s'}}>
-          <div className="text-center">
-            <h3 className="text-sm font-semibold text-blue-900 mb-2 font-montserrat">
-              Credenciales de Prueba
-            </h3>
-            <div className="text-xs text-blue-700 space-y-1 font-segoe">
-              <p><strong>Email:</strong> barulogix.platform@gmail.com</p>
-              <p><strong>Contraseña:</strong> BaruAdmin2025!</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setFormData({
-                  email: 'barulogix.platform@gmail.com',
-                  password: 'BaruAdmin2025!'
-                })
-              }}
-              className="mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-            >
-              Usar credenciales de prueba
-            </button>
-          </div>
-        </div>
-
         {/* Footer */}
-        <div className="text-center">
+        <div className="text-center animate-fade-in" style={{animationDelay: '0.5s'}}>
           <p className="text-xs text-secondary-500 font-segoe">
             © 2025 BaruLogix. Plataforma de gestión logística profesional.
           </p>
