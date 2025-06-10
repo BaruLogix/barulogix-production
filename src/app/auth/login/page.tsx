@@ -69,7 +69,7 @@ export default function LoginPage() {
         // Redireccionar al dashboard
         // Redireccionar al dashboard usando window.location.href (más confiable)
         console.log('Redirigiendo al dashboard con window.location.href...')
-        window.location.href = '/src/app/dashboard/page.tsx'
+        window.location.href = '/dashboard'
 
 
         
