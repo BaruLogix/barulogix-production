@@ -66,15 +66,9 @@ export default function LoginPage() {
         
         console.log('Datos guardados, redirigiendo al dashboard...')
         
-        // Redireccionar al dashboard - usando window.location.href como fallback
-        console.log('Intentando redirección con router.push...')
-        router.push('/dashboard')
-        
-        // Fallback con window.location.href después de un pequeño delay
-        setTimeout(() => {
-          console.log('Fallback: usando window.location.href...')
-          window.location.href = '/dashboard'
-        }, 1000)
+        // MÉTODO RADICAL: Usar window.location.replace() inmediatamente
+        console.log('Usando window.location.replace() para redirección forzada...')
+        window.location.replace('/dashboard')
         
         console.log('Redirección iniciada')
       } else {
