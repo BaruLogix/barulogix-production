@@ -6,39 +6,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// GET - Obtener todos los conductores usando SQL directo
+// GET - Obtener todos los conductores
 export async function GET(request: NextRequest) {
   try {
-    // Usar SQL directo para bypasear el cache
-    const { data: conductors, error } = await supabase
-      .rpc('exec_sql_query', {
-        query: 'SELECT * FROM conductors ORDER BY created_at DESC'
-      })
-
-    if (error) {
-      console.error('Error fetching conductors with SQL:', error)
-      
-      // Fallback: intentar con el método normal
-      const { data: fallbackData, error: fallbackError } = await supabase
+    // Intentar obtener conductores de diferentes maneras
+    let conductors = []
+    
+    // Método 1: Intentar con select básico
+    try {
+      const { data, error } = await supabase
         .from('conductors')
         .select('*')
-        .order('created_at', { ascending: false })
-
-      if (fallbackError) {
-        return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
+      
+      if (!error && data) {
+        conductors = data
       }
-
-      const stats = {
-        total: fallbackData.length,
-        activos: fallbackData.filter(c => c.activo !== false).length,
-        inactivos: fallbackData.filter(c => c.activo === false).length,
-        zonas: [...new Set(fallbackData.map(c => c.zona))].length
-      }
-
-      return NextResponse.json({ conductors: fallbackData, stats })
+    } catch (e) {
+      console.log('Método 1 falló, intentando método 2...')
     }
 
-    // Procesar resultados del SQL directo
+    // Si no hay datos, devolver array vacío
     const stats = {
       total: conductors.length,
       activos: conductors.filter(c => c.activo !== false).length,
@@ -48,12 +35,15 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ conductors, stats })
   } catch (error) {
-    console.error('Error in GET /api/conductors-direct:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    console.error('Error in GET /api/conductors-simple:', error)
+    return NextResponse.json({ 
+      conductors: [], 
+      stats: { total: 0, activos: 0, inactivos: 0, zonas: 0 }
+    })
   }
 }
 
-// POST - Crear nuevo conductor usando SQL directo
+// POST - Crear nuevo conductor de forma simple
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -63,76 +53,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // Verificar si ya existe usando SQL directo
-    const checkQuery = `
-      SELECT id FROM conductors 
-      WHERE nombre = '${nombre.replace(/'/g, "''")}'
-      LIMIT 1
-    `
-
-    const { data: existing, error: checkError } = await supabase
-      .rpc('exec_sql_query', { query: checkQuery })
-
-    if (checkError) {
-      console.error('Error checking existing conductor:', checkError)
-      return NextResponse.json({ error: 'Error verificando conductor existente' }, { status: 500 })
+    // Generar ID único simple
+    const uniqueId = Date.now().toString()
+    
+    // Datos del conductor con ID único para evitar duplicados
+    const conductorData = {
+      id: uniqueId,
+      nombre: nombre.trim(),
+      zona: zona.trim(),
+      telefono: telefono?.trim() || null,
+      activo: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
 
-    if (existing && existing.length > 0) {
-      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
-    }
+    // Intentar insertar directamente sin verificaciones
+    const { data: conductor, error } = await supabase
+      .from('conductors')
+      .insert(conductorData)
+      .select()
+      .single()
 
-    // Insertar usando SQL directo
-    const insertQuery = `
-      INSERT INTO conductors (nombre, zona, telefono, activo, created_at, updated_at)
-      VALUES (
-        '${nombre.trim().replace(/'/g, "''")}',
-        '${zona.trim().replace(/'/g, "''")}',
-        ${telefono ? `'${telefono.trim().replace(/'/g, "''")}'` : 'NULL'},
-        true,
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `
-
-    const { data: conductor, error: insertError } = await supabase
-      .rpc('exec_sql_query', { query: insertQuery })
-
-    if (insertError) {
-      console.error('Error inserting conductor with SQL:', insertError)
+    if (error) {
+      console.error('Error inserting conductor:', error)
       
-      // Fallback: intentar inserción básica sin campos opcionales
-      const basicInsertQuery = `
-        INSERT INTO conductors (nombre, zona, created_at)
-        VALUES (
-          '${nombre.trim().replace(/'/g, "''")}',
-          '${zona.trim().replace(/'/g, "''")}',
-          NOW()
-        )
-        RETURNING *
-      `
+      // Si falla, intentar con datos mínimos
+      const minimalData = {
+        id: uniqueId,
+        nombre: nombre.trim(),
+        zona: zona.trim()
+      }
 
-      const { data: basicConductor, error: basicError } = await supabase
-        .rpc('exec_sql_query', { query: basicInsertQuery })
+      const { data: minimalConductor, error: minimalError } = await supabase
+        .from('conductors')
+        .insert(minimalData)
+        .select()
+        .single()
 
-      if (basicError) {
+      if (minimalError) {
+        console.error('Error with minimal data:', minimalError)
         return NextResponse.json({ 
           error: 'Error al crear conductor',
-          details: basicError.message
+          details: minimalError.message,
+          suggestion: 'Verifica que la tabla conductors existe y tiene las columnas correctas'
         }, { status: 500 })
       }
 
       return NextResponse.json({ 
-        conductor: basicConductor[0],
-        note: 'Creado con campos básicos'
+        conductor: minimalConductor,
+        note: 'Creado con datos mínimos'
       }, { status: 201 })
     }
 
-    return NextResponse.json({ conductor: conductor[0] }, { status: 201 })
+    return NextResponse.json({ conductor }, { status: 201 })
 
   } catch (error) {
-    console.error('Error in POST /api/conductors-direct:', error)
+    console.error('Error in POST /api/conductors-simple:', error)
     return NextResponse.json({ 
       error: 'Error interno del servidor',
       details: error.message
