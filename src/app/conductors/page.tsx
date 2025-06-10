@@ -45,7 +45,7 @@ export default function ConductorsPage() {
 
   const loadConductors = async () => {
     try {
-      const response = await fetch('/api/conductors-direct')
+      const response = await fetch('/api/conductors-uuid')
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
@@ -62,7 +62,7 @@ export default function ConductorsPage() {
     setLoading(true)
 
     try {
-      const url = editingConductor ? `/api/conductors/${editingConductor.id}` : '/api/conductors-direct'
+      const url = editingConductor ? `/api/conductors/${editingConductor.id}` : '/api/conductors-uuid'
       const method = editingConductor ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
