@@ -1,8 +1,35 @@
-import { Truck, Package, BarChart3, Shield, Users, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Truck, Package, BarChart3, Shield, Users, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Home() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Verificar si hay usuario logueado y redirigir al dashboard
+    const checkAuthAndRedirect = () => {
+      try {
+        const userData = localStorage.getItem('user')
+        const sessionData = localStorage.getItem('session')
+        
+        if (userData && sessionData) {
+          console.log('Usuario logueado detectado, redirigiendo al dashboard...')
+          // Usar window.location.href para redirección forzada
+          window.location.href = '/dashboard'
+          return
+        }
+      } catch (error) {
+        console.log('No hay datos de autenticación, mostrando landing page')
+      }
+    }
+
+    checkAuthAndRedirect()
+  }, [router])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -243,6 +270,6 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  );
+  )
 }
 
