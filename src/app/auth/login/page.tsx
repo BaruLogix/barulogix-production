@@ -15,11 +15,8 @@ export default function LoginPage() {
   const [resendingEmail, setResendingEmail] = useState(false)
   const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    console.log('=== HANDLESUBMIT EJECUTÁNDOSE ===')
-    e.preventDefault()
-    e.stopPropagation()
-    
+  const doLogin = async () => {
+    console.log('=== FUNCIÓN DOLOGIN EJECUTÁNDOSE ===')
     setLoading(true)
     setError('')
     setShowEmailVerification(false)
@@ -41,25 +38,11 @@ export default function LoginPage() {
       if (data.success) {
         console.log('Login exitoso, guardando en localStorage...')
         localStorage.setItem('user', JSON.stringify(data.user))
-        console.log('Datos guardados, iniciando redirección...')
+        console.log('Datos guardados, redirigiendo INMEDIATAMENTE...')
         
-        // Método 2: Múltiples intentos de redirección
-        setTimeout(() => {
-          console.log('Ejecutando redirección método 1...')
-          try {
-            window.location.assign('/dashboard')
-          } catch (e) {
-            console.log('Método 1 falló, probando método 2...')
-            try {
-              window.location.replace('/dashboard')
-            } catch (e2) {
-              console.log('Método 2 falló, probando método 3...')
-              window.open('/dashboard', '_self')
-            }
-          }
-        }, 100)
+        // Redirección inmediata sin setTimeout
+        window.location.href = '/dashboard'
         
-        return false
       } else {
         console.log('Login falló:', data.error)
         if (data.error === 'email_not_verified') {
@@ -76,8 +59,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
-    
-    return false
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await doLogin()
   }
 
   const handleResendVerification = async () => {
@@ -216,12 +202,9 @@ export default function LoginPage() {
             </div>
 
             <button
-              type="submit"
+              type="button"
               disabled={loading}
-              onClick={(e) => {
-                e.preventDefault()
-                handleSubmit(e)
-              }}
+              onClick={doLogin}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
