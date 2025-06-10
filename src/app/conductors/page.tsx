@@ -6,26 +6,24 @@ import Image from 'next/image'
 
 interface Conductor {
   id: string
-  name: string
-  zone: string
-  phone?: string
-  email?: string
-  is_active: boolean
+  nombre: string
+  zona: string
+  activo: boolean
   created_at: string
 }
 
 export default function ConductorsPage() {
   const [conductors, setConductors] = useState<Conductor[]>([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const [editingConductor, setEditingConductor] = useState<Conductor | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    zone: '',
-    phone: '',
-    email: ''
-  })
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterZone, setFilterZone] = useState('')
+  const [formData, setFormData] = useState({
+    nombre: '',
+    zona: '',
+    activo: true
+  })
   const router = useRouter()
 
   useEffect(() => {
@@ -59,336 +57,251 @@ export default function ConductorsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.name.trim() || !formData.zone.trim()) {
-      alert('Nombre y zona son obligatorios')
-      return
-    }
+    setLoading(true)
 
     try {
       const url = editingConductor ? `/api/conductors/${editingConductor.id}` : '/api/conductors'
       const method = editingConductor ? 'PUT' : 'POST'
-      
+
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       })
 
       if (response.ok) {
         await loadConductors()
-        resetForm()
-        alert(editingConductor ? 'Conductor actualizado exitosamente' : 'Conductor registrado exitosamente')
+        setShowModal(false)
+        setEditingConductor(null)
+        setFormData({ nombre: '', zona: '', activo: true })
       } else {
         const error = await response.json()
         alert(error.error || 'Error al guardar conductor')
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error saving conductor:', error)
       alert('Error al guardar conductor')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleEdit = (conductor: Conductor) => {
     setEditingConductor(conductor)
     setFormData({
-      name: conductor.name,
-      zone: conductor.zone,
-      phone: conductor.phone || '',
-      email: conductor.email || ''
+      nombre: conductor.nombre,
+      zona: conductor.zona,
+      activo: conductor.activo
     })
-    setShowForm(true)
+    setShowModal(true)
   }
 
-  const handleDelete = async (conductor: Conductor) => {
-    if (!confirm(`¿Estás seguro de eliminar al conductor ${conductor.name}?`)) {
-      return
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Está seguro de eliminar este conductor?')) return
 
     try {
-      const response = await fetch(`/api/conductors/${conductor.id}`, {
-        method: 'DELETE',
+      const response = await fetch(`/api/conductors/${id}`, {
+        method: 'DELETE'
       })
 
       if (response.ok) {
         await loadConductors()
-        alert('Conductor eliminado exitosamente')
       } else {
         const error = await response.json()
         alert(error.error || 'Error al eliminar conductor')
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error deleting conductor:', error)
       alert('Error al eliminar conductor')
     }
   }
 
-  const toggleStatus = async (conductor: Conductor) => {
+  const toggleActive = async (conductor: Conductor) => {
     try {
       const response = await fetch(`/api/conductors/${conductor.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: conductor.name,
-          zone: conductor.zone,
-          phone: conductor.phone,
-          email: conductor.email,
-          is_active: !conductor.is_active
-        }),
+          nombre: conductor.nombre,
+          zona: conductor.zona,
+          activo: !conductor.activo
+        })
       })
 
       if (response.ok) {
         await loadConductors()
-        alert(`Conductor ${!conductor.is_active ? 'activado' : 'desactivado'} exitosamente`)
       }
     } catch (error) {
-      console.error('Error:', error)
-      alert('Error al cambiar estado del conductor')
+      console.error('Error toggling conductor status:', error)
     }
   }
 
-  const resetForm = () => {
-    setFormData({ name: '', zone: '', phone: '', email: '' })
-    setEditingConductor(null)
-    setShowForm(false)
-  }
+  const filteredConductors = conductors.filter(conductor => {
+    const matchesSearch = conductor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         conductor.zona.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesZone = !filterZone || conductor.zona === filterZone
+    return matchesSearch && matchesZone
+  })
 
-  const filteredConductors = conductors.filter(conductor =>
-    conductor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    conductor.zone.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const zones = [...new Set(conductors.map(c => c.zona))].sort()
+  const activeConductors = conductors.filter(c => c.activo).length
+  const inactiveConductors = conductors.filter(c => !c.activo).length
 
-  const handleLogout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('session')
-    router.push('/auth/login')
-  }
-
-  if (loading) {
+  if (loading && conductors.length === 0) {
     return (
-      <div className="min-h-screen bg-secondary-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4"></div>
-          <p className="text-secondary-600 font-segoe">Cargando conductores...</p>
+          <div className="loading-spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-secondary-600 text-lg font-medium font-segoe">Cargando conductores...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-secondary-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
       {/* Header */}
       <header className="header-barulogix">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="mr-4 p-2 rounded-lg hover:bg-secondary-100 transition-colors"
-              >
-                <svg className="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <Image
-                src="/logo-oficial-transparente.png"
-                alt="BaruLogix"
-                width={50}
-                height={50}
-                className="mr-3"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">Gestión de Conductores</h1>
-                <p className="text-sm text-secondary-600 font-segoe">Administra conductores y zonas de entrega</p>
-              </div>
+        <div className="header-content">
+          <div className="flex items-center">
+            <Image
+              src="/logo-oficial-transparente.png"
+              alt="BaruLogix"
+              width={50}
+              height={50}
+              className="mr-4"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix - Conductores</h1>
+              <p className="text-sm text-secondary-600 font-segoe">Gestión de conductores por zonas</p>
             </div>
-            <button onClick={handleLogout} className="btn-danger">
-              Cerrar sesión
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="btn-secondary btn-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Dashboard
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('user')
+                localStorage.removeItem('session')
+                router.push('/auth/login')
+              }}
+              className="btn-danger btn-sm"
+            >
+              Cerrar Sesión
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="card-barulogix">
+          <div className="card-barulogix hover-lift animate-slide-up">
             <div className="flex items-center">
-              <div className="p-3 rounded-full bg-accent-100 text-accent-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 rounded-full bg-primary-100 text-primary-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-secondary-600 font-segoe">Total Conductores</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{conductors.length}</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{conductors.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="card-barulogix">
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
             <div className="flex items-center">
-              <div className="p-3 rounded-full bg-primary-100 text-primary-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 rounded-full bg-accent-100 text-accent-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-secondary-600 font-segoe">Activos</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                  {conductors.filter(c => c.is_active).length}
-                </p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{activeConductors}</p>
               </div>
             </div>
           </div>
 
-          <div className="card-barulogix">
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Zonas Cubiertas</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                  {new Set(conductors.map(c => c.zone)).size}
-                </p>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Zonas</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{zones.length}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Controles */}
-        <div className="card-barulogix mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex-1 max-w-md">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+        <div className="card-barulogix-lg mb-8 animate-fade-in">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <div className="flex-1">
                 <input
                   type="text"
                   placeholder="Buscar por nombre o zona..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="input-barulogix pl-10"
+                  className="input-barulogix-modern focus-ring"
                 />
+              </div>
+              <div className="sm:w-48">
+                <select
+                  value={filterZone}
+                  onChange={(e) => setFilterZone(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Todas las zonas</option>
+                  {zones.map(zone => (
+                    <option key={zone} value={zone}>{zone}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <button
-              onClick={() => setShowForm(true)}
-              className="btn-primary flex items-center"
+              onClick={() => {
+                setEditingConductor(null)
+                setFormData({ nombre: '', zona: '', activo: true })
+                setShowModal(true)
+              }}
+              className="btn-primary hover-glow"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Nuevo Conductor
+              Agregar Conductor
             </button>
           </div>
         </div>
 
-        {/* Formulario */}
-        {showForm && (
-          <div className="card-barulogix-lg mb-8 animate-slide-up">
-            <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat">
-              {editingConductor ? 'Editar Conductor' : 'Nuevo Conductor'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input-barulogix"
-                    placeholder="Nombre completo del conductor"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                    Zona *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.zone}
-                    onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
-                    className="input-barulogix"
-                    placeholder="Zona de entrega asignada"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input-barulogix"
-                    placeholder="Número de teléfono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input-barulogix"
-                    placeholder="Correo electrónico"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="btn-secondary"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                >
-                  {editingConductor ? 'Actualizar' : 'Registrar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Lista de conductores */}
-        <div className="card-barulogix">
-          <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat">
+        {/* Lista de Conductores */}
+        <div className="card-barulogix-lg animate-fade-in">
+          <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
             Lista de Conductores ({filteredConductors.length})
-          </h3>
-          
+          </h2>
+
           {filteredConductors.length === 0 ? (
             <div className="text-center py-12">
-              <svg className="w-16 h-16 text-secondary-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <p className="text-secondary-500 font-segoe">No hay conductores registrados</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="btn-primary mt-4"
-              >
-                Registrar primer conductor
-              </button>
+              <p className="text-secondary-600 text-lg font-segoe">No se encontraron conductores</p>
+              <p className="text-secondary-500 text-sm font-segoe mt-1">Agrega el primer conductor para comenzar</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -397,52 +310,66 @@ export default function ConductorsPage() {
                   <tr>
                     <th>Nombre</th>
                     <th>Zona</th>
-                    <th>Teléfono</th>
-                    <th>Email</th>
                     <th>Estado</th>
                     <th>Fecha Registro</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredConductors.map((conductor) => (
-                    <tr key={conductor.id}>
-                      <td className="font-medium">{conductor.name}</td>
-                      <td>{conductor.zone}</td>
-                      <td>{conductor.phone || '-'}</td>
-                      <td>{conductor.email || '-'}</td>
+                  {filteredConductors.map((conductor, index) => (
+                    <tr key={conductor.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
                       <td>
-                        <span className={conductor.is_active ? 'estado-entregado' : 'estado-devuelto'}>
-                          {conductor.is_active ? 'Activo' : 'Inactivo'}
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span className="text-primary-600 font-semibold text-sm">
+                              {conductor.nombre.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="font-medium text-secondary-900 font-segoe">{conductor.nombre}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {conductor.zona}
                         </span>
                       </td>
-                      <td>{new Date(conductor.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <button
+                          onClick={() => toggleActive(conductor)}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
+                            conductor.activo 
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                          }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full mr-2 ${conductor.activo ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          {conductor.activo ? 'Activo' : 'Inactivo'}
+                        </button>
+                      </td>
+                      <td className="text-secondary-600 font-segoe">
+                        {new Date(conductor.created_at).toLocaleDateString('es-CO')}
+                      </td>
                       <td>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleEdit(conductor)}
-                            className="text-primary-600 hover:text-primary-800 transition-colors"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                             title="Editar"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
                           <button
-                            onClick={() => toggleStatus(conductor)}
-                            className={`transition-colors ${conductor.is_active ? 'text-yellow-600 hover:text-yellow-800' : 'text-accent-600 hover:text-accent-800'}`}
-                            title={conductor.is_active ? 'Desactivar' : 'Activar'}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={conductor.is_active ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L5.636 5.636" : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(conductor)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
+                            onClick={() => handleDelete(conductor.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                             title="Eliminar"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
@@ -455,7 +382,84 @@ export default function ConductorsPage() {
             </div>
           )}
         </div>
-      </main>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="modal-overlay animate-fade-in">
+          <div className="modal-content animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                {editingConductor ? 'Editar Conductor' : 'Agregar Conductor'}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="label-barulogix">Nombre</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                  placeholder="Nombre del conductor"
+                />
+              </div>
+
+              <div>
+                <label className="label-barulogix">Zona</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.zona}
+                  onChange={(e) => setFormData({ ...formData, zona: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                  placeholder="Zona de trabajo"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="activo"
+                  checked={formData.activo}
+                  onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <label htmlFor="activo" className="ml-2 text-sm text-secondary-700 font-segoe">
+                  Conductor activo
+                </label>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  {loading ? 'Guardando...' : (editingConductor ? 'Actualizar' : 'Crear')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

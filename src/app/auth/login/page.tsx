@@ -1,32 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
-  useEffect(() => {
-    // Verificar si ya hay usuario logueado
-    const userData = localStorage.getItem('user')
-    const sessionData = localStorage.getItem('session')
-    
-    if (userData && sessionData) {
-      router.push('/dashboard')
-    }
-  }, [router])
-
-  const doLogin = async () => {
-    if (!email || !password) {
-      setError('Por favor ingresa email y contraseña')
-      return
-    }
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     setError('')
 
@@ -36,62 +24,70 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(formData),
       })
 
       const data = await response.json()
 
-      if (data.success) {
-        // Guardar datos en localStorage
+      if (response.ok) {
+        // Guardar datos de usuario y sesión
         localStorage.setItem('user', JSON.stringify(data.user))
-        localStorage.setItem('session', JSON.stringify(data.session))
+        localStorage.setItem('session', JSON.stringify(data.session || { token: 'authenticated' }))
         
-        // Redirección exitosa
+        // Redirigir al dashboard
         router.push('/dashboard')
       } else {
         setError(data.error || 'Error al iniciar sesión')
       }
     } catch (error) {
-      console.error('Error en login:', error)
-      setError('Error de conexión. Intenta nuevamente.')
+      console.error('Error during login:', error)
+      setError('Error de conexión. Intente nuevamente.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <Image
-              src="/logo-oficial-transparente.png"
-              alt="BaruLogix"
-              width={80}
-              height={80}
-              className="hover-lift"
-            />
+            <div className="relative">
+              <Image
+                src="/logo-oficial-transparente.png"
+                alt="BaruLogix"
+                width={80}
+                height={80}
+                className="animate-scale-in"
+              />
+              <div className="absolute inset-0 bg-gradient-barulogix opacity-20 rounded-full animate-pulse-slow"></div>
+            </div>
           </div>
-          <h2 className="text-3xl font-bold text-secondary-900 font-montserrat">
+          <h2 className="text-3xl font-bold text-secondary-900 font-montserrat animate-fade-in">
             Iniciar Sesión
           </h2>
-          <p className="mt-2 text-secondary-600 font-segoe">
-            Accede a tu cuenta de BaruLogix
+          <p className="mt-2 text-sm text-secondary-600 font-segoe animate-fade-in" style={{animationDelay: '0.1s'}}>
+            Accede a tu plataforma de gestión logística
           </p>
         </div>
 
         {/* Formulario */}
-        <div className="card-barulogix">
-          <div className="space-y-6">
+        <div className="card-barulogix-modern animate-slide-up" style={{animationDelay: '0.2s'}}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg font-segoe">
-                {error}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-slide-down">
+                <div className="flex">
+                  <svg className="w-5 h-5 text-red-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-red-700 font-segoe">{error}</p>
+                </div>
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-secondary-700 font-segoe mb-2">
+              <label htmlFor="email" className="label-barulogix">
                 Correo Electrónico
               </label>
               <input
@@ -100,15 +96,15 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-barulogix"
+                className="input-barulogix-modern focus-ring"
                 placeholder="tu@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-secondary-700 font-segoe mb-2">
+              <label htmlFor="password" className="label-barulogix">
                 Contraseña
               </label>
               <input
@@ -117,55 +113,99 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-barulogix"
+                className="input-barulogix-modern focus-ring"
                 placeholder="••••••••"
-                onKeyPress={(e) => e.key === 'Enter' && doLogin()}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-secondary-700 font-segoe">
+                  Recordarme
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <a href="#" className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200">
+                  ¿Olvidaste tu contraseña?
+                </a>
+              </div>
             </div>
 
             <div>
               <button
-                type="button"
-                onClick={doLogin}
+                type="submit"
                 disabled={loading}
-                className="btn-primary w-full flex justify-center items-center"
+                className="w-full btn-primary focus-ring disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <>
-                    <div className="loading-spinner mr-2"></div>
+                  <div className="flex items-center justify-center">
+                    <div className="loading-spinner w-5 h-5 border-2 border-white border-t-transparent mr-2"></div>
                     Iniciando sesión...
-                  </>
+                  </div>
                 ) : (
-                  <>
+                  <div className="flex items-center justify-center">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                     </svg>
                     Iniciar Sesión
-                  </>
+                  </div>
                 )}
               </button>
             </div>
 
             <div className="text-center">
               <p className="text-sm text-secondary-600 font-segoe">
-                ¿No tienes cuenta?{' '}
+                ¿No tienes una cuenta?{' '}
                 <button
+                  type="button"
                   onClick={() => router.push('/auth/register')}
-                  className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
+                  className="font-medium text-primary-600 hover:text-primary-500 transition-colors duration-200"
                 >
                   Regístrate aquí
                 </button>
               </p>
             </div>
+          </form>
+        </div>
+
+        {/* Credenciales de prueba */}
+        <div className="card-barulogix bg-blue-50 border-blue-200 animate-slide-up" style={{animationDelay: '0.4s'}}>
+          <div className="text-center">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2 font-montserrat">
+              Credenciales de Prueba
+            </h3>
+            <div className="text-xs text-blue-700 space-y-1 font-segoe">
+              <p><strong>Email:</strong> barulogix.platform@gmail.com</p>
+              <p><strong>Contraseña:</strong> BaruAdmin2025!</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setFormData({
+                  email: 'barulogix.platform@gmail.com',
+                  password: 'BaruAdmin2025!'
+                })
+              }}
+              className="mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+            >
+              Usar credenciales de prueba
+            </button>
           </div>
         </div>
 
         {/* Footer */}
         <div className="text-center">
           <p className="text-xs text-secondary-500 font-segoe">
-            © 2025 BaruLogix. Todos los derechos reservados.
+            © 2025 BaruLogix. Plataforma de gestión logística profesional.
           </p>
         </div>
       </div>
