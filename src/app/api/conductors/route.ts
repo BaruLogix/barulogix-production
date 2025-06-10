@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { nombre, zona, telefono } = body
+    const { nombre, zona } = body
 
     if (!nombre || !zona) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       .insert({
         nombre: nombre.trim(),
         zona: zona.trim(),
-        telefono: telefono?.trim() || null,
         activo: true
       })
       .select()
