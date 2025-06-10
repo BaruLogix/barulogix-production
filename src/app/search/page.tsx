@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
+interface SearchResult {
+  id: string
+  tracking: string
+  conductor: {
+    id: string
+    nombre: string
+    zona: string
+  }
+  tipo: 'Shein/Temu' | 'Dropi'
+  estado: number
+  fecha_entrega: string
+  valor?: number
+  created_at: string
+}
+
 interface Conductor {
   id: string
   nombre: string
@@ -11,48 +26,35 @@ interface Conductor {
   activo: boolean
 }
 
-interface Package {
-  id: string
-  tracking: string
-  conductor_id: string
-  tipo: 'Shein/Temu' | 'Dropi'
-  estado: 0 | 1 | 2
-  fecha_entrega: string
-  valor?: number
-  created_at: string
-  conductor: Conductor
-  dias_atraso?: number
-}
-
 interface SearchStats {
-  total: number
-  no_entregados: number
+  total_results: number
   entregados: number
+  no_entregados: number
   devueltos: number
-  shein_temu: number
-  dropi: number
   valor_total_dropi: number
-  valor_no_entregado_dropi: number
 }
 
 export default function SearchPage() {
-  const [packages, setPackages] = useState<Package[]>([])
+  const [results, setResults] = useState<SearchResult[]>([])
   const [conductors, setConductors] = useState<Conductor[]>([])
-  const [stats, setStats] = useState<SearchStats | null>(null)
   const [loading, setLoading] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
-  const router = useRouter()
-
-  // Criterios de búsqueda
-  const [searchCriteria, setSearchCriteria] = useState({
+  const [stats, setStats] = useState<SearchStats>({
+    total_results: 0,
+    entregados: 0,
+    no_entregados: 0,
+    devueltos: 0,
+    valor_total_dropi: 0
+  })
+  const [searchParams, setSearchParams] = useState({
     tracking: '',
     conductor_id: '',
+    zona: '',
     tipo: '',
     estado: '',
-    fecha_inicio: '',
-    fecha_fin: '',
-    zona: ''
+    fecha_desde: '',
+    fecha_hasta: ''
   })
+  const router = useRouter()
 
   useEffect(() => {
     checkAuth()
@@ -81,57 +83,58 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearch = async () => {
-    // Verificar que al menos un criterio esté lleno
-    const hasAnyCriteria = Object.values(searchCriteria).some(value => value.trim() !== '')
-    
-    if (!hasAnyCriteria) {
-      alert('Debe proporcionar al menos un criterio de búsqueda')
-      return
-    }
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
 
     try {
-      setLoading(true)
-      
-      const params = new URLSearchParams()
-      Object.entries(searchCriteria).forEach(([key, value]) => {
-        if (value.trim() !== '') {
-          params.append(key, value)
-        }
+      const queryParams = new URLSearchParams()
+      Object.entries(searchParams).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value)
       })
 
-      const response = await fetch(`/api/packages/search?${params}`)
-      
+      const response = await fetch(`/api/packages/search?${queryParams}`)
       if (response.ok) {
         const data = await response.json()
-        setPackages(data.packages || [])
-        setStats(data.stats || null)
-        setHasSearched(true)
+        setResults(data.packages || [])
+        setStats(data.stats || {})
       } else {
-        const error = await response.json()
-        alert(error.error || 'Error al realizar la búsqueda')
+        console.error('Error searching packages')
+        setResults([])
+        setStats({
+          total_results: 0,
+          entregados: 0,
+          no_entregados: 0,
+          devueltos: 0,
+          valor_total_dropi: 0
+        })
       }
     } catch (error) {
       console.error('Error searching packages:', error)
-      alert('Error al realizar la búsqueda')
+      setResults([])
     } finally {
       setLoading(false)
     }
   }
 
   const clearSearch = () => {
-    setSearchCriteria({
+    setSearchParams({
       tracking: '',
       conductor_id: '',
+      zona: '',
       tipo: '',
       estado: '',
-      fecha_inicio: '',
-      fecha_fin: '',
-      zona: ''
+      fecha_desde: '',
+      fecha_hasta: ''
     })
-    setPackages([])
-    setStats(null)
-    setHasSearched(false)
+    setResults([])
+    setStats({
+      total_results: 0,
+      entregados: 0,
+      no_entregados: 0,
+      devueltos: 0,
+      valor_total_dropi: 0
+    })
   }
 
   const getEstadoText = (estado: number) => {
@@ -143,336 +146,358 @@ export default function SearchPage() {
     }
   }
 
-  const getEstadoClass = (estado: number) => {
+  const getEstadoBadge = (estado: number) => {
     switch (estado) {
-      case 0: return 'bg-yellow-100 text-yellow-800'
-      case 1: return 'bg-green-100 text-green-800'
-      case 2: return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 0: return 'badge-warning'
+      case 1: return 'badge-success'
+      case 2: return 'badge-danger'
+      default: return 'badge-neutral'
     }
   }
 
-  const getTipoClass = (tipo: string) => {
-    return tipo === 'Shein/Temu' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-  }
+  const zones = [...new Set(conductors.map(c => c.zona))].sort()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Image
-                src="/logo-oficial-transparente.png"
-                alt="BaruLogix"
-                width={40}
-                height={40}
-                className="mr-3"
-              />
-              <h1 className="text-xl font-bold text-gray-800 font-montserrat">BaruLogix - Búsqueda de Paquetes</h1>
+      <header className="header-barulogix">
+        <div className="header-content">
+          <div className="flex items-center">
+            <Image
+              src="/logo-oficial-transparente.png"
+              alt="BaruLogix"
+              width={50}
+              height={50}
+              className="mr-4"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix - Búsqueda Avanzada</h1>
+              <p className="text-sm text-secondary-600 font-segoe">Encuentra paquetes con filtros avanzados</p>
             </div>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => router.push('/packages')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Gestión de Paquetes
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('user')
-                  localStorage.removeItem('session')
-                  router.push('/auth/login')
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="btn-secondary btn-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Dashboard
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('user')
+                localStorage.removeItem('session')
+                router.push('/auth/login')
+              }}
+              className="btn-danger btn-sm"
+            >
+              Cerrar Sesión
+            </button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Formulario de Búsqueda */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-montserrat">Búsqueda Avanzada de Paquetes</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tracking
-              </label>
-              <input
-                type="text"
-                value={searchCriteria.tracking}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, tracking: e.target.value })}
-                placeholder="Buscar por tracking..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        <div className="card-barulogix-lg mb-8 animate-fade-in">
+          <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
+            <svg className="w-8 h-8 inline-block mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Filtros de Búsqueda
+          </h2>
+
+          <form onSubmit={handleSearch} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="label-barulogix">Número de Tracking</label>
+                <input
+                  type="text"
+                  value={searchParams.tracking}
+                  onChange={(e) => setSearchParams({ ...searchParams, tracking: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                  placeholder="Buscar por tracking..."
+                />
+              </div>
+
+              <div>
+                <label className="label-barulogix">Conductor</label>
+                <select
+                  value={searchParams.conductor_id}
+                  onChange={(e) => setSearchParams({ ...searchParams, conductor_id: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Todos los conductores</option>
+                  {conductors.filter(c => c.activo).map(conductor => (
+                    <option key={conductor.id} value={conductor.id}>
+                      {conductor.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Zona</label>
+                <select
+                  value={searchParams.zona}
+                  onChange={(e) => setSearchParams({ ...searchParams, zona: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Todas las zonas</option>
+                  {zones.map(zone => (
+                    <option key={zone} value={zone}>{zone}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Tipo de Paquete</label>
+                <select
+                  value={searchParams.tipo}
+                  onChange={(e) => setSearchParams({ ...searchParams, tipo: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Todos los tipos</option>
+                  <option value="Shein/Temu">Shein/Temu</option>
+                  <option value="Dropi">Dropi</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Estado</label>
+                <select
+                  value={searchParams.estado}
+                  onChange={(e) => setSearchParams({ ...searchParams, estado: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="0">No Entregado</option>
+                  <option value="1">Entregado</option>
+                  <option value="2">Devuelto</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Fecha Desde</label>
+                <input
+                  type="date"
+                  value={searchParams.fecha_desde}
+                  onChange={(e) => setSearchParams({ ...searchParams, fecha_desde: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                />
+              </div>
+
+              <div>
+                <label className="label-barulogix">Fecha Hasta</label>
+                <input
+                  type="date"
+                  value={searchParams.fecha_hasta}
+                  onChange={(e) => setSearchParams({ ...searchParams, fecha_hasta: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conductor
-              </label>
-              <select
-                value={searchCriteria.conductor_id}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, conductor_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div className="flex space-x-4 pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary hover-glow disabled:opacity-50"
               >
-                <option value="">Todos los conductores</option>
-                {conductors.map(conductor => (
-                  <option key={conductor.id} value={conductor.id}>
-                    {conductor.nombre} - {conductor.zona}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zona
-              </label>
-              <input
-                type="text"
-                value={searchCriteria.zona}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, zona: e.target.value })}
-                placeholder="Buscar por zona..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo
-              </label>
-              <select
-                value={searchCriteria.tipo}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, tipo: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                {loading ? (
+                  <>
+                    <div className="loading-spinner w-4 h-4 mr-2"></div>
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Buscar Paquetes
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="btn-secondary"
               >
-                <option value="">Todos los tipos</option>
-                <option value="Shein/Temu">Shein/Temu</option>
-                <option value="Dropi">Dropi</option>
-              </select>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Limpiar Filtros
+              </button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <select
-                value={searchCriteria.estado}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, estado: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todos los estados</option>
-                <option value="0">No Entregado</option>
-                <option value="1">Entregado</option>
-                <option value="2">Devuelto</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Inicio
-              </label>
-              <input
-                type="date"
-                value={searchCriteria.fecha_inicio}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, fecha_inicio: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha Fin
-              </label>
-              <input
-                type="date"
-                value={searchCriteria.fecha_fin}
-                onChange={(e) => setSearchCriteria({ ...searchCriteria, fecha_fin: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200"
-            >
-              {loading ? 'Buscando...' : 'Buscar'}
-            </button>
-            <button
-              onClick={clearSearch}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition-colors duration-200"
-            >
-              Limpiar
-            </button>
-          </div>
+          </form>
         </div>
 
-        {/* Estadísticas de Búsqueda */}
-        {stats && hasSearched && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Encontrados</h3>
-              <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
+        {/* Estadísticas de Resultados */}
+        {results.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-primary-100 text-primary-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Resultados</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.total_results}</p>
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Entregados</h3>
-              <p className="text-3xl font-bold text-yellow-600">{stats.no_entregados}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Entregados</h3>
-              <p className="text-3xl font-bold text-green-600">{stats.entregados}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Devueltos</h3>
-              <p className="text-3xl font-bold text-red-600">{stats.devueltos}</p>
-            </div>
-          </div>
-        )}
 
-        {/* Estadísticas Adicionales */}
-        {stats && hasSearched && stats.dropi > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Shein/Temu</h3>
-              <p className="text-3xl font-bold text-purple-600">{stats.shein_temu}</p>
+            <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-green-100 text-green-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Entregados</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.entregados}</p>
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Dropi</h3>
-              <p className="text-3xl font-bold text-blue-600">{stats.dropi}</p>
+
+            <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Pendientes</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.no_entregados}</p>
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Valor Total Dropi</h3>
-              <p className="text-2xl font-bold text-green-600">${stats.valor_total_dropi.toLocaleString()}</p>
-              <p className="text-sm text-gray-500">No entregado: ${stats.valor_no_entregado_dropi.toLocaleString()}</p>
+
+            <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.3s'}}>
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-red-100 text-red-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Devueltos</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.devueltos}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.4s'}}>
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Valor Dropi</p>
+                  <p className="text-lg font-bold text-secondary-900 font-montserrat">
+                    ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Resultados */}
-        {hasSearched && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Resultados de Búsqueda ({packages.length} paquetes encontrados)
-              </h3>
-            </div>
-            
-            {packages.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tracking
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Conductor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Zona
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tipo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Fecha Entrega
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Valor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Días Atraso
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {packages.map((pkg) => {
-                      const diasAtraso = pkg.estado === 0 ? 
-                        Math.floor((new Date().getTime() - new Date(pkg.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24)) : 0
-                      
-                      return (
-                        <tr key={pkg.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {pkg.tracking}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {pkg.conductor.nombre}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {pkg.conductor.zona}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTipoClass(pkg.tipo)}`}>
-                              {pkg.tipo}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoClass(pkg.estado)}`}>
-                              {getEstadoText(pkg.estado)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(pkg.fecha_entrega).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {pkg.valor ? `$${pkg.valor.toLocaleString()}` : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {pkg.estado === 0 && diasAtraso > 0 ? (
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                diasAtraso > 7 ? 'bg-red-100 text-red-800' : 
-                                diasAtraso > 3 ? 'bg-yellow-100 text-yellow-800' : 
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {diasAtraso} días
-                              </span>
-                            ) : '-'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No se encontraron paquetes con los criterios especificados</p>
-              </div>
+        <div className="card-barulogix-lg animate-fade-in">
+          <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
+            Resultados de Búsqueda
+            {results.length > 0 && (
+              <span className="text-lg font-normal text-secondary-600 ml-2">
+                ({results.length} paquetes encontrados)
+              </span>
             )}
-          </div>
-        )}
+          </h2>
 
-        {/* Mensaje inicial */}
-        {!hasSearched && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Búsqueda Avanzada de Paquetes</h3>
-            <p className="text-gray-500">
-              Complete al menos un criterio de búsqueda y haga clic en "Buscar" para encontrar paquetes específicos.
-            </p>
-          </div>
-        )}
+          {results.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p className="text-secondary-600 text-lg font-segoe">
+                {loading ? 'Buscando paquetes...' : 'Usa los filtros para buscar paquetes'}
+              </p>
+              <p className="text-secondary-500 text-sm font-segoe mt-1">
+                {loading ? 'Por favor espera...' : 'Los resultados aparecerán aquí'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table-barulogix">
+                <thead>
+                  <tr>
+                    <th>Tracking</th>
+                    <th>Conductor</th>
+                    <th>Zona</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Fecha Entrega</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((result, index) => (
+                    <tr key={result.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
+                      <td>
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-3 ${
+                            result.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+                          }`}></div>
+                          <span className="font-medium text-secondary-900 font-mono text-sm">{result.tracking}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="font-medium text-secondary-900 font-segoe">{result.conductor.nombre}</span>
+                      </td>
+                      <td>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {result.conductor.zona}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          result.tipo === 'Dropi' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {result.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(result.estado)}`}>
+                          {getEstadoText(result.estado)}
+                        </span>
+                      </td>
+                      <td className="text-secondary-600 font-segoe text-sm">
+                        {new Date(result.fecha_entrega).toLocaleDateString('es-CO')}
+                      </td>
+                      <td className="text-secondary-600 font-segoe text-sm">
+                        {result.valor ? `$${result.valor.toLocaleString('es-CO')}` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
