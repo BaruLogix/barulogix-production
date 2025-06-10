@@ -4,66 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Variables CSS para la guía de marca BaruLogix */
-:root {
-  /* Colores principales */
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-400: #60a5fa;
-  --primary-500: #3b82f6;  /* Azul eléctrico principal */
-  --primary-600: #2563eb;
-  --primary-700: #1d4ed8;
-  --primary-800: #1e40af;
-  --primary-900: #1e3a8a;
-
-  /* Colores secundarios */
-  --secondary-50: #f9fafb;
-  --secondary-100: #f3f4f6;
-  --secondary-200: #e5e7eb;
-  --secondary-300: #d1d5db;
-  --secondary-400: #9ca3af;
-  --secondary-500: #6b7280;
-  --secondary-600: #4b5563;
-  --secondary-700: #374151;
-  --secondary-800: #1f2937;  /* Gris oscuro principal */
-  --secondary-900: #111827;
-
-  /* Color de acento */
-  --accent-50: #f0fdf4;
-  --accent-100: #dcfce7;
-  --accent-200: #bbf7d0;
-  --accent-300: #86efac;
-  --accent-400: #4ade80;
-  --accent-500: #10b981;  /* Verde lima principal */
-  --accent-600: #059669;
-  --accent-700: #047857;
-  --accent-800: #065f46;
-  --accent-900: #064e3b;
-
-  /* Tipografía */
-  --font-montserrat: 'Montserrat', sans-serif;
-  --font-segoe: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-  /* Sombras */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-
-  /* Bordes redondeados */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-
-  /* Transiciones */
-  --transition-fast: 150ms ease-in-out;
-  --transition-normal: 200ms ease-in-out;
-  --transition-slow: 300ms ease-in-out;
-}
-
 /* Estilos base */
 * {
   box-sizing: border-box;
@@ -74,19 +14,19 @@ html {
 }
 
 body {
-  font-family: var(--font-segoe);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
-  color: var(--secondary-800);
-  background-color: var(--secondary-50);
+  color: #1f2937;
+  background-color: #f9fafb;
 }
 
 /* Tipografía personalizada */
 .font-montserrat {
-  font-family: var(--font-montserrat);
+  font-family: 'Montserrat', sans-serif;
 }
 
 .font-segoe {
-  font-family: var(--font-segoe);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Componentes de botones BaruLogix */
@@ -131,17 +71,17 @@ body {
   @apply shadow-xl transform translate-y-[-4px];
 }
 
+.card-barulogix-modern {
+  @apply bg-white rounded-xl shadow-md border border-gray-100 p-6 transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px];
+}
+
 /* Componentes de formularios */
 .input-barulogix {
   @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
 }
 
-.input-barulogix:focus {
-  @apply border-blue-500 ring-2 ring-blue-500 ring-opacity-20;
-}
-
-.select-barulogix {
-  @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
+.input-barulogix-modern {
+  @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200;
 }
 
 .label-barulogix {
@@ -149,146 +89,12 @@ body {
 }
 
 /* Componentes de navegación */
-.nav-link {
-  @apply inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200;
+.header-barulogix {
+  @apply bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40;
 }
 
-.nav-link.active {
-  @apply text-blue-600 bg-blue-50;
-}
-
-/* Componentes de estado */
-.badge-success {
-  @apply inline-flex items-center px-3 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full;
-}
-
-.badge-warning {
-  @apply inline-flex items-center px-3 py-1 text-xs font-medium text-yellow-800 bg-yellow-100 rounded-full;
-}
-
-.badge-danger {
-  @apply inline-flex items-center px-3 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full;
-}
-
-.badge-info {
-  @apply inline-flex items-center px-3 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-full;
-}
-
-.badge-neutral {
-  @apply inline-flex items-center px-3 py-1 text-xs font-medium text-gray-800 bg-gray-100 rounded-full;
-}
-
-/* Animaciones personalizadas */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.6s ease-out;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.6s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.4s ease-out;
-}
-
-/* Efectos hover personalizados */
-.hover-lift {
-  transition: all 0.2s ease-in-out;
-}
-
-.hover-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-}
-
-.hover-glow {
-  transition: all 0.3s ease-in-out;
-}
-
-.hover-glow:hover {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-}
-
-/* Gradientes BaruLogix */
-.gradient-primary {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-}
-
-.gradient-secondary {
-  background: linear-gradient(135deg, var(--secondary-700) 0%, var(--secondary-800) 100%);
-}
-
-.gradient-accent {
-  background: linear-gradient(135deg, var(--accent-500) 0%, var(--accent-600) 100%);
-}
-
-.gradient-hero {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--accent-500) 100%);
-}
-
-/* Componentes de loading */
-.loading-spinner {
-  @apply inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin;
-}
-
-.loading-dots::after {
-  content: '';
-  animation: dots 1.5s infinite;
-}
-
-@keyframes dots {
-  0%, 20% { content: ''; }
-  40% { content: '.'; }
-  60% { content: '..'; }
-  80%, 100% { content: '...'; }
+.header-content {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between;
 }
 
 /* Componentes de tabla */
@@ -317,40 +123,40 @@ body {
   @apply bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 transform transition-all duration-300;
 }
 
-/* Componentes de notificación */
-.notification {
-  @apply fixed top-4 right-4 max-w-sm w-full bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 transform transition-all duration-300;
+/* Efectos hover personalizados */
+.hover-lift {
+  transition: all 0.2s ease-in-out;
 }
 
-.notification.success {
-  @apply border-green-200 bg-green-50;
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
-.notification.error {
-  @apply border-red-200 bg-red-50;
+.hover-glow {
+  transition: all 0.3s ease-in-out;
 }
 
-.notification.warning {
-  @apply border-yellow-200 bg-yellow-50;
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
 
-.notification.info {
-  @apply border-blue-200 bg-blue-50;
+/* Componentes de loading */
+.loading-spinner {
+  @apply inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin;
 }
 
-/* Responsive utilities */
-@media (max-width: 640px) {
-  .card-barulogix {
-    @apply p-4;
-  }
-  
-  .card-barulogix-lg {
-    @apply p-6;
-  }
-  
-  .btn-primary, .btn-secondary, .btn-accent, .btn-danger {
-    @apply px-4 py-2 text-sm;
-  }
+/* Focus states mejorados */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+}
+
+/* Gradientes de texto */
+.text-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Scrollbar personalizado */
@@ -359,57 +165,15 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--secondary-100);
+  background: #f3f4f6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--secondary-400);
+  background: #9ca3af;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--secondary-500);
-}
-
-/* Utilidades de texto */
-.text-gradient {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--accent-500) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Focus states mejorados */
-.focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-}
-
-/* Componentes de header */
-.header-barulogix {
-  @apply bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40;
-}
-
-.header-content {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between;
-}
-
-/* Componentes de sidebar */
-.sidebar-barulogix {
-  @apply fixed left-0 top-0 h-full w-64 bg-white shadow-lg border-r border-gray-200 z-30 transform transition-transform duration-300;
-}
-
-.sidebar-hidden {
-  @apply -translate-x-full;
-}
-
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-break {
-    page-break-before: always;
-  }
+  background: #6b7280;
 }
 
