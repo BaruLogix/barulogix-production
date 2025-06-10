@@ -323,6 +323,25 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </button>
+
+              {user.email === 'barulogix.platform@gmail.com' && (
+                <button
+                  onClick={() => navigateTo('/admin/users')}
+                  className="w-full p-4 border border-red-200 rounded-xl hover:bg-red-50 transition-all duration-200 text-left hover-lift"
+                >
+                  <div className="flex items-center">
+                    <div className="p-3 bg-red-100 rounded-lg">
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                      </svg>
+                    </div>
+                    <div className="ml-4">
+                      <p className="font-semibold text-secondary-900 font-montserrat">Panel de Administración</p>
+                      <p className="text-sm text-secondary-600 font-segoe">Gestionar usuarios del sistema</p>
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
           </div>
         </div>
