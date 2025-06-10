@@ -43,10 +43,20 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(data.user))
         console.log('Datos guardados, iniciando redirección...')
         
-        // Método 1: Redirección inmediata
+        // Método 2: Múltiples intentos de redirección
         setTimeout(() => {
-          console.log('Ejecutando redirección...')
-          document.location.href = '/dashboard'
+          console.log('Ejecutando redirección método 1...')
+          try {
+            window.location.assign('/dashboard')
+          } catch (e) {
+            console.log('Método 1 falló, probando método 2...')
+            try {
+              window.location.replace('/dashboard')
+            } catch (e2) {
+              console.log('Método 2 falló, probando método 3...')
+              window.open('/dashboard', '_self')
+            }
+          }
         }, 100)
         
         return false
@@ -208,6 +218,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
+              onClick={(e) => {
+                e.preventDefault()
+                handleSubmit(e)
+              }}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
