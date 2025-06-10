@@ -195,3 +195,9 @@ body {
   @apply bg-gray-100 text-gray-800;
 }
 
+
+/* Modal de registro masivo más grande */
+.modal-content-lg {
+  @apply bg-white rounded-xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto;
+}
+

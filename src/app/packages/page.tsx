@@ -32,11 +32,16 @@ export default function PackagesPage() {
   const [conductors, setConductors] = useState<Conductor[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterConductor, setFilterConductor] = useState('')
   const [filterTipo, setFilterTipo] = useState('')
   const [filterEstado, setFilterEstado] = useState('')
+  const [bulkData, setBulkData] = useState('')
+  const [bulkType, setBulkType] = useState<'shein_temu' | 'dropi'>('shein_temu')
+  const [bulkConductor, setBulkConductor] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
   const [stats, setStats] = useState({
     total_packages: 0,
     entregados: 0,
@@ -154,6 +159,62 @@ export default function PackagesPage() {
       alert('Error al guardar paquete')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!bulkData.trim() || !bulkConductor) {
+      alert('Por favor complete todos los campos')
+      return
+    }
+
+    setBulkLoading(true)
+    
+    try {
+      const response = await fetch('/api/packages/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: bulkType,
+          data: bulkData.trim(),
+          conductor_id: bulkConductor
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        let message = `✅ Procesamiento completado:\n\n`
+        message += `📦 Paquetes insertados: ${result.inserted}\n`
+        message += `📋 Total procesados: ${result.total_processed}\n`
+        
+        if (result.errors.length > 0) {
+          message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
+          message += result.errors.slice(0, 10).join('\n')
+          if (result.errors.length > 10) {
+            message += `\n... y ${result.errors.length - 10} errores más`
+          }
+        }
+        
+        alert(message)
+        
+        // Limpiar formulario y recargar datos
+        setBulkData('')
+        setBulkConductor('')
+        setShowBulkModal(false)
+        await loadPackages()
+        await loadStats()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al procesar paquetes')
+      }
+    } catch (error) {
+      console.error('Error in bulk submit:', error)
+      alert('Error al procesar paquetes')
+    } finally {
+      setBulkLoading(false)
     }
   }
 
@@ -390,26 +451,42 @@ export default function PackagesPage() {
                 <option value="2">Devuelto</option>
               </select>
             </div>
-            <button
-              onClick={() => {
-                setEditingPackage(null)
-                setFormData({
-                  tracking: '',
-                  conductor_id: '',
-                  tipo: 'Shein/Temu',
-                  estado: 0,
-                  fecha_entrega: new Date().toISOString().split('T')[0],
-                  valor: ''
-                })
-                setShowModal(true)
-              }}
-              className="btn-primary hover-glow"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Agregar Paquete
-            </button>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  setEditingPackage(null)
+                  setFormData({
+                    tracking: '',
+                    conductor_id: '',
+                    tipo: 'Shein/Temu',
+                    estado: 0,
+                    fecha_entrega: new Date().toISOString().split('T')[0],
+                    valor: ''
+                  })
+                  setShowModal(true)
+                }}
+                className="btn-primary hover-glow"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Agregar Paquete
+              </button>
+              <button
+                onClick={() => {
+                  setBulkData('')
+                  setBulkConductor('')
+                  setBulkType('shein_temu')
+                  setShowBulkModal(true)
+                }}
+                className="btn-accent hover-glow"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Registro Masivo
+              </button>
+            </div>
           </div>
         </div>
 
@@ -624,6 +701,117 @@ export default function PackagesPage() {
                   className="flex-1 btn-primary disabled:opacity-50"
                 >
                   {loading ? 'Guardando...' : (editingPackage ? 'Actualizar' : 'Crear')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Registro Masivo */}
+      {showBulkModal && (
+        <div className="modal-overlay animate-fade-in">
+          <div className="modal-content-lg animate-scale-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                Registro Masivo de Paquetes
+              </h3>
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleBulkSubmit} className="space-y-6">
+              <div>
+                <label className="label-barulogix">Tipo de Paquetes</label>
+                <select
+                  value={bulkType}
+                  onChange={(e) => setBulkType(e.target.value as 'shein_temu' | 'dropi')}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="shein_temu">Shein/Temu</option>
+                  <option value="dropi">Dropi</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Conductor</label>
+                <select
+                  required
+                  value={bulkConductor}
+                  onChange={(e) => setBulkConductor(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="">Seleccionar conductor</option>
+                  {conductors.filter(c => c.activo).map(conductor => (
+                    <option key={conductor.id} value={conductor.id}>
+                      {conductor.nombre} - {conductor.zona}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">
+                  {bulkType === 'shein_temu' ? 'Trackings (uno por línea)' : 'Trackings y Valores (separados por tab)'}
+                </label>
+                <textarea
+                  required
+                  value={bulkData}
+                  onChange={(e) => setBulkData(e.target.value)}
+                  className="input-barulogix-modern focus-ring min-h-[200px] font-mono text-sm"
+                  placeholder={
+                    bulkType === 'shein_temu' 
+                      ? "Ejemplo:\nSH123456789\nSH987654321\nTE555666777"
+                      : "Ejemplo (tracking TAB valor):\nDR123456789\t15000\nDR987654321\t25000\nDR555666777\t18500"
+                  }
+                />
+                <p className="text-xs text-secondary-500 mt-2">
+                  {bulkType === 'shein_temu' 
+                    ? "Pegue una columna de trackings desde Excel, uno por línea"
+                    : "Pegue dos columnas desde Excel: tracking y valor separados por tab"
+                  }
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">💡 Instrucciones:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  {bulkType === 'shein_temu' ? (
+                    <>
+                      <li>• Seleccione la columna de trackings en Excel</li>
+                      <li>• Copie (Ctrl+C) y pegue (Ctrl+V) en el área de texto</li>
+                      <li>• Cada línea debe contener un tracking</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• Seleccione las columnas de tracking y valor en Excel</li>
+                      <li>• Copie (Ctrl+C) y pegue (Ctrl+V) en el área de texto</li>
+                      <li>• Cada línea debe tener: tracking TAB valor</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkLoading}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  {bulkLoading ? 'Procesando...' : 'Procesar Paquetes'}
                 </button>
               </div>
             </form>
