@@ -1,569 +1,478 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
-import { 
-  BarChart3, 
-  Download, 
-  Calendar,
-  TrendingUp,
-  Package,
-  Users,
-  ArrowLeft,
-  FileText
-} from 'lucide-react'
+import Image from 'next/image'
 
-interface User {
+interface Conductor {
   id: string
-  role: 'admin' | 'user'
-}
-
-interface ReportData {
-  totalDeliveries: number
-  completedDeliveries: number
-  pendingDeliveries: number
-  returnedDeliveries: number
-  activeConductors: number
-  totalUsers: number
-  deliveriesByPlatform: {
-    shein: number
-    temu: number
-    dropi: number
-    other: number
-  }
-  deliveriesByMonth: Array<{
-    month: string
-    count: number
-  }>
+  nombre: string
+  zona: string
+  activo: boolean
 }
 
 export default function ReportsPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [reportData, setReportData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [selectedPeriod, setSelectedPeriod] = useState('month')
+  const [conductors, setConductors] = useState<Conductor[]>([])
+  const [loading, setLoading] = useState(false)
+  const [reportResult, setReportResult] = useState<string>('')
   const router = useRouter()
 
+  // Estado para generación de reportes
+  const [reportForm, setReportForm] = useState({
+    tipo_reporte: 'general',
+    fecha_inicio: '',
+    fecha_fin: '',
+    conductor_id: ''
+  })
+
+  // Estado para exportación
+  const [exportForm, setExportForm] = useState({
+    formato: 'json',
+    fecha_inicio: '',
+    fecha_fin: '',
+    conductor_id: '',
+    incluir_conductores: true,
+    incluir_paquetes: true
+  })
+
   useEffect(() => {
-    initializeReports()
+    checkAuth()
+    loadConductors()
+    
+    // Establecer fechas por defecto (último mes)
+    const today = new Date()
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
+    
+    const todayStr = today.toISOString().split('T')[0]
+    const lastMonthStr = lastMonth.toISOString().split('T')[0]
+    
+    setReportForm(prev => ({
+      ...prev,
+      fecha_inicio: lastMonthStr,
+      fecha_fin: todayStr
+    }))
+    
+    setExportForm(prev => ({
+      ...prev,
+      fecha_inicio: lastMonthStr,
+      fecha_fin: todayStr
+    }))
   }, [])
 
-  const initializeReports = async () => {
+  const checkAuth = () => {
+    const userData = localStorage.getItem('user')
+    const sessionData = localStorage.getItem('session')
+    
+    if (!userData || !sessionData) {
+      router.push('/auth/login')
+      return
+    }
+  }
+
+  const loadConductors = async () => {
+    try {
+      const response = await fetch('/api/conductors')
+      if (response.ok) {
+        const data = await response.json()
+        setConductors(data.conductors || [])
+      }
+    } catch (error) {
+      console.error('Error loading conductors:', error)
+    }
+  }
+
+  const handleGenerateReport = async () => {
+    if (!reportForm.fecha_inicio || !reportForm.fecha_fin) {
+      alert('Debe seleccionar las fechas de inicio y fin')
+      return
+    }
+
+    if (reportForm.tipo_reporte === 'especifico' && !reportForm.conductor_id) {
+      alert('Debe seleccionar un conductor para el reporte específico')
+      return
+    }
+
     try {
       setLoading(true)
       
-      const supabase = createClient()
-      
-      // Verificar autenticación
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-
-      if (authError || !authUser) {
-        router.push('/auth/login')
-        return
-      }
-
-      // Obtener perfil del usuario
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id, role')
-        .eq('id', authUser.id)
-        .single()
-
-      if (profileError || !profile) {
-        router.push('/auth/login')
-        return
-      }
-
-      setUser({
-        id: profile.id,
-        role: profile.role
+      const response = await fetch('/api/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reportForm)
       })
 
-      // Cargar datos de reportes
-      await loadReportData(authUser.id, profile.role, supabase)
-
+      if (response.ok) {
+        const data = await response.json()
+        setReportResult(data.report)
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al generar reporte')
+      }
     } catch (error) {
-      console.error('Error initializing reports:', error)
-      router.push('/auth/login')
+      console.error('Error generating report:', error)
+      alert('Error al generar reporte')
     } finally {
       setLoading(false)
     }
   }
 
-  const loadReportData = async (userId: string, userRole: string, supabase: any) => {
+  const handleExportData = async () => {
+    if (!exportForm.fecha_inicio || !exportForm.fecha_fin) {
+      alert('Debe seleccionar las fechas de inicio y fin')
+      return
+    }
+
+    if (!exportForm.incluir_conductores && !exportForm.incluir_paquetes) {
+      alert('Debe seleccionar al menos un tipo de datos para exportar')
+      return
+    }
+
     try {
-      // Configurar consultas basadas en el rol
-      let deliveriesQuery = supabase.from('deliveries').select('*')
-      let conductorsQuery = supabase.from('conductors').select('*')
-      let usersQuery = supabase.from('user_profiles').select('*')
-
-      // Si no es admin, filtrar por usuario
-      if (userRole !== 'admin') {
-        deliveriesQuery = deliveriesQuery.eq('user_id', userId)
-        conductorsQuery = conductorsQuery.eq('user_id', userId)
-        usersQuery = usersQuery.eq('id', userId)
-      }
-
-      // Ejecutar consultas
-      const [deliveriesResult, conductorsResult, usersResult] = await Promise.all([
-        deliveriesQuery,
-        conductorsQuery,
-        usersQuery
-      ])
-
-      const deliveries = deliveriesResult.data || []
-      const conductors = conductorsResult.data || []
-      const users = usersResult.data || []
-
-      // Calcular estadísticas
-      const totalDeliveries = deliveries.length
-      const completedDeliveries = deliveries.filter(d => d.status === 'delivered').length
-      const pendingDeliveries = deliveries.filter(d => d.status === 'pending').length
-      const returnedDeliveries = deliveries.filter(d => d.status === 'returned').length
-      const activeConductors = conductors.filter(c => c.is_active).length
-      const totalUsers = users.length
-
-      // Entregas por plataforma
-      const deliveriesByPlatform = {
-        shein: deliveries.filter(d => d.platform === 'shein').length,
-        temu: deliveries.filter(d => d.platform === 'temu').length,
-        dropi: deliveries.filter(d => d.platform === 'dropi').length,
-        other: deliveries.filter(d => d.platform === 'other').length
-      }
-
-      // Entregas por mes (últimos 6 meses)
-      const now = new Date()
-      const deliveriesByMonth = []
+      setLoading(true)
       
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthName = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })
-        const monthDeliveries = deliveries.filter(d => {
-          const deliveryDate = new Date(d.created_at)
-          return deliveryDate.getMonth() === date.getMonth() && 
-                 deliveryDate.getFullYear() === date.getFullYear()
-        }).length
-        
-        deliveriesByMonth.push({
-          month: monthName,
-          count: monthDeliveries
-        })
-      }
-
-      setReportData({
-        totalDeliveries,
-        completedDeliveries,
-        pendingDeliveries,
-        returnedDeliveries,
-        activeConductors,
-        totalUsers,
-        deliveriesByPlatform,
-        deliveriesByMonth
+      const response = await fetch('/api/reports/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exportForm)
       })
 
+      if (response.ok) {
+        if (exportForm.formato === 'csv') {
+          // Descargar archivo CSV
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `barulogix_export_${new Date().toISOString().split('T')[0]}.csv`
+          document.body.appendChild(a)
+          a.click()
+          window.URL.revokeObjectURL(url)
+          document.body.removeChild(a)
+          alert('Archivo CSV descargado exitosamente')
+        } else {
+          // Mostrar JSON
+          const data = await response.json()
+          setReportResult(JSON.stringify(data, null, 2))
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al exportar datos')
+      }
     } catch (error) {
-      console.error('Error loading report data:', error)
+      console.error('Error exporting data:', error)
+      alert('Error al exportar datos')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const generateReport = () => {
-    if (!reportData) return
+  const downloadReport = () => {
+    if (!reportResult) return
 
-    const reportContent = `
-REPORTE BARULOGIX
-================
-
-Fecha: ${new Date().toLocaleDateString()}
-Período: ${selectedPeriod}
-
-RESUMEN GENERAL
---------------
-Total de Entregas: ${reportData.totalDeliveries}
-Entregas Completadas: ${reportData.completedDeliveries}
-Entregas Pendientes: ${reportData.pendingDeliveries}
-Entregas Devueltas: ${reportData.returnedDeliveries}
-Conductores Activos: ${reportData.activeConductors}
-Total de Usuarios: ${reportData.totalUsers}
-
-ENTREGAS POR PLATAFORMA
-----------------------
-Shein: ${reportData.deliveriesByPlatform.shein}
-Temu: ${reportData.deliveriesByPlatform.temu}
-Dropi: ${reportData.deliveriesByPlatform.dropi}
-Otros: ${reportData.deliveriesByPlatform.other}
-
-ENTREGAS POR MES
----------------
-${reportData.deliveriesByMonth.map(m => `${m.month}: ${m.count}`).join('\n')}
-
-MÉTRICAS DE RENDIMIENTO
-----------------------
-Tasa de Éxito: ${reportData.totalDeliveries > 0 ? ((reportData.completedDeliveries / reportData.totalDeliveries) * 100).toFixed(1) : 0}%
-Tasa de Devolución: ${reportData.totalDeliveries > 0 ? ((reportData.returnedDeliveries / reportData.totalDeliveries) * 100).toFixed(1) : 0}%
-    `
-
-    const blob = new Blob([reportContent], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
+    const blob = new Blob([reportResult], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `reporte-barulogix-${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `reporte_barulogix_${new Date().toISOString().split('T')[0]}.txt`
     document.body.appendChild(a)
     a.click()
+    window.URL.revokeObjectURL(url)
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-lg text-gray-600">Cargando reportes...</div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!reportData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="text-red-600 text-lg mb-4">❌ Error al cargar datos de reportes</div>
-          <button
-            onClick={initializeReports}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-          >
-            Reintentar
-          </button>
-        </div>
-      </div>
-    )
+  const clearReport = () => {
+    setReportResult('')
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link
-                href="/dashboard"
-                className="mr-4 p-2 rounded-md text-gray-400 hover:text-gray-600"
-              >
-                <ArrowLeft className="h-6 w-6" />
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">📊 Reportes y Estadísticas</h1>
-                <p className="text-sm text-gray-600">Análisis de rendimiento y métricas</p>
-              </div>
+              <Image
+                src="/logo-oficial-transparente.png"
+                alt="BaruLogix"
+                width={40}
+                height={40}
+                className="mr-3"
+              />
+              <h1 className="text-xl font-bold text-gray-800 font-montserrat">BaruLogix - Reportes y Exportación</h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="week">Esta semana</option>
-                <option value="month">Este mes</option>
-                <option value="quarter">Este trimestre</option>
-                <option value="year">Este año</option>
-              </select>
+            <div className="flex space-x-4">
               <button
-                onClick={generateReport}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
+                onClick={() => router.push('/dashboard')}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Descargar Reporte
+                Dashboard
+              </button>
+              <button
+                onClick={() => router.push('/search')}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Búsqueda
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('user')
+                  localStorage.removeItem('session')
+                  router.push('/auth/login')
+                }}
+                className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                Cerrar Sesión
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Package className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Total Entregas
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {reportData.totalDeliveries}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Generación de Reportes */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-montserrat flex items-center">
+              <svg className="w-6 h-6 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generar Reportes
+            </h2>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <TrendingUp className="h-6 w-6 text-green-500" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Tasa de Éxito
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {reportData.totalDeliveries > 0 
-                          ? ((reportData.completedDeliveries / reportData.totalDeliveries) * 100).toFixed(1)
-                          : 0}%
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Reporte
+                </label>
+                <select
+                  value={reportForm.tipo_reporte}
+                  onChange={(e) => setReportForm({ ...reportForm, tipo_reporte: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="general">Reporte General</option>
+                  <option value="especifico">Reporte Específico por Conductor</option>
+                </select>
               </div>
-            </div>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Users className="h-6 w-6 text-purple-500" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Conductores Activos
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {reportData.activeConductors}
-                      </dd>
-                    </dl>
-                  </div>
+              {reportForm.tipo_reporte === 'especifico' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Conductor
+                  </label>
+                  <select
+                    value={reportForm.conductor_id}
+                    onChange={(e) => setReportForm({ ...reportForm, conductor_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar conductor</option>
+                    {conductors.filter(c => c.activo).map(conductor => (
+                      <option key={conductor.id} value={conductor.id}>
+                        {conductor.nombre} - {conductor.zona}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <BarChart3 className="h-6 w-6 text-orange-500" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Pendientes
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {reportData.pendingDeliveries}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Entregas por Estado */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Estado de Entregas</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Completadas</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.completedDeliveries / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.completedDeliveries}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Pendientes</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-yellow-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.pendingDeliveries / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.pendingDeliveries}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Devueltas</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-red-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.returnedDeliveries / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.returnedDeliveries}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Entregas por Plataforma */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Entregas por Plataforma</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Shein</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-pink-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.deliveriesByPlatform.shein / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.deliveriesByPlatform.shein}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Temu</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-orange-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.deliveriesByPlatform.temu / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.deliveriesByPlatform.temu}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Dropi</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.deliveriesByPlatform.dropi / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.deliveriesByPlatform.dropi}</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Otros</span>
-                  <div className="flex items-center">
-                    <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
-                      <div 
-                        className="bg-gray-500 h-2 rounded-full" 
-                        style={{ 
-                          width: reportData.totalDeliveries > 0 
-                            ? `${(reportData.deliveriesByPlatform.other / reportData.totalDeliveries) * 100}%` 
-                            : '0%' 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium">{reportData.deliveriesByPlatform.other}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Entregas por Mes */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Tendencia de Entregas (Últimos 6 meses)</h3>
-            <div className="mt-4">
-              <div className="flex items-end space-x-2 h-64">
-                {reportData.deliveriesByMonth.map((month, index) => {
-                  const maxCount = Math.max(...reportData.deliveriesByMonth.map(m => m.count))
-                  const height = maxCount > 0 ? (month.count / maxCount) * 100 : 0
-                  
-                  return (
-                    <div key={index} className="flex flex-col items-center flex-1">
-                      <div className="w-full flex flex-col items-center">
-                        <span className="text-xs text-gray-600 mb-1">{month.count}</span>
-                        <div 
-                          className="w-full bg-blue-500 rounded-t"
-                          style={{ height: `${height}%`, minHeight: month.count > 0 ? '4px' : '0px' }}
-                        ></div>
-                      </div>
-                      <span className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-left">
-                        {month.month}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Summary Report */}
-          <div className="bg-white p-6 rounded-lg shadow mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Resumen Ejecutivo</h3>
-              <FileText className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="prose text-sm text-gray-600">
-              <p>
-                En el período seleccionado, se han procesado un total de <strong>{reportData.totalDeliveries}</strong> entregas, 
-                con una tasa de éxito del <strong>
-                {reportData.totalDeliveries > 0 
-                  ? ((reportData.completedDeliveries / reportData.totalDeliveries) * 100).toFixed(1)
-                  : 0}%
-                </strong>.
-              </p>
-              <p className="mt-2">
-                El equipo cuenta con <strong>{reportData.activeConductors}</strong> conductores activos, 
-                y actualmente hay <strong>{reportData.pendingDeliveries}</strong> entregas pendientes de procesamiento.
-              </p>
-              {reportData.returnedDeliveries > 0 && (
-                <p className="mt-2 text-amber-600">
-                  Se registraron <strong>{reportData.returnedDeliveries}</strong> entregas devueltas, 
-                  lo que representa un <strong>
-                  {((reportData.returnedDeliveries / reportData.totalDeliveries) * 100).toFixed(1)}%
-                  </strong> del total.
-                </p>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Inicio
+                  </label>
+                  <input
+                    type="date"
+                    value={reportForm.fecha_inicio}
+                    onChange={(e) => setReportForm({ ...reportForm, fecha_inicio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Fin
+                  </label>
+                  <input
+                    type="date"
+                    value={reportForm.fecha_fin}
+                    onChange={(e) => setReportForm({ ...reportForm, fecha_fin: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleGenerateReport}
+                disabled={loading}
+                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                {loading ? 'Generando...' : 'Generar Reporte'}
+              </button>
+            </div>
+          </div>
+
+          {/* Exportación de Datos */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-montserrat flex items-center">
+              <svg className="w-6 h-6 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar Datos
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Formato de Exportación
+                </label>
+                <select
+                  value={exportForm.formato}
+                  onChange={(e) => setExportForm({ ...exportForm, formato: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Conductor (Opcional)
+                </label>
+                <select
+                  value={exportForm.conductor_id}
+                  onChange={(e) => setExportForm({ ...exportForm, conductor_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Todos los conductores</option>
+                  {conductors.map(conductor => (
+                    <option key={conductor.id} value={conductor.id}>
+                      {conductor.nombre} - {conductor.zona}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Inicio
+                  </label>
+                  <input
+                    type="date"
+                    value={exportForm.fecha_inicio}
+                    onChange={(e) => setExportForm({ ...exportForm, fecha_inicio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Fin
+                  </label>
+                  <input
+                    type="date"
+                    value={exportForm.fecha_fin}
+                    onChange={(e) => setExportForm({ ...exportForm, fecha_fin: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Datos a Incluir
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={exportForm.incluir_paquetes}
+                      onChange={(e) => setExportForm({ ...exportForm, incluir_paquetes: e.target.checked })}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Incluir Paquetes</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={exportForm.incluir_conductores}
+                      onChange={(e) => setExportForm({ ...exportForm, incluir_conductores: e.target.checked })}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Incluir Conductores</span>
+                  </label>
+                </div>
+              </div>
+
+              <button
+                onClick={handleExportData}
+                disabled={loading}
+                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              >
+                {loading ? 'Exportando...' : 'Exportar Datos'}
+              </button>
             </div>
           </div>
         </div>
-      </main>
+
+        {/* Resultado del Reporte */}
+        {reportResult && (
+          <div className="mt-8 bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 font-montserrat">Resultado del Reporte</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={downloadReport}
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Descargar
+                </button>
+                <button
+                  onClick={clearReport}
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                {reportResult}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {/* Información de Ayuda */}
+        {!reportResult && (
+          <div className="mt-8 bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Información sobre Reportes y Exportación</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Reportes Disponibles:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• <strong>Reporte General:</strong> Estadísticas completas de todos los conductores y paquetes</li>
+                  <li>• <strong>Reporte Específico:</strong> Análisis detallado de un conductor particular</li>
+                  <li>• Incluye paquetes entregados, no entregados y devueltos</li>
+                  <li>• Cálculo automático de días de atraso</li>
+                  <li>• Valores monetarios para paquetes Dropi</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Formatos de Exportación:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• <strong>JSON:</strong> Formato estructurado para análisis programático</li>
+                  <li>• <strong>CSV:</strong> Compatible con Excel y hojas de cálculo</li>
+                  <li>• Filtrado por rango de fechas</li>
+                  <li>• Opción de incluir conductores y/o paquetes</li>
+                  <li>• Filtrado por conductor específico</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
