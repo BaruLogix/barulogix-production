@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { nombre, zona } = body
+    const { nombre, zona, telefono } = body
 
     if (!nombre || !zona) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
@@ -56,20 +56,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
     }
 
-    // Crear conductor (sin restricción de usuario - cualquier usuario puede crear)
-    const { data: conductor, error } = await supabase
+    // Preparar datos base
+    const baseData = {
+      nombre: nombre.trim(),
+      zona: zona.trim()
+    }
+
+    // Intentar insertar con todos los campos primero
+    let insertData = {
+      ...baseData,
+      telefono: telefono?.trim() || null,
+      activo: true
+    }
+
+    let { data: conductor, error } = await supabase
       .from('conductors')
-      .insert({
-        nombre: nombre.trim(),
-        zona: zona.trim(),
-        activo: true
-      })
+      .insert(insertData)
       .select()
       .single()
 
+    // Si falla, intentar solo con campos básicos
+    if (error && error.message.includes('column')) {
+      console.log('Intentando inserción con campos básicos...')
+      
+      insertData = baseData
+      
+      const result = await supabase
+        .from('conductors')
+        .insert(insertData)
+        .select()
+        .single()
+      
+      conductor = result.data
+      error = result.error
+    }
+
     if (error) {
       console.error('Error creating conductor:', error)
-      return NextResponse.json({ error: 'Error al crear conductor' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Error al crear conductor', 
+        details: error.message 
+      }, { status: 500 })
     }
 
     return NextResponse.json({ conductor }, { status: 201 })

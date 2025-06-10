@@ -8,6 +8,7 @@ interface Conductor {
   id: string
   nombre: string
   zona: string
+  telefono?: string
   activo: boolean
   created_at: string
 }
@@ -22,6 +23,7 @@ export default function ConductorsPage() {
   const [formData, setFormData] = useState({
     nombre: '',
     zona: '',
+    telefono: '',
     activo: true
   })
   const router = useRouter()
