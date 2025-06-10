@@ -6,28 +6,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// GET - Obtener todos los conductores del usuario
+// GET - Obtener todos los conductores
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // Obtener el usuario desde el token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-    }
-
-    // Obtener conductores del usuario
+    // Obtener conductores (sin restricción de usuario - todos pueden ver todos)
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
-      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -35,7 +20,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
     }
 
-    return NextResponse.json({ conductors })
+    // Calcular estadísticas
+    const stats = {
+      total: conductors.length,
+      activos: conductors.filter(c => c.activo).length,
+      inactivos: conductors.filter(c => !c.activo).length,
+      zonas: [...new Set(conductors.map(c => c.zona))].length
+    }
+
+    return NextResponse.json({ conductors, stats })
   } catch (error) {
     console.error('Error in GET /api/conductors:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
@@ -45,50 +38,32 @@ export async function GET(request: NextRequest) {
 // POST - Crear nuevo conductor
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // Obtener el usuario desde el token
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { name, zone, phone, email } = body
+    const { nombre, zona, telefono } = body
 
-    if (!name || !zone) {
+    if (!nombre || !zona) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // Verificar si ya existe un conductor con el mismo nombre en la misma zona
+    // Verificar si ya existe un conductor con el mismo nombre
     const { data: existing } = await supabase
       .from('conductors')
       .select('id')
-      .eq('user_id', user.id)
-      .eq('name', name)
-      .eq('zone', zone)
+      .eq('nombre', nombre)
       .single()
 
     if (existing) {
-      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en esa zona' }, { status: 400 })
+      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
     }
 
-    // Crear conductor
+    // Crear conductor (sin restricción de usuario - cualquier usuario puede crear)
     const { data: conductor, error } = await supabase
       .from('conductors')
       .insert({
-        user_id: user.id,
-        name: name.trim(),
-        zone: zone.trim(),
-        phone: phone?.trim() || null,
-        email: email?.trim() || null,
-        is_active: true
+        nombre: nombre.trim(),
+        zona: zona.trim(),
+        telefono: telefono?.trim() || null,
+        activo: true
       })
       .select()
       .single()

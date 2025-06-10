@@ -8,6 +8,7 @@ interface Conductor {
   id: string
   nombre: string
   zona: string
+  telefono?: string
   activo: boolean
   created_at: string
 }
@@ -22,6 +23,7 @@ export default function ConductorsPage() {
   const [formData, setFormData] = useState({
     nombre: '',
     zona: '',
+    telefono: '',
     activo: true
   })
   const router = useRouter()
@@ -73,7 +75,7 @@ export default function ConductorsPage() {
         await loadConductors()
         setShowModal(false)
         setEditingConductor(null)
-        setFormData({ nombre: '', zona: '', activo: true })
+        setFormData({ nombre: '', zona: '', telefono: '', activo: true })
       } else {
         const error = await response.json()
         alert(error.error || 'Error al guardar conductor')
@@ -91,6 +93,7 @@ export default function ConductorsPage() {
     setFormData({
       nombre: conductor.nombre,
       zona: conductor.zona,
+      telefono: conductor.telefono || '',
       activo: conductor.activo
     })
     setShowModal(true)
@@ -276,7 +279,7 @@ export default function ConductorsPage() {
             <button
               onClick={() => {
                 setEditingConductor(null)
-                setFormData({ nombre: '', zona: '', activo: true })
+                setFormData({ nombre: '', zona: '', telefono: '', activo: true })
                 setShowModal(true)
               }}
               className="btn-primary hover-glow"
@@ -310,6 +313,7 @@ export default function ConductorsPage() {
                   <tr>
                     <th>Nombre</th>
                     <th>Zona</th>
+                    <th>Teléfono</th>
                     <th>Estado</th>
                     <th>Fecha Registro</th>
                     <th>Acciones</th>
@@ -336,6 +340,15 @@ export default function ConductorsPage() {
                           </svg>
                           {conductor.zona}
                         </span>
+                      </td>
+                      <td className="text-secondary-600 font-segoe">
+                        {conductor.telefono ? (
+                          <a href={`tel:${conductor.telefono}`} className="text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                            {conductor.telefono}
+                          </a>
+                        ) : (
+                          <span className="text-secondary-400 italic">No registrado</span>
+                        )}
                       </td>
                       <td>
                         <button
@@ -424,6 +437,17 @@ export default function ConductorsPage() {
                   onChange={(e) => setFormData({ ...formData, zona: e.target.value })}
                   className="input-barulogix-modern focus-ring"
                   placeholder="Zona de trabajo"
+                />
+              </div>
+
+              <div>
+                <label className="label-barulogix">Teléfono (Opcional)</label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                  placeholder="Número de teléfono"
                 />
               </div>
 
