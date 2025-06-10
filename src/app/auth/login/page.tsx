@@ -34,6 +34,7 @@ export default function LoginPage() {
 
       if (data.success) {
         localStorage.setItem('user', JSON.stringify(data.user))
+        localStorage.setItem('session', JSON.stringify(data.session || { token: 'dummy' }))
         
         // Usar setTimeout para asegurar que localStorage se guarde
         setTimeout(() => {
