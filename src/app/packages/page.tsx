@@ -4,6 +4,22 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
+interface Package {
+  id: string
+  tracking: string
+  conductor_id: string
+  conductor: {
+    id: string
+    nombre: string
+    zona: string
+  }
+  tipo: 'Shein/Temu' | 'Dropi'
+  estado: number
+  fecha_entrega: string
+  valor?: number
+  created_at: string
+}
+
 interface Conductor {
   id: string
   nombre: string
@@ -11,54 +27,42 @@ interface Conductor {
   activo: boolean
 }
 
-interface Package {
-  id: string
-  tracking: string
-  conductor_id: string
-  tipo: 'Shein/Temu' | 'Dropi'
-  estado: 0 | 1 | 2 // 0=no entregado, 1=entregado, 2=devuelto
-  fecha_entrega: string
-  valor?: number
-  created_at: string
-  conductor: Conductor
-}
-
-interface PackageStats {
-  total_packages: number
-  no_entregados: number
-  entregados: number
-  devueltos: number
-  shein_temu: number
-  dropi: number
-  valor_total_dropi: number
-  valor_no_entregado_dropi: number
-}
-
 export default function PackagesPage() {
   const [packages, setPackages] = useState<Package[]>([])
   const [conductors, setConductors] = useState<Conductor[]>([])
-  const [stats, setStats] = useState<PackageStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterConductor, setFilterConductor] = useState('')
   const [filterTipo, setFilterTipo] = useState('')
   const [filterEstado, setFilterEstado] = useState('')
-  const router = useRouter()
-
-  // Formulario
+  const [stats, setStats] = useState({
+    total_packages: 0,
+    entregados: 0,
+    no_entregados: 0,
+    devueltos: 0,
+    valor_total_dropi: 0
+  })
   const [formData, setFormData] = useState({
     tracking: '',
     conductor_id: '',
     tipo: 'Shein/Temu' as 'Shein/Temu' | 'Dropi',
+    estado: 0,
     fecha_entrega: '',
     valor: ''
   })
+  const router = useRouter()
 
   useEffect(() => {
     checkAuth()
-    loadData()
+    loadPackages()
+    loadConductors()
+    loadStats()
+    
+    // Establecer fecha por defecto (hoy)
+    const today = new Date().toISOString().split('T')[0]
+    setFormData(prev => ({ ...prev, fecha_entrega: today }))
   }, [])
 
   const checkAuth = () => {
@@ -71,39 +75,9 @@ export default function PackagesPage() {
     }
   }
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      
-      // Cargar conductores
-      const conductorsRes = await fetch('/api/conductors')
-      if (conductorsRes.ok) {
-        const conductorsData = await conductorsRes.json()
-        setConductors(conductorsData.conductors || [])
-      }
-
-      // Cargar paquetes
-      await loadPackages()
-      
-      // Cargar estadísticas
-      await loadStats()
-      
-    } catch (error) {
-      console.error('Error loading data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const loadPackages = async () => {
     try {
-      const params = new URLSearchParams()
-      if (searchTerm) params.append('search', searchTerm)
-      if (filterConductor) params.append('conductor_id', filterConductor)
-      if (filterTipo) params.append('tipo', filterTipo)
-      if (filterEstado !== '') params.append('estado', filterEstado)
-
-      const response = await fetch(`/api/packages?${params}`)
+      const response = await fetch('/api/packages')
       if (response.ok) {
         const data = await response.json()
         setPackages(data.packages || [])
@@ -113,28 +87,38 @@ export default function PackagesPage() {
     }
   }
 
+  const loadConductors = async () => {
+    try {
+      const response = await fetch('/api/conductors')
+      if (response.ok) {
+        const data = await response.json()
+        setConductors(data.conductors || [])
+      }
+    } catch (error) {
+      console.error('Error loading conductors:', error)
+    }
+  }
+
   const loadStats = async () => {
     try {
       const response = await fetch('/api/packages/stats')
       if (response.ok) {
         const data = await response.json()
-        setStats(data.stats)
+        setStats(data.stats || {})
       }
     } catch (error) {
       console.error('Error loading stats:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.tracking || !formData.conductor_id || !formData.fecha_entrega) {
-      alert('Por favor complete todos los campos requeridos')
-      return
-    }
+    setLoading(true)
 
     try {
-      const packageData = {
+      const submitData = {
         ...formData,
         valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
       }
@@ -145,28 +129,31 @@ export default function PackagesPage() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(packageData)
+        body: JSON.stringify(submitData)
       })
 
       if (response.ok) {
-        alert(editingPackage ? 'Paquete actualizado exitosamente' : 'Paquete registrado exitosamente')
-        setShowForm(false)
+        await loadPackages()
+        await loadStats()
+        setShowModal(false)
         setEditingPackage(null)
         setFormData({
           tracking: '',
           conductor_id: '',
           tipo: 'Shein/Temu',
-          fecha_entrega: '',
+          estado: 0,
+          fecha_entrega: new Date().toISOString().split('T')[0],
           valor: ''
         })
-        loadData()
       } else {
         const error = await response.json()
-        alert(error.error || 'Error al procesar el paquete')
+        alert(error.error || 'Error al guardar paquete')
       }
     } catch (error) {
-      console.error('Error submitting package:', error)
-      alert('Error al procesar el paquete')
+      console.error('Error saving package:', error)
+      alert('Error al guardar paquete')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -176,51 +163,31 @@ export default function PackagesPage() {
       tracking: pkg.tracking,
       conductor_id: pkg.conductor_id,
       tipo: pkg.tipo,
+      estado: pkg.estado,
       fecha_entrega: pkg.fecha_entrega,
       valor: pkg.valor?.toString() || ''
     })
-    setShowForm(true)
+    setShowModal(true)
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Está seguro de eliminar este paquete?')) return
 
     try {
-      const response = await fetch(`/api/packages/${id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/packages/${id}`, {
+        method: 'DELETE'
+      })
+
       if (response.ok) {
-        alert('Paquete eliminado exitosamente')
-        loadData()
+        await loadPackages()
+        await loadStats()
       } else {
-        alert('Error al eliminar paquete')
+        const error = await response.json()
+        alert(error.error || 'Error al eliminar paquete')
       }
     } catch (error) {
       console.error('Error deleting package:', error)
       alert('Error al eliminar paquete')
-    }
-  }
-
-  const updatePackageStatus = async (id: string, newStatus: 0 | 1 | 2) => {
-    try {
-      const pkg = packages.find(p => p.id === id)
-      if (!pkg) return
-
-      const response = await fetch(`/api/packages/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...pkg,
-          estado: newStatus
-        })
-      })
-
-      if (response.ok) {
-        loadData()
-      } else {
-        alert('Error al actualizar estado del paquete')
-      }
-    } catch (error) {
-      console.error('Error updating package status:', error)
-      alert('Error al actualizar estado del paquete')
     }
   }
 
@@ -233,191 +200,353 @@ export default function PackagesPage() {
     }
   }
 
-  const getEstadoClass = (estado: number) => {
+  const getEstadoBadge = (estado: number) => {
     switch (estado) {
-      case 0: return 'bg-yellow-100 text-yellow-800'
-      case 1: return 'bg-green-100 text-green-800'
-      case 2: return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 0: return 'badge-warning'
+      case 1: return 'badge-success'
+      case 2: return 'badge-danger'
+      default: return 'badge-neutral'
     }
   }
 
-  const getTipoClass = (tipo: string) => {
-    return tipo === 'Shein/Temu' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-  }
+  const filteredPackages = packages.filter(pkg => {
+    const matchesSearch = pkg.tracking.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         pkg.conductor.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesConductor = !filterConductor || pkg.conductor_id === filterConductor
+    const matchesTipo = !filterTipo || pkg.tipo === filterTipo
+    const matchesEstado = !filterEstado || pkg.estado.toString() === filterEstado
+    return matchesSearch && matchesConductor && matchesTipo && matchesEstado
+  })
 
-  if (loading) {
+  if (loading && packages.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando paquetes...</p>
+          <div className="loading-spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-secondary-600 text-lg font-medium font-segoe">Cargando paquetes...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Image
-                src="/logo-oficial-transparente.png"
-                alt="BaruLogix"
-                width={40}
-                height={40}
-                className="mr-3"
-              />
-              <h1 className="text-xl font-bold text-gray-800 font-montserrat">BaruLogix - Gestión de Paquetes</h1>
+      <header className="header-barulogix">
+        <div className="header-content">
+          <div className="flex items-center">
+            <Image
+              src="/logo-oficial-transparente.png"
+              alt="BaruLogix"
+              width={50}
+              height={50}
+              className="mr-4"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix - Paquetes</h1>
+              <p className="text-sm text-secondary-600 font-segoe">Gestión de paquetes Shein/Temu y Dropi</p>
             </div>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('user')
-                  localStorage.removeItem('session')
-                  router.push('/auth/login')
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="btn-secondary btn-sm"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Dashboard
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('user')
+                localStorage.removeItem('session')
+                router.push('/auth/login')
+              }}
+              className="btn-danger btn-sm"
+            >
+              Cerrar Sesión
+            </button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Estadísticas */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Paquetes</h3>
-              <p className="text-3xl font-bold text-blue-600">{stats.total_packages}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Entregados</h3>
-              <p className="text-3xl font-bold text-yellow-600">{stats.no_entregados}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Entregados</h3>
-              <p className="text-3xl font-bold text-green-600">{stats.entregados}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Devueltos</h3>
-              <p className="text-3xl font-bold text-red-600">{stats.devueltos}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="card-barulogix hover-lift animate-slide-up">
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-primary-100 text-primary-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Total</p>
+                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.total_packages}</p>
+              </div>
             </div>
           </div>
-        )}
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-green-100 text-green-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Entregados</p>
+                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.entregados}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Pendientes</p>
+                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.no_entregados}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.3s'}}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-red-100 text-red-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Devueltos</p>
+                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{stats.devueltos}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.4s'}}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Valor Dropi</p>
+                <p className="text-lg font-bold text-secondary-900 font-montserrat">
+                  ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Controles */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 font-montserrat">Gestión de Paquetes</h2>
+        <div className="card-barulogix-lg mb-8 animate-fade-in">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+              <input
+                type="text"
+                placeholder="Buscar por tracking o conductor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              />
+              <select
+                value={filterConductor}
+                onChange={(e) => setFilterConductor(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              >
+                <option value="">Todos los conductores</option>
+                {conductors.filter(c => c.activo).map(conductor => (
+                  <option key={conductor.id} value={conductor.id}>
+                    {conductor.nombre} - {conductor.zona}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterTipo}
+                onChange={(e) => setFilterTipo(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              >
+                <option value="">Todos los tipos</option>
+                <option value="Shein/Temu">Shein/Temu</option>
+                <option value="Dropi">Dropi</option>
+              </select>
+              <select
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              >
+                <option value="">Todos los estados</option>
+                <option value="0">No Entregado</option>
+                <option value="1">Entregado</option>
+                <option value="2">Devuelto</option>
+              </select>
+            </div>
             <button
               onClick={() => {
-                setShowForm(true)
                 setEditingPackage(null)
                 setFormData({
                   tracking: '',
                   conductor_id: '',
                   tipo: 'Shein/Temu',
-                  fecha_entrega: '',
+                  estado: 0,
+                  fecha_entrega: new Date().toISOString().split('T')[0],
                   valor: ''
                 })
+                setShowModal(true)
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              className="btn-primary hover-glow"
             >
-              Registrar Paquete
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Agregar Paquete
             </button>
           </div>
-
-          {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <input
-              type="text"
-              placeholder="Buscar por tracking..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={filterConductor}
-              onChange={(e) => setFilterConductor(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los conductores</option>
-              {conductors.map(conductor => (
-                <option key={conductor.id} value={conductor.id}>
-                  {conductor.nombre} - {conductor.zona}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filterTipo}
-              onChange={(e) => setFilterTipo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los tipos</option>
-              <option value="Shein/Temu">Shein/Temu</option>
-              <option value="Dropi">Dropi</option>
-            </select>
-            <select
-              value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los estados</option>
-              <option value="0">No Entregado</option>
-              <option value="1">Entregado</option>
-              <option value="2">Devuelto</option>
-            </select>
-          </div>
-
-          <button
-            onClick={loadPackages}
-            className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-          >
-            Aplicar Filtros
-          </button>
         </div>
 
-        {/* Formulario */}
-        {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4 font-montserrat">
-              {editingPackage ? 'Editar Paquete' : 'Registrar Nuevo Paquete'}
-            </h3>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Lista de Paquetes */}
+        <div className="card-barulogix-lg animate-fade-in">
+          <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
+            Lista de Paquetes ({filteredPackages.length})
+          </h2>
+
+          {filteredPackages.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
+              </svg>
+              <p className="text-secondary-600 text-lg font-segoe">No se encontraron paquetes</p>
+              <p className="text-secondary-500 text-sm font-segoe mt-1">Agrega el primer paquete para comenzar</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table-barulogix">
+                <thead>
+                  <tr>
+                    <th>Tracking</th>
+                    <th>Conductor</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Fecha Entrega</th>
+                    <th>Valor</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPackages.map((pkg, index) => (
+                    <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
+                      <td>
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-3 ${
+                            pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+                          }`}></div>
+                          <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div>
+                          <p className="font-medium text-secondary-900 font-segoe">{pkg.conductor.nombre}</p>
+                          <p className="text-xs text-secondary-500">{pkg.conductor.zona}</p>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          pkg.tipo === 'Dropi' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {pkg.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pkg.estado)}`}>
+                          {getEstadoText(pkg.estado)}
+                        </span>
+                      </td>
+                      <td className="text-secondary-600 font-segoe text-sm">
+                        {new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')}
+                      </td>
+                      <td className="text-secondary-600 font-segoe text-sm">
+                        {pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '-'}
+                      </td>
+                      <td>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(pkg)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                            title="Editar"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(pkg.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                            title="Eliminar"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="modal-overlay animate-fade-in">
+          <div className="modal-content animate-scale-in max-w-lg">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                {editingPackage ? 'Editar Paquete' : 'Agregar Paquete'}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tracking *
-                </label>
+                <label className="label-barulogix">Tracking</label>
                 <input
                   type="text"
+                  required
                   value={formData.tracking}
                   onChange={(e) => setFormData({ ...formData, tracking: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  className="input-barulogix-modern focus-ring"
+                  placeholder="Número de tracking"
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Conductor *
-                </label>
+                <label className="label-barulogix">Conductor</label>
                 <select
+                  required
                   value={formData.conductor_id}
                   onChange={(e) => setFormData({ ...formData, conductor_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  className="input-barulogix-modern focus-ring"
                 >
                   <option value="">Seleccionar conductor</option>
                   {conductors.filter(c => c.activo).map(conductor => (
@@ -427,159 +556,80 @@ export default function PackagesPage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo *
-                </label>
-                <select
-                  value={formData.tipo}
-                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value as 'Shein/Temu' | 'Dropi' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="Shein/Temu">Shein/Temu</option>
-                  <option value="Dropi">Dropi</option>
-                </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label-barulogix">Tipo</label>
+                  <select
+                    value={formData.tipo}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value as 'Shein/Temu' | 'Dropi' })}
+                    className="input-barulogix-modern focus-ring"
+                  >
+                    <option value="Shein/Temu">Shein/Temu</option>
+                    <option value="Dropi">Dropi</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="label-barulogix">Estado</label>
+                  <select
+                    value={formData.estado}
+                    onChange={(e) => setFormData({ ...formData, estado: parseInt(e.target.value) })}
+                    className="input-barulogix-modern focus-ring"
+                  >
+                    <option value={0}>No Entregado</option>
+                    <option value={1}>Entregado</option>
+                    <option value={2}>Devuelto</option>
+                  </select>
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha de Entrega *
-                </label>
+                <label className="label-barulogix">Fecha de Entrega</label>
                 <input
                   type="date"
+                  required
                   value={formData.fecha_entrega}
                   onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  className="input-barulogix-modern focus-ring"
                 />
               </div>
+
               {formData.tipo === 'Dropi' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Valor (COP)
-                  </label>
+                  <label className="label-barulogix">Valor (COP)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    min="0"
+                    step="1000"
                     value={formData.valor}
                     onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0.00"
+                    className="input-barulogix-modern focus-ring"
+                    placeholder="Valor en pesos colombianos"
                   />
                 </div>
               )}
-              <div className="md:col-span-2 flex gap-4">
-                <button
-                  type="submit"
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-                >
-                  {editingPackage ? 'Actualizar' : 'Registrar'}
-                </button>
+
+              <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowForm(false)
-                    setEditingPackage(null)
-                  }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 btn-secondary"
                 >
                   Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 btn-primary disabled:opacity-50"
+                >
+                  {loading ? 'Guardando...' : (editingPackage ? 'Actualizar' : 'Crear')}
                 </button>
               </div>
             </form>
           </div>
-        )}
-
-        {/* Lista de Paquetes */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tracking
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conductor
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha Entrega
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Valor
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {packages.map((pkg) => (
-                  <tr key={pkg.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {pkg.tracking}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {pkg.conductor.nombre} - {pkg.conductor.zona}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTipoClass(pkg.tipo)}`}>
-                        {pkg.tipo}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoClass(pkg.estado)}`}>
-                        {getEstadoText(pkg.estado)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(pkg.fecha_entrega).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {pkg.valor ? `$${pkg.valor.toLocaleString()}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleEdit(pkg)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Editar
-                      </button>
-                      <select
-                        value={pkg.estado}
-                        onChange={(e) => updatePackageStatus(pkg.id, parseInt(e.target.value) as 0 | 1 | 2)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value={0}>No Entregado</option>
-                        <option value={1}>Entregado</option>
-                        <option value={2}>Devuelto</option>
-                      </select>
-                      <button
-                        onClick={() => handleDelete(pkg.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {packages.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No se encontraron paquetes</p>
-            </div>
-          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
