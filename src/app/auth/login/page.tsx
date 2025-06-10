@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -13,16 +12,14 @@ export default function LoginPage() {
   const [showEmailVerification, setShowEmailVerification] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [resendingEmail, setResendingEmail] = useState(false)
-  const router = useRouter()
 
-  const doLogin = async () => {
-    console.log('=== FUNCIÓN DOLOGIN EJECUTÁNDOSE ===')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     setError('')
     setShowEmailVerification(false)
 
     try {
-      console.log('Enviando request a API...')
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -31,31 +28,20 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
 
-      console.log('Response status:', response.status)
       const data = await response.json()
-      console.log('Response data:', data)
 
       if (data.success) {
-        console.log('Login exitoso, guardando en localStorage...')
         localStorage.setItem('user', JSON.stringify(data.user))
-        console.log('Datos guardados, redirigiendo INMEDIATAMENTE...')
         
-        // Redirección con múltiples métodos
-        console.log('Probando redirección método 1: location.href')
-        window.location.href = '/dashboard'
-        
-        setTimeout(() => {
-          console.log('Probando redirección método 2: location.assign')
-          window.location.assign('/dashboard')
-        }, 500)
-        
-        setTimeout(() => {
-          console.log('Probando redirección método 3: location.replace')
-          window.location.replace('/dashboard')
-        }, 1000)
+        // Crear formulario HTML y enviarlo
+        const form = document.createElement('form')
+        form.method = 'GET'
+        form.action = '/dashboard'
+        form.style.display = 'none'
+        document.body.appendChild(form)
+        form.submit()
         
       } else {
-        console.log('Login falló:', data.error)
         if (data.error === 'email_not_verified') {
           setShowEmailVerification(true)
           setUserEmail(data.userEmail)
@@ -70,11 +56,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await doLogin()
   }
 
   const handleResendVerification = async () => {
@@ -213,9 +194,8 @@ export default function LoginPage() {
             </div>
 
             <button
-              type="button"
+              type="submit"
               disabled={loading}
-              onClick={doLogin}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
