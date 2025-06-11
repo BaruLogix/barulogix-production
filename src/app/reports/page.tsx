@@ -261,23 +261,97 @@ export default function ReportsPage() {
         <meta charset="UTF-8">
         <title>Reporte BaruLogix</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-          .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
-          .stat-value { font-size: 24px; font-weight: bold; color: #2563eb; }
-          .stat-label { font-size: 14px; color: #666; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f5f5f5; }
-          .conductor-section { margin-bottom: 30px; }
-          .conductor-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            line-height: 1.4;
+          }
+          .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 20px;
+          }
+          .header h1 {
+            color: #2563eb;
+            margin: 0;
+            font-size: 28px;
+          }
+          .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 30px; 
+          }
+          .stat-card { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            background: #f9fafb;
+          }
+          .stat-value { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #2563eb; 
+            margin: 5px 0;
+          }
+          .stat-label { 
+            font-size: 14px; 
+            color: #666; 
+            margin: 0;
+          }
+          table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            font-size: 12px;
+          }
+          th, td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+          }
+          th { 
+            background-color: #f5f5f5; 
+            font-weight: bold;
+          }
+          .conductor-section { 
+            margin-bottom: 30px; 
+            page-break-inside: avoid;
+          }
+          .conductor-title { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            color: #1f2937;
+            border-left: 4px solid #2563eb;
+            padding-left: 10px;
+          }
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+          }
         </style>
       </head>
       <body>
         <div class="header">
           <h1>BaruLogix - Reporte ${type === 'general' ? 'General' : 'Específico'}</h1>
-          <p>Generado el: ${new Date().toLocaleDateString('es-ES')}</p>
+          <p>Generado el: ${new Date().toLocaleDateString('es-ES', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}</p>
           ${data.metadata?.fecha_desde ? `<p>Período: ${data.metadata.fecha_desde} - ${data.metadata.fecha_hasta || 'Presente'}</p>` : ''}
         </div>
 
@@ -328,47 +402,70 @@ export default function ReportsPage() {
           </div>
         `).join('')}
 
-        <table>
-          <thead>
-            <tr>
-              <th>Tracking</th>
-              <th>Conductor</th>
-              <th>Zona</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Fecha Entrega</th>
-              <th>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${(data.packages || []).map((pkg: any) => `
+        ${(data.packages || []).length > 0 ? `
+          <table>
+            <thead>
               <tr>
-                <td>${pkg.tracking || 'N/A'}</td>
-                <td>${pkg.conductor || 'N/A'}</td>
-                <td>${pkg.zona || 'N/A'}</td>
-                <td>${pkg.tipo || 'N/A'}</td>
-                <td>${pkg.estado || 'N/A'}</td>
-                <td>${pkg.fecha_entrega || 'N/A'}</td>
-                <td>$${pkg.valor?.toLocaleString() || '0'}</td>
+                <th>Tracking</th>
+                <th>Conductor</th>
+                <th>Zona</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Fecha Entrega</th>
+                <th>Valor</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              ${(data.packages || []).map((pkg: any) => `
+                <tr>
+                  <td>${pkg.tracking || 'N/A'}</td>
+                  <td>${pkg.conductor || 'N/A'}</td>
+                  <td>${pkg.zona || 'N/A'}</td>
+                  <td>${pkg.tipo || 'N/A'}</td>
+                  <td>${pkg.estado || 'N/A'}</td>
+                  <td>${pkg.fecha_entrega || 'N/A'}</td>
+                  <td>$${pkg.valor?.toLocaleString() || '0'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : ''}
+
+        <div class="footer">
+          <p>Reporte generado por BaruLogix - Sistema de Gestión Logística</p>
+          <p>© ${new Date().getFullYear()} BaruLogix. Todos los derechos reservados.</p>
+        </div>
+
+        <script>
+          // Auto-trigger print dialog for PDF generation
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 1000);
+          }
+        </script>
       </body>
       </html>
     `
 
-    // Crear blob y descargar directamente
-    const blob = new Blob([htmlContent], { type: 'text/html' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.style.display = 'none'
-    a.href = url
-    a.download = `barulogix_reporte_${type}_${new Date().toISOString().split('T')[0]}.html`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+    // Crear nueva ventana optimizada para PDF
+    const printWindow = window.open('', '_blank', 'width=800,height=600')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      
+      // Configurar para PDF
+      printWindow.onbeforeprint = () => {
+        printWindow.document.title = `BaruLogix_Reporte_${type}_${new Date().toISOString().split('T')[0]}`
+      }
+      
+      // Cerrar ventana después de imprimir/cancelar
+      printWindow.onafterprint = () => {
+        setTimeout(() => {
+          printWindow.close()
+        }, 1000)
+      }
+    }
   }
 
   const getPercentage = (value: number, total: number) => {
@@ -641,8 +738,10 @@ export default function ReportsPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Total Paquetes</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats.total_packages}</p>
-                  <p className="text-xs text-secondary-500 mt-1">En el sistema</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats?.total_packages || 0}</p>
+                  <p className="text-xs text-secondary-500 mt-1">
+                    100% del total
+                  </p>
                 </div>
               </div>
 
@@ -654,9 +753,9 @@ export default function ReportsPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Entregados</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats.entregados}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats?.entregados || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(reportData.general_stats.entregados, reportData.general_stats.total_packages)}% del total
+                    {getPercentage(reportData.general_stats?.entregados || 0, reportData.general_stats?.total_packages || 1)}% del total
                   </p>
                 </div>
               </div>
@@ -670,7 +769,7 @@ export default function ReportsPage() {
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Total Dropi</p>
                   <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                    ${reportData.general_stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                    ${reportData.general_stats?.valor_total_dropi?.toLocaleString('es-CO') || '0'}
                   </p>
                   <p className="text-xs text-secondary-500 mt-1">En pesos colombianos</p>
                 </div>
@@ -680,10 +779,10 @@ export default function ReportsPage() {
             {/* Estadísticas por Conductor */}
             <div className="card-barulogix-lg animate-fade-in">
               <h3 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
-                Estadísticas por Conductor ({reportData.conductor_stats.length})
+                Estadísticas por Conductor ({reportData.conductor_stats?.length || 0})
               </h3>
 
-              {reportData.conductor_stats.length === 0 ? (
+              {(!reportData.conductor_stats || reportData.conductor_stats.length === 0) ? (
                 <div className="text-center py-12">
                   <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -708,16 +807,16 @@ export default function ReportsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {reportData.conductor_stats.map((item, index) => (
-                        <tr key={item.conductor.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
+                      {(reportData.conductor_stats || []).map((item, index) => (
+                        <tr key={item.conductor?.id || index} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
                           <td>
                             <div className="flex items-center">
                               <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
                                 <span className="text-primary-600 font-semibold text-sm">
-                                  {item.conductor.nombre.charAt(0).toUpperCase()}
+                                  {item.conductor?.nombre?.charAt(0)?.toUpperCase() || 'C'}
                                 </span>
                               </div>
-                              <span className="font-medium text-secondary-900 font-segoe">{item.conductor.nombre}</span>
+                              <span className="font-medium text-secondary-900 font-segoe">{item.conductor?.nombre || 'N/A'}</span>
                             </div>
                           </td>
                           <td>
@@ -726,24 +825,24 @@ export default function ReportsPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              {item.conductor.zona}
+                              {item.conductor?.zona || 'N/A'}
                             </span>
                           </td>
-                          <td className="text-center font-semibold text-secondary-900">{item.stats.total_packages}</td>
-                          <td className="text-center text-purple-600 font-medium">{item.stats.shein_temu_count}</td>
-                          <td className="text-center text-blue-600 font-medium">{item.stats.dropi_count}</td>
-                          <td className="text-center text-green-600 font-medium">{item.stats.entregados}</td>
-                          <td className="text-center text-yellow-600 font-medium">{item.stats.no_entregados}</td>
+                          <td className="text-center font-semibold text-secondary-900">{item.stats?.total_packages || 0}</td>
+                          <td className="text-center text-purple-600 font-medium">{item.stats?.shein_temu_count || 0}</td>
+                          <td className="text-center text-blue-600 font-medium">{item.stats?.dropi_count || 0}</td>
+                          <td className="text-center text-green-600 font-medium">{item.stats?.entregados || 0}</td>
+                          <td className="text-center text-yellow-600 font-medium">{item.stats?.no_entregados || 0}</td>
                           <td className="text-center text-secondary-600 font-segoe text-sm">
-                            ${item.stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                            ${item.stats?.valor_total_dropi?.toLocaleString('es-CO') || '0'}
                           </td>
                           <td className="text-center">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              item.stats.dias_promedio_atraso > 7 ? 'bg-red-100 text-red-800' :
-                              item.stats.dias_promedio_atraso > 3 ? 'bg-yellow-100 text-yellow-800' :
+                              (item.stats?.dias_promedio_atraso || 0) > 7 ? 'bg-red-100 text-red-800' :
+                              (item.stats?.dias_promedio_atraso || 0) > 3 ? 'bg-yellow-100 text-yellow-800' :
                               'bg-green-100 text-green-800'
                             }`}>
-                              {item.stats.dias_promedio_atraso || 0} días
+                              {item.stats?.dias_promedio_atraso || 0} días
                             </span>
                           </td>
                         </tr>

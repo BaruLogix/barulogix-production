@@ -233,31 +233,32 @@ export default function ConductorAnalysisPage() {
         {analysis && !loading && (
           <>
             {/* Información del Conductor */}
-            <div className="card-barulogix-lg mb-8 animate-slide-up">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mr-6">
-                    <span className="text-primary-600 font-bold text-2xl font-montserrat">
-                      {analysis.conductor?.nombre?.charAt(0)?.toUpperCase() || 'C'}
-                    </span>
+            {analysis.conductor && (
+              <div className="card-barulogix mb-8 animate-slide-up">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-2xl font-bold font-montserrat">
+                      {analysis.conductor?.nombre?.charAt(0) || 'C'}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-secondary-900 font-montserrat">{analysis.conductor?.nombre || 'Conductor'}</h2>
+                      <p className="text-secondary-600 font-segoe">Zona: {analysis.conductor?.zona || 'N/A'}</p>
+                      <div className="mt-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          analysis.conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {analysis.conductor?.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-secondary-900 font-montserrat">{analysis.conductor?.nombre || 'Conductor'}</h3>
-                    <p className="text-lg text-secondary-600 font-segoe">Zona: {analysis.conductor?.zona || 'N/A'}</p>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${
-                      analysis.conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      <div className={`w-2 h-2 rounded-full mr-2 ${analysis.conductor?.activo ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      {analysis.conductor?.activo ? 'Activo' : 'Inactivo'}
-                    </span>
+                  <div className="text-right">
+                    <p className="text-sm text-secondary-600 font-segoe">Total de Paquetes</p>
+                    <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats?.total_paquetes || 0}</p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-secondary-600 font-segoe">Total de Paquetes</p>
-                  <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats?.total_paquetes || 0}</p>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Estadísticas Generales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

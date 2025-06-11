@@ -116,6 +116,7 @@ export async function GET(
     return NextResponse.json({ 
       packages, 
       stats,
+      conductor: conductor, // Información completa del conductor
       paquetes_shein,
       paquetes_dropi
     })
