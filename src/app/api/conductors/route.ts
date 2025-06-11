@@ -23,12 +23,11 @@ export async function GET(request: NextRequest) {
 
     console.log('Buscando conductores para email:', userEmail)
 
-    // Obtener conductores donde el campo user_email coincida con el email del usuario
-    // Si no existe user_email, usar user_id como email temporal
+    // Obtener conductores del usuario actual
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
-      .or(`user_email.eq.${userEmail},user_id.eq.${userEmail}`)
+      .eq('user_id', userEmail)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -83,7 +82,7 @@ export async function POST(request: NextRequest) {
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
-      .or(`user_email.eq.${userEmail},user_id.eq.${userEmail}`)
+      .eq('user_id', userEmail)
       .maybeSingle()
 
     if (existingError) {
@@ -98,7 +97,6 @@ export async function POST(request: NextRequest) {
     // Crear el conductor asociado al email del usuario
     const insertData = {
       user_id: userEmail, // Usar email como identificador
-      user_email: userEmail, // Agregar campo user_email si existe
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,
