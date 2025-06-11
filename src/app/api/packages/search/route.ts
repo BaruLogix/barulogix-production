@@ -8,6 +8,21 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(request: NextRequest) {
   try {
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG PACKAGES SEARCH ===')
+    console.log('User ID recibido:', userId)
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para buscar paquetes'
+      }, { status: 401 })
+    }
+
+    console.log('Buscando paquetes para user ID:', userId)
+
     const { searchParams } = new URL(request.url)
     const tracking = searchParams.get('tracking')
     const conductor_id = searchParams.get('conductor_id')
@@ -25,8 +40,9 @@ export async function GET(request: NextRequest) {
       .from('packages')
       .select(`
         *,
-        conductor:conductors(id, nombre, zona)
+        conductor:conductors!inner(id, nombre, zona, user_id)
       `)
+      .eq('conductor.user_id', userId) // Solo paquetes del usuario actual
       .order('created_at', { ascending: false })
 
     // Filtros de búsqueda
@@ -59,6 +75,7 @@ export async function GET(request: NextRequest) {
       const { data: conductorsInZone, error: conductorsError } = await supabase
         .from('conductors')
         .select('id')
+        .eq('user_id', userId) // Solo conductores del usuario actual
         .ilike('zona', `%${zona}%`)
 
       if (conductorsError) {
@@ -69,7 +86,7 @@ export async function GET(request: NextRequest) {
       if (conductorIds.length > 0) {
         query = query.in('conductor_id', conductorIds)
       } else {
-        // No hay conductores en esa zona, retornar array vacío
+        // No hay conductores en esa zona para este usuario, retornar array vacío
         return NextResponse.json({ packages: [] })
       }
     }

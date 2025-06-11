@@ -11,6 +11,34 @@ export async function GET(
   { params }: { params: { conductor_id: string } }
 ) {
   try {
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG PACKAGES BY CONDUCTOR ===')
+    console.log('User ID recibido:', userId)
+    console.log('Conductor ID:', params.conductor_id)
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para ver paquetes por conductor'
+      }, { status: 401 })
+    }
+
+    // Verificar que el conductor pertenece al usuario actual
+    const { data: conductor, error: conductorError } = await supabase
+      .from('conductors')
+      .select('*')
+      .eq('id', params.conductor_id)
+      .eq('user_id', userId) // Solo conductores del usuario actual
+      .single()
+
+    if (conductorError || !conductor) {
+      return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 404 })
+    }
+
+    console.log('Conductor encontrado:', conductor.nombre)
+
     const { searchParams } = new URL(request.url)
     const fecha_inicio = searchParams.get('fecha_inicio')
     const fecha_fin = searchParams.get('fecha_fin')
@@ -19,9 +47,10 @@ export async function GET(
       .from('packages')
       .select(`
         *,
-        conductor:conductors(id, nombre, zona)
+        conductor:conductors!inner(id, nombre, zona, user_id)
       `)
       .eq('conductor_id', params.conductor_id)
+      .eq('conductor.user_id', userId) // Doble verificación de seguridad
       .order('fecha_entrega', { ascending: false })
 
     // Filtros de fecha
@@ -40,16 +69,7 @@ export async function GET(
       return NextResponse.json({ error: 'Error al obtener paquetes del conductor' }, { status: 500 })
     }
 
-    // Obtener información del conductor
-    const { data: conductor, error: conductorError } = await supabase
-      .from('conductors')
-      .select('*')
-      .eq('id', params.conductor_id)
-      .single()
-
-    if (conductorError || !conductor) {
-      return NextResponse.json({ error: 'Conductor no encontrado' }, { status: 404 })
-    }
+    console.log('Paquetes encontrados:', packages?.length || 0)
 
     // Separar paquetes por tipo
     const paquetes_shein = packages.filter(p => p.tipo === 'Shein/Temu')
