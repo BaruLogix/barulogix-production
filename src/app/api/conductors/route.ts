@@ -6,13 +6,29 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// GET - Obtener todos los conductores
+// GET - Obtener todos los conductores del usuario logueado
 export async function GET(request: NextRequest) {
   try {
-    // Obtener conductores (sin restricción de usuario - todos pueden ver todos)
+    // Obtener el usuario logueado desde localStorage (simulado por ahora)
+    // En una implementación real, esto vendría del token JWT
+    const userEmail = request.headers.get('x-user-email') || 'barulogix.platform@gmail.com'
+    
+    // Obtener el user_id del usuario logueado
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', userEmail)
+      .single()
+
+    if (userError || !currentUser) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 401 })
+    }
+
+    // Obtener solo los conductores de este usuario
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
+      .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -20,7 +36,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
     }
 
-    // Calcular estadísticas
+    // Calcular estadísticas solo de los conductores de este usuario
     const stats = {
       total: conductors.length,
       activos: conductors.filter(c => c.activo).length,
@@ -35,7 +51,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Crear nuevo conductor
+// POST - Crear nuevo conductor para el usuario logueado
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -45,40 +61,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // Obtener el user_id del admin o crear uno si no existe
-    let { data: adminUser, error: adminError } = await supabase
+    // Obtener el usuario logueado desde localStorage (simulado por ahora)
+    // En una implementación real, esto vendría del token JWT
+    const userEmail = request.headers.get('x-user-email') || 'barulogix.platform@gmail.com'
+    
+    // Obtener el user_id del usuario logueado
+    const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id')
-      .eq('email', 'barulogix.platform@gmail.com')
+      .eq('email', userEmail)
       .single()
 
-    if (adminError || !adminUser) {
-      // Crear usuario admin si no existe
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert({
-          email: 'barulogix.platform@gmail.com',
-          name: 'Admin BaruLogix',
-          role: 'admin'
-        })
-        .select('id')
-        .single()
-
-      if (createError) {
-        return NextResponse.json({ 
-          error: 'Error creando usuario admin',
-          details: createError.message 
-        }, { status: 500 })
-      }
-      
-      adminUser = newUser
+    if (userError || !currentUser) {
+      console.error('Error obteniendo usuario logueado:', userError)
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: 'Debe estar logueado para crear conductores'
+      }, { status: 401 })
     }
 
-    // Verificar si ya existe un conductor con el mismo nombre
+    // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
+      .eq('user_id', currentUser.id)
       .maybeSingle()
 
     if (existingError) {
@@ -87,12 +94,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (existing) {
-      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
+      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
-    // Crear el conductor con el user_id válido
+    // Crear el conductor asociado al usuario logueado
     const insertData = {
-      user_id: adminUser.id,
+      user_id: currentUser.id,
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,

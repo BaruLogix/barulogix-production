@@ -45,7 +45,16 @@ export default function ConductorsPage() {
 
   const loadConductors = async () => {
     try {
-      const response = await fetch('/api/conductors')
+      // Obtener el email del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userEmail = userData ? JSON.parse(userData).email : 'barulogix.platform@gmail.com'
+      
+      const response = await fetch('/api/conductors', {
+        headers: {
+          'x-user-email': userEmail
+        }
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
@@ -62,12 +71,19 @@ export default function ConductorsPage() {
     setLoading(true)
 
     try {
+      // Obtener el email del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userEmail = userData ? JSON.parse(userData).email : 'barulogix.platform@gmail.com'
+      
       const url = editingConductor ? `/api/conductors/${editingConductor.id}` : '/api/conductors'
       const method = editingConductor ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-email': userEmail
+        },
         body: JSON.stringify(formData)
       })
 
