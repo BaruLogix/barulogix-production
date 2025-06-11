@@ -38,20 +38,13 @@ export async function GET(request: NextRequest) {
 // POST - Crear nuevo conductor
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== CONDUCTOR API DEBUG ===')
-    
     const body = await request.json()
-    console.log('Body recibido:', body)
-    
     const { nombre, zona, telefono } = body
 
     if (!nombre || !zona) {
-      console.log('Error: Faltan campos obligatorios')
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    console.log('Verificando conductor existente...')
-    
     // Verificar si ya existe un conductor con el mismo nombre
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
@@ -61,61 +54,47 @@ export async function POST(request: NextRequest) {
 
     if (existingError) {
       console.error('Error verificando existente:', existingError)
+      return NextResponse.json({ error: 'Error al verificar conductor existente' }, { status: 500 })
     }
 
     if (existing) {
-      console.log('Conductor ya existe')
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
     }
 
-    console.log('Intentando crear conductor...')
+    // Obtener el user_id del usuario autenticado (por ahora usar un UUID fijo)
+    // En una implementación real, esto vendría del token de autenticación
+    const user_id = '00000000-0000-0000-0000-000000000000' // UUID por defecto
 
-    // Estrategia 1: Solo campos básicos
-    let insertData = {
+    // Crear el conductor con el esquema correcto
+    const insertData = {
+      user_id,
       nombre: nombre.trim(),
-      zona: zona.trim()
+      zona: zona.trim(),
+      telefono: telefono ? telefono.trim() : null,
+      activo: true
     }
 
-    console.log('Datos a insertar (básicos):', insertData)
-
-    let { data: conductor, error } = await supabase
+    const { data: conductor, error } = await supabase
       .from('conductors')
       .insert(insertData)
       .select()
       .single()
 
     if (error) {
-      console.error('Error con campos básicos:', error)
-      
-      // Estrategia 2: Intentar con diferentes combinaciones
-      console.log('Intentando estrategia alternativa...')
-      
-      const { data: testData, error: testError } = await supabase
-        .from('conductors')
-        .select('*')
-        .limit(1)
-      
-      console.log('Test select result:', { testData, testError })
-      
+      console.error('Error creando conductor:', error)
       return NextResponse.json({ 
         error: 'Error al crear conductor', 
-        details: error.message,
-        debug: {
-          originalError: error,
-          testResult: { testData, testError }
-        }
+        details: error.message 
       }, { status: 500 })
     }
 
-    console.log('Conductor creado exitosamente:', conductor)
     return NextResponse.json({ conductor }, { status: 201 })
 
   } catch (error) {
     console.error('Error general en POST /api/conductors:', error)
     return NextResponse.json({ 
       error: 'Error interno del servidor',
-      details: error.message,
-      stack: error.stack
+      details: error.message
     }, { status: 500 })
   }
 }
