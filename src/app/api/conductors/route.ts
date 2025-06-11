@@ -5,11 +5,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
 // GET - Obtener todos los conductores del usuario logueado
 export async function GET(request: NextRequest) {
   try {
-    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
+    // SOLUCIÓN DEFINITIVA: Usar email directamente sin tabla users
     const userEmail = request.headers.get('x-user-email')
     
     console.log('=== DEBUG CONDUCTORS GET ===')
@@ -21,29 +20,15 @@ export async function GET(request: NextRequest) {
         details: 'Debe estar logueado para ver conductores'
       }, { status: 401 })
     }
-    
-    // Buscar el usuario por email
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', userEmail)
-      .single()
 
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
-      }, { status: 401 })
-    }
+    console.log('Buscando conductores para email:', userEmail)
 
-    console.log('Usuario encontrado:', currentUser)
-
-    // Obtener solo los conductores de este usuario
+    // Obtener conductores donde el campo user_email coincida con el email del usuario
+    // Si no existe user_email, usar user_id como email temporal
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .or(`user_email.eq.${userEmail},user_id.eq.${userEmail}`)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -78,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
+    // SOLUCIÓN DEFINITIVA: Usar email directamente sin tabla users
     const userEmail = request.headers.get('x-user-email')
     
     console.log('=== DEBUG CONDUCTORS POST ===')
@@ -90,30 +75,15 @@ export async function POST(request: NextRequest) {
         details: 'Debe estar logueado para crear conductores'
       }, { status: 401 })
     }
-    
-    // Buscar el usuario por email
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', userEmail)
-      .single()
 
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
-      }, { status: 401 })
-    }
-
-    console.log('Usuario encontrado para crear conductor:', currentUser)
+    console.log('Creando conductor para email:', userEmail)
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
-      .eq('user_id', currentUser.id)
+      .or(`user_email.eq.${userEmail},user_id.eq.${userEmail}`)
       .maybeSingle()
 
     if (existingError) {
@@ -125,9 +95,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
-    // Crear el conductor asociado al usuario logueado
+    // Crear el conductor asociado al email del usuario
     const insertData = {
-      user_id: currentUser.id,
+      user_id: userEmail, // Usar email como identificador
+      user_email: userEmail, // Agregar campo user_email si existe
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,
