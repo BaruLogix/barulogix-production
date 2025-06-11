@@ -389,7 +389,7 @@ export default function ConductorAnalysisPage() {
                   </div>
                 </div>
               </div>
-            }
+            )}
 
             {/* Filtro por Estado */}
             <div className="mb-6">
