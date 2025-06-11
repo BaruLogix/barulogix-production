@@ -157,22 +157,10 @@ export default function PackagesPage() {
         'x-user-id': userId
       }
 
-      const response = await fetch('/api/packages/stats', { headers })
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data.stats || {})
-      }
-    } catch (error) {
-      console.error('Error loading stats:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+      const   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
+    
     try {
       // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
@@ -184,14 +172,28 @@ export default function PackagesPage() {
         return
       }
 
+      // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd)
+      const convertDateToISO = (dateStr: string) => {
+        const [day, month, year] = dateStr.split('/')
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      }
+
+      const fechaISO = convertDateToISO(formData.fecha_entrega)
+
       const submitData = {
         ...formData,
+        fecha_entrega: fechaISO,
         valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
       }
 
-      const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages'
+      const url = editingPackage 
+        ? `/api/packages/${editingPackage.id}` 
+        : '/api/packages'
+      
       const method = editingPackage ? 'PUT' : 'POST'
 
+      console.log('Enviando datos de paquete:', submitData);
+      
       const response = await fetch(url, {
         method,
         headers: { 
@@ -201,9 +203,9 @@ export default function PackagesPage() {
         body: JSON.stringify(submitData)
       })
 
+      // Procesar la respuesta y cerrar el modal ANTES de mostrar cualquier mensaje
       if (response.ok) {
-        await loadPackages()
-        await loadStats()
+        // Cerrar modal y limpiar datos primero
         setShowModal(false)
         setEditingPackage(null)
         setFormData({
@@ -214,7 +216,14 @@ export default function PackagesPage() {
           fecha_entrega: todayFormatted,
           valor: ''
         })
+        
+        // Recargar datos después de cerrar el modal
+        await loadPackages()
+        await loadStats()
+        
+        // No mostrar ningún mensaje de éxito, la desaparición del modal es suficiente feedback
       } else {
+        // Solo en caso de error real mostrar mensaje
         const error = await response.json()
         alert(error.error || 'Error al guardar paquete')
       }
@@ -224,12 +233,18 @@ export default function PackagesPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleBulkSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
+  }Stats()
+      } else {
+        // Solo mostrar error si la respuesta no fue exitosa
+        alert(result.error || 'Error al guardar paquete')
+      }
+    } catch (error) {
+      console.error('Error saving package:', error)
+      alert('Error al guardar paquete')
+    } finally {
+      setLoading(false)
+    }
+  }  if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
       alert('Por favor complete todos los campos incluyendo la fecha de entrega')
       return
     }
@@ -337,6 +352,11 @@ export default function PackagesPage() {
 
       const fechaClienteISO = deliveryFechaCliente ? convertDateToISO(deliveryFechaCliente) : null
 
+      console.log('Enviando entregas:', {
+        trackings: trackings.length,
+        fecha_entrega_cliente: fechaClienteISO
+      });
+
       const response = await fetch('/api/packages/deliveries', {
         method: 'POST',
         headers: { 
@@ -350,13 +370,20 @@ export default function PackagesPage() {
         })
       })
 
-      // Siempre procesar la respuesta JSON, independientemente del status
+      // Procesar la respuesta
       const result = await response.json()
+      console.log('Respuesta del servidor (entregas):', result);
       
-      console.log('Respuesta del servidor:', result);
+      // Cerrar modal y limpiar datos PRIMERO, antes de cualquier mensaje
+      setDeliveryData('')
+      setDeliveryFechaCliente(todayFormatted)
+      setShowDeliveryModal(false)
+      
+      // Recargar datos
+      await loadPackages()
+      await loadStats()
       
       // Verificar si hay paquetes procesados exitosamente
-      // Consideramos éxito si processed existe y es mayor que 0, o si success es true
       const procesados = result.processed || 0;
       const hayExito = procesados > 0 || result.success === true;
       
@@ -374,17 +401,8 @@ export default function PackagesPage() {
         }
         
         alert(message)
-        
-        // Limpiar y cerrar modal
-        setDeliveryData('')
-        setDeliveryFechaCliente(todayFormatted)
-        setShowDeliveryModal(false)
-        
-        // Recargar datos
-        await loadPackages()
-        await loadStats()
-      } else {
-        // Solo mostrar error si no se procesó ningún paquete exitosamente
+      } else if (!response.ok) {
+        // Solo mostrar error si la respuesta no fue exitosa Y no se procesó ningún paquete
         console.error('Error en registro de entregas:', result);
         alert(result.error || 'Error al procesar entregas')
       }
