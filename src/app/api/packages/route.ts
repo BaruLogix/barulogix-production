@@ -8,35 +8,20 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(request: NextRequest) {
   try {
-    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
-    const userEmail = request.headers.get('x-user-email')
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG PACKAGES GET ===')
-    console.log('Email recibido:', userEmail)
+    console.log('User ID recibido:', userId)
     
-    if (!userEmail) {
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
+        error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para ver paquetes'
       }, { status: 401 })
     }
-    
-    // Buscar el usuario por email
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', userEmail)
-      .single()
 
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
-      }, { status: 401 })
-    }
-
-    console.log('Usuario encontrado:', currentUser)
+    console.log('Buscando paquetes para user ID:', userId)
 
     const { searchParams } = new URL(request.url)
     const conductor_id = searchParams.get('conductor_id')
@@ -52,7 +37,7 @@ export async function GET(request: NextRequest) {
         *,
         conductor:conductors!inner(id, nombre, zona, user_id)
       `)
-      .eq('conductor.user_id', currentUser.id) // Solo paquetes de conductores del usuario
+      .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
       .order('created_at', { ascending: false })
 
     // Filtros
@@ -98,35 +83,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
-    const userEmail = request.headers.get('x-user-email')
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG PACKAGES POST ===')
-    console.log('Email recibido:', userEmail)
+    console.log('User ID recibido:', userId)
     
-    if (!userEmail) {
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
+        error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para crear paquetes'
       }, { status: 401 })
     }
-    
-    // Buscar el usuario por email
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', userEmail)
-      .single()
 
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
-      }, { status: 401 })
-    }
-
-    console.log('Usuario encontrado:', currentUser)
+    console.log('Creando paquete para user ID:', userId)
 
     const body = await request.json()
     const { tracking, conductor_id, tipo, fecha_entrega, valor } = body
@@ -143,7 +113,7 @@ export async function POST(request: NextRequest) {
       .from('conductors')
       .select('id, user_id')
       .eq('id', conductor_id)
-      .eq('user_id', currentUser.id) // Solo conductores del usuario actual
+      .eq('user_id', userId) // Solo conductores del usuario actual
       .single()
 
     if (conductorError || !conductor) {
@@ -155,7 +125,7 @@ export async function POST(request: NextRequest) {
       .from('packages')
       .select('tracking, conductor:conductors!inner(user_id)')
       .eq('tracking', tracking)
-      .eq('conductor.user_id', currentUser.id)
+      .eq('conductor.user_id', userId)
       .single()
 
     if (existingPackage) {

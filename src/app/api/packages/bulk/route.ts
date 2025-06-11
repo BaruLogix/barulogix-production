@@ -8,35 +8,20 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
-    const userEmail = request.headers.get('x-user-email')
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG PACKAGES BULK POST ===')
-    console.log('Email recibido:', userEmail)
+    console.log('User ID recibido:', userId)
     
-    if (!userEmail) {
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
+        error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para crear paquetes masivos'
       }, { status: 401 })
     }
-    
-    // Buscar el usuario por email
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', userEmail)
-      .single()
 
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
-      }, { status: 401 })
-    }
-
-    console.log('Usuario encontrado:', currentUser)
+    console.log('Creando paquetes masivos para user ID:', userId)
 
     const body = await request.json()
     const { tipo, data, conductor_id } = body
@@ -50,7 +35,7 @@ export async function POST(request: NextRequest) {
       .from('conductors')
       .select('id, user_id')
       .eq('id', conductor_id)
-      .eq('user_id', currentUser.id) // Solo conductores del usuario actual
+      .eq('user_id', userId) // Solo conductores del usuario actual
       .single()
 
     if (conductorError || !conductor) {
