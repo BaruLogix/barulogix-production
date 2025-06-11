@@ -157,7 +157,19 @@ export default function PackagesPage() {
         'x-user-id': userId
       }
 
-      const   const handleSubmit = async (e: React.FormEvent) => {
+      const response = await fetch('/api/stats', { headers })
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data.stats || {})
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     
@@ -233,18 +245,12 @@ export default function PackagesPage() {
     } finally {
       setLoading(false)
     }
-  }Stats()
-      } else {
-        // Solo mostrar error si la respuesta no fue exitosa
-        alert(result.error || 'Error al guardar paquete')
-      }
-    } catch (error) {
-      console.error('Error saving package:', error)
-      alert('Error al guardar paquete')
-    } finally {
-      setLoading(false)
-    }
-  }  if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
+  }
+
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
       alert('Por favor complete todos los campos incluyendo la fecha de entrega')
       return
     }
