@@ -11,7 +11,17 @@ export async function GET(request: NextRequest) {
   try {
     // Obtener el usuario logueado desde localStorage (simulado por ahora)
     // En una implementación real, esto vendría del token JWT
-    const userEmail = request.headers.get('x-user-email') || 'barulogix.platform@gmail.com'
+    const userEmail = request.headers.get('x-user-email')
+    
+    console.log('=== DEBUG CONDUCTORS GET ===')
+    console.log('Email recibido:', userEmail)
+    
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para ver conductores'
+      }, { status: 401 })
+    }
     
     // Obtener el user_id del usuario logueado
     const { data: currentUser, error: userError } = await supabase
@@ -21,8 +31,14 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (userError || !currentUser) {
-      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 401 })
+      console.log('Usuario no encontrado:', { userEmail, userError })
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: `No se encontró usuario con email: ${userEmail}`
+      }, { status: 401 })
     }
+
+    console.log('Usuario encontrado:', currentUser)
 
     // Obtener solo los conductores de este usuario
     const { data: conductors, error } = await supabase
@@ -63,7 +79,17 @@ export async function POST(request: NextRequest) {
 
     // Obtener el usuario logueado desde localStorage (simulado por ahora)
     // En una implementación real, esto vendría del token JWT
-    const userEmail = request.headers.get('x-user-email') || 'barulogix.platform@gmail.com'
+    const userEmail = request.headers.get('x-user-email')
+    
+    console.log('=== DEBUG CONDUCTORS POST ===')
+    console.log('Email recibido:', userEmail)
+    
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para crear conductores'
+      }, { status: 401 })
+    }
     
     // Obtener el user_id del usuario logueado
     const { data: currentUser, error: userError } = await supabase
@@ -73,12 +99,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !currentUser) {
-      console.error('Error obteniendo usuario logueado:', userError)
+      console.error('Error obteniendo usuario logueado:', { userEmail, userError })
       return NextResponse.json({ 
         error: 'Usuario no encontrado',
-        details: 'Debe estar logueado para crear conductores'
+        details: `No se encontró usuario con email: ${userEmail}`
       }, { status: 401 })
     }
+
+    console.log('Usuario encontrado para crear conductor:', currentUser)
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
@@ -106,6 +134,8 @@ export async function POST(request: NextRequest) {
       activo: true
     }
 
+    console.log('Datos a insertar:', insertData)
+
     const { data: conductor, error } = await supabase
       .from('conductors')
       .insert(insertData)
@@ -120,6 +150,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    console.log('Conductor creado exitosamente:', conductor)
     return NextResponse.json({ conductor }, { status: 201 })
 
   } catch (error) {
