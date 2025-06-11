@@ -33,6 +33,8 @@ export default function PackagesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false)
+  const [showReturnModal, setShowReturnModal] = useState(false)
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterConductor, setFilterConductor] = useState('')
@@ -42,6 +44,10 @@ export default function PackagesPage() {
   const [bulkType, setBulkType] = useState<'shein_temu' | 'dropi'>('shein_temu')
   const [bulkConductor, setBulkConductor] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [deliveryData, setDeliveryData] = useState('')
+  const [deliveryLoading, setDeliveryLoading] = useState(false)
+  const [returnData, setReturnData] = useState('')
+  const [returnLoading, setReturnLoading] = useState(false)
   const [stats, setStats] = useState({
     total_packages: 0,
     entregados: 0,
@@ -280,6 +286,144 @@ export default function PackagesPage() {
       alert('Error al procesar paquetes')
     } finally {
       setBulkLoading(false)
+    }
+  }
+
+  const handleDelivery = async () => {
+    if (!deliveryData.trim()) {
+      alert('Por favor ingrese los trackings de entrega')
+      return
+    }
+
+    setDeliveryLoading(true)
+    
+    try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setDeliveryLoading(false)
+        return
+      }
+
+      const trackings = deliveryData.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+
+      const response = await fetch('/api/packages/deliveries', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({
+          trackings,
+          tipo_operacion: 'entrega'
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        let message = `✅ Entregas procesadas:\n\n`
+        message += `📦 Paquetes entregados: ${result.processed}\n`
+        message += `📋 Total procesados: ${result.total_trackings}\n`
+        
+        if (result.errors.length > 0) {
+          message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
+          message += result.errors.slice(0, 10).join('\n')
+          if (result.errors.length > 10) {
+            message += `\n... y ${result.errors.length - 10} errores más`
+          }
+        }
+        
+        alert(message)
+        
+        // Limpiar y cerrar modal
+        setDeliveryData('')
+        setShowDeliveryModal(false)
+        
+        // Recargar datos
+        await loadPackages()
+        await loadStats()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al procesar entregas')
+      }
+    } catch (error) {
+      console.error('Error in delivery submit:', error)
+      alert('Error al procesar entregas')
+    } finally {
+      setDeliveryLoading(false)
+    }
+  }
+
+  const handleReturn = async () => {
+    if (!returnData.trim()) {
+      alert('Por favor ingrese los trackings de devolución')
+      return
+    }
+
+    setReturnLoading(true)
+    
+    try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setReturnLoading(false)
+        return
+      }
+
+      const trackings = returnData.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+
+      const response = await fetch('/api/packages/deliveries', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({
+          trackings,
+          tipo_operacion: 'devolucion'
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        let message = `✅ Devoluciones procesadas:\n\n`
+        message += `📦 Paquetes devueltos: ${result.processed}\n`
+        message += `📋 Total procesados: ${result.total_trackings}\n`
+        
+        if (result.errors.length > 0) {
+          message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
+          message += result.errors.slice(0, 10).join('\n')
+          if (result.errors.length > 10) {
+            message += `\n... y ${result.errors.length - 10} errores más`
+          }
+        }
+        
+        alert(message)
+        
+        // Limpiar y cerrar modal
+        setReturnData('')
+        setShowReturnModal(false)
+        
+        // Recargar datos
+        await loadPackages()
+        await loadStats()
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al procesar devoluciones')
+      }
+    } catch (error) {
+      console.error('Error in return submit:', error)
+      alert('Error al procesar devoluciones')
+    } finally {
+      setReturnLoading(false)
     }
   }
 
