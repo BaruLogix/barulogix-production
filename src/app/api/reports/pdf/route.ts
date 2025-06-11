@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       .reduce((sum, p) => sum + (p.valor || 0), 0)
 
     // Calcular estadísticas por conductor
-    const conductorStats = userConductors.map(conductor => {
+    let conductorStats = userConductors.map(conductor => {
       const conductorPackages = packages.filter(p => p.conductor?.id === conductor.id)
       const conductorEntregados = conductorPackages.filter(p => p.estado === 1).length
       const conductorNoEntregados = conductorPackages.filter(p => p.estado === 0).length
@@ -108,6 +108,11 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+    
+    // Para reportes específicos, filtrar para incluir SOLO el conductor seleccionado
+    if (type === 'specific' && conductor_id) {
+      conductorStats = conductorStats.filter(stat => stat.conductor.id === conductor_id)
+    }
 
     // Generar contenido del reporte
     const reportData = {

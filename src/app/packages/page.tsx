@@ -353,11 +353,16 @@ export default function PackagesPage() {
       // Siempre procesar la respuesta JSON, independientemente del status
       const result = await response.json()
       
-      // Si hay paquetes procesados exitosamente, considerarlo como éxito
-      // aunque haya errores parciales
-      if (response.ok || (result.processed && result.processed > 0)) {
+      console.log('Respuesta del servidor:', result);
+      
+      // Verificar si hay paquetes procesados exitosamente
+      // Consideramos éxito si processed existe y es mayor que 0, o si success es true
+      const procesados = result.processed || 0;
+      const hayExito = procesados > 0 || result.success === true;
+      
+      if (hayExito) {
         let message = `✅ Entregas procesadas:\n\n`
-        message += `📦 Paquetes entregados: ${result.processed || 0}\n`
+        message += `📦 Paquetes entregados: ${procesados}\n`
         message += `📋 Total procesados: ${result.total_trackings || trackings.length}\n`
         
         if (result.errors && result.errors.length > 0) {
@@ -380,6 +385,7 @@ export default function PackagesPage() {
         await loadStats()
       } else {
         // Solo mostrar error si no se procesó ningún paquete exitosamente
+        console.error('Error en registro de entregas:', result);
         alert(result.error || 'Error al procesar entregas')
       }
     } catch (error) {
@@ -989,7 +995,6 @@ export default function PackagesPage() {
                   <input
                     type="number"
                     min="0"
-                    step="1000"
                     value={formData.valor}
                     onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
                     className="input-barulogix-modern focus-ring"
