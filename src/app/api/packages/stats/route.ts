@@ -6,42 +6,55 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Obtener estadísticas usando la función SQL
-    const { data: statsData, error: statsError } = await supabase
-      .rpc('get_package_stats')
-
-    if (statsError) {
-      console.error('Error getting package stats:', statsError)
-      // Fallback: calcular estadísticas manualmente
-      const { data: packages, error: packagesError } = await supabase
-        .from('packages')
-        .select('tipo, estado, valor')
-
-      if (packagesError) {
-        return NextResponse.json({ error: 'Error al obtener estadísticas' }, { status: 500 })
-      }
-
-      const stats = {
-        total_packages: packages.length,
-        no_entregados: packages.filter(p => p.estado === 0).length,
-        entregados: packages.filter(p => p.estado === 1).length,
-        devueltos: packages.filter(p => p.estado === 2).length,
-        shein_temu: packages.filter(p => p.tipo === 'Shein/Temu').length,
-        dropi: packages.filter(p => p.tipo === 'Dropi').length,
-        valor_total_dropi: packages
-          .filter(p => p.tipo === 'Dropi' && p.valor)
-          .reduce((sum, p) => sum + (p.valor || 0), 0),
-        valor_no_entregado_dropi: packages
-          .filter(p => p.tipo === 'Dropi' && p.estado === 0 && p.valor)
-          .reduce((sum, p) => sum + (p.valor || 0), 0)
-      }
-
-      return NextResponse.json({ stats })
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG PACKAGES STATS ===')
+    console.log('User ID recibido:', userId)
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para ver estadísticas'
+      }, { status: 401 })
     }
 
-    return NextResponse.json({ stats: statsData })
+    console.log('Obteniendo estadísticas para user ID:', userId)
+
+    // Obtener estadísticas solo de paquetes del usuario actual
+    const { data: packages, error: packagesError } = await supabase
+      .from('packages')
+      .select(`
+        tipo, estado, valor,
+        conductor:conductors!inner(user_id)
+      `)
+      .eq('conductor.user_id', userId)
+
+    if (packagesError) {
+      console.error('Error getting packages for stats:', packagesError)
+      return NextResponse.json({ error: 'Error al obtener estadísticas' }, { status: 500 })
+    }
+
+    console.log('Paquetes encontrados para estadísticas:', packages?.length || 0)
+
+    const stats = {
+      total_packages: packages.length,
+      no_entregados: packages.filter(p => p.estado === 0).length,
+      entregados: packages.filter(p => p.estado === 1).length,
+      devueltos: packages.filter(p => p.estado === 2).length,
+      shein_temu: packages.filter(p => p.tipo === 'Shein/Temu').length,
+      dropi: packages.filter(p => p.tipo === 'Dropi').length,
+      valor_total_dropi: packages
+        .filter(p => p.tipo === 'Dropi' && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      valor_no_entregado_dropi: packages
+        .filter(p => p.tipo === 'Dropi' && p.estado === 0 && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0)
+    }
+
+    return NextResponse.json({ stats })
   } catch (error) {
     console.error('Error in package stats GET:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })

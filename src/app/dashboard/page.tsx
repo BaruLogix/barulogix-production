@@ -48,8 +48,21 @@ export default function DashboardPage() {
 
   const loadStats = async () => {
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para estadísticas')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
       // Cargar estadísticas de paquetes
-      const packagesRes = await fetch('/api/packages/stats')
+      const packagesRes = await fetch('/api/packages/stats', { headers })
       if (packagesRes.ok) {
         const packagesData = await packagesRes.json()
         setStats(prev => ({
@@ -60,7 +73,7 @@ export default function DashboardPage() {
       }
 
       // Cargar estadísticas de conductores
-      const conductorsRes = await fetch('/api/conductors')
+      const conductorsRes = await fetch('/api/conductors', { headers })
       if (conductorsRes.ok) {
         const conductorsData = await conductorsRes.json()
         setStats(prev => ({
