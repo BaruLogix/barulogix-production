@@ -47,17 +47,35 @@ export default function ConductorsPage() {
     try {
       // Obtener el email del usuario logueado
       const userData = localStorage.getItem('user')
-      const userEmail = userData ? JSON.parse(userData).email : 'barulogix.platform@gmail.com'
+      const userEmail = userData ? JSON.parse(userData).email : null
+      
+      console.log('=== DEBUG FRONTEND ===')
+      console.log('userData from localStorage:', userData)
+      console.log('userEmail extracted:', userEmail)
+      
+      if (!userEmail) {
+        console.error('No se pudo obtener email del usuario')
+        return
+      }
+      
+      const headers = {
+        'x-user-email': userEmail
+      }
+      
+      console.log('Headers a enviar:', headers)
       
       const response = await fetch('/api/conductors', {
-        headers: {
-          'x-user-email': userEmail
-        }
+        headers: headers
       })
+      
+      console.log('Response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
+      } else {
+        const errorData = await response.json()
+        console.error('Error response:', errorData)
       }
     } catch (error) {
       console.error('Error loading conductors:', error)
@@ -73,19 +91,37 @@ export default function ConductorsPage() {
     try {
       // Obtener el email del usuario logueado
       const userData = localStorage.getItem('user')
-      const userEmail = userData ? JSON.parse(userData).email : 'barulogix.platform@gmail.com'
+      const userEmail = userData ? JSON.parse(userData).email : null
+      
+      console.log('=== DEBUG FRONTEND SUBMIT ===')
+      console.log('userData from localStorage:', userData)
+      console.log('userEmail extracted:', userEmail)
+      
+      if (!userEmail) {
+        alert('No se pudo obtener información del usuario logueado')
+        return
+      }
       
       const url = editingConductor ? `/api/conductors/${editingConductor.id}` : '/api/conductors'
       const method = editingConductor ? 'PUT' : 'POST'
 
+      const headers = { 
+        'Content-Type': 'application/json',
+        'x-user-email': userEmail
+      }
+      
+      console.log('Headers a enviar:', headers)
+      console.log('URL:', url)
+      console.log('Method:', method)
+      console.log('Body:', formData)
+
       const response = await fetch(url, {
         method,
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-email': userEmail
-        },
+        headers: headers,
         body: JSON.stringify(formData)
       })
+
+      console.log('Response status:', response.status)
 
       if (response.ok) {
         await loadConductors()
@@ -94,6 +130,7 @@ export default function ConductorsPage() {
         setFormData({ nombre: '', zona: '', telefono: '', activo: true })
       } else {
         const error = await response.json()
+        console.error('Error response:', error)
         alert(error.error || 'Error al guardar conductor')
       }
     } catch (error) {
