@@ -350,14 +350,17 @@ export default function PackagesPage() {
         })
       })
 
-      if (response.ok) {
-        const result = await response.json()
-        
+      // Siempre procesar la respuesta JSON, independientemente del status
+      const result = await response.json()
+      
+      // Si hay paquetes procesados exitosamente, considerarlo como éxito
+      // aunque haya errores parciales
+      if (response.ok || (result.processed && result.processed > 0)) {
         let message = `✅ Entregas procesadas:\n\n`
-        message += `📦 Paquetes entregados: ${result.processed}\n`
-        message += `📋 Total procesados: ${result.total_trackings}\n`
+        message += `📦 Paquetes entregados: ${result.processed || 0}\n`
+        message += `📋 Total procesados: ${result.total_trackings || trackings.length}\n`
         
-        if (result.errors.length > 0) {
+        if (result.errors && result.errors.length > 0) {
           message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
           message += result.errors.slice(0, 10).join('\n')
           if (result.errors.length > 10) {
@@ -376,8 +379,8 @@ export default function PackagesPage() {
         await loadPackages()
         await loadStats()
       } else {
-        const error = await response.json()
-        alert(error.error || 'Error al procesar entregas')
+        // Solo mostrar error si no se procesó ningún paquete exitosamente
+        alert(result.error || 'Error al procesar entregas')
       }
     } catch (error) {
       console.error('Error in delivery submit:', error)

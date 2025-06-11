@@ -77,14 +77,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Paquetes encontrados:', packages?.length || 0)
 
-    // Calcular estadísticas generales
-    const totalPackages = packages?.length || 0
-    const entregados = packages?.filter(p => p.estado === 1).length || 0
-    const noEntregados = packages?.filter(p => p.estado === 0).length || 0
-    const devueltos = packages?.filter(p => p.estado === 2).length || 0
-    const valorTotalDropi = packages?.filter(p => p.tipo === 'Dropi' && p.valor)
-      .reduce((sum, p) => sum + (p.valor || 0), 0) || 0
-
+    // Calcular estadísticas
+    let totalPackages, entregados, noEntregados, devueltos, valorTotalDropi;
+    
     // Estadísticas por conductor
     const conductorStats = conductors?.map(conductor => {
       const conductorPackages = packages?.filter(p => p.conductor_id === conductor.id) || []
@@ -128,6 +123,34 @@ export async function POST(request: NextRequest) {
         }
       }
     }) || []
+    
+    // Si es reporte específico, usar solo las estadísticas del conductor seleccionado
+    if (tipo_reporte === 'especifico' && conductor_id) {
+      const selectedConductorStat = conductorStats.find(stat => stat.conductor.id === conductor_id);
+      
+      if (selectedConductorStat) {
+        totalPackages = selectedConductorStat.stats.total_packages;
+        entregados = selectedConductorStat.stats.entregados;
+        noEntregados = selectedConductorStat.stats.no_entregados;
+        devueltos = selectedConductorStat.stats.devueltos;
+        valorTotalDropi = selectedConductorStat.stats.valor_total_dropi;
+      } else {
+        // Si no se encuentra el conductor, usar valores por defecto
+        totalPackages = 0;
+        entregados = 0;
+        noEntregados = 0;
+        devueltos = 0;
+        valorTotalDropi = 0;
+      }
+    } else {
+      // Para reportes generales, calcular totales de todos los paquetes
+      totalPackages = packages?.length || 0;
+      entregados = packages?.filter(p => p.estado === 1).length || 0;
+      noEntregados = packages?.filter(p => p.estado === 0).length || 0;
+      devueltos = packages?.filter(p => p.estado === 2).length || 0;
+      valorTotalDropi = packages?.filter(p => p.tipo === 'Dropi' && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0) || 0;
+    }
 
     // Estructura de respuesta para el frontend
     const reportData = {
