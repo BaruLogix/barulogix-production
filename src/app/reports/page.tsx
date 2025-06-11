@@ -723,9 +723,9 @@ export default function ReportsPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Total Conductores</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats.total_conductors}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{reportData.general_stats?.total_conductors || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {reportData.general_stats.active_conductors} activos
+                    {reportData.general_stats?.active_conductors || 0} activos
                   </p>
                 </div>
               </div>
