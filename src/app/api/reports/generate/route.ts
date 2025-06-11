@@ -8,6 +8,21 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(request: NextRequest) {
   try {
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG REPORTS GENERATE ===')
+    console.log('User ID recibido:', userId)
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para generar reportes'
+      }, { status: 401 })
+    }
+
+    console.log('Generando reporte para user ID:', userId)
+
     const body = await request.json()
     const { tipo_reporte, fecha_inicio, fecha_fin, conductor_id } = body
 
@@ -24,9 +39,9 @@ export async function POST(request: NextRequest) {
     let reportData: string[] = []
 
     if (tipo_reporte === 'general') {
-      reportData = await generateGeneralReport(fechaInicio, fechaFin, fechaGeneracion)
+      reportData = await generateGeneralReport(userId, fechaInicio, fechaFin, fechaGeneracion)
     } else if (tipo_reporte === 'especifico' && conductor_id) {
-      reportData = await generateSpecificReport(conductor_id, fechaInicio, fechaFin, fechaGeneracion)
+      reportData = await generateSpecificReport(userId, conductor_id, fechaInicio, fechaFin, fechaGeneracion)
     } else {
       return NextResponse.json({ error: 'Tipo de reporte inválido o falta conductor_id para reporte específico' }, { status: 400 })
     }

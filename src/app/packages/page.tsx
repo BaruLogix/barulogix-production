@@ -82,7 +82,20 @@ export default function PackagesPage() {
 
   const loadPackages = async () => {
     try {
-      const response = await fetch('/api/packages')
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para cargar paquetes')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/packages', { headers })
       if (response.ok) {
         const data = await response.json()
         setPackages(data.packages || [])
@@ -94,7 +107,20 @@ export default function PackagesPage() {
 
   const loadConductors = async () => {
     try {
-      const response = await fetch('/api/conductors')
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para cargar conductores')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/conductors', { headers })
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
@@ -106,7 +132,20 @@ export default function PackagesPage() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/packages/stats')
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para cargar estadísticas')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/packages/stats', { headers })
       if (response.ok) {
         const data = await response.json()
         setStats(data.stats || {})
@@ -123,6 +162,16 @@ export default function PackagesPage() {
     setLoading(true)
 
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setLoading(false)
+        return
+      }
+
       const submitData = {
         ...formData,
         valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
@@ -133,7 +182,10 @@ export default function PackagesPage() {
 
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
         body: JSON.stringify(submitData)
       })
 
@@ -173,9 +225,22 @@ export default function PackagesPage() {
     setBulkLoading(true)
     
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setBulkLoading(false)
+        return
+      }
+
       const response = await fetch('/api/packages/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
         body: JSON.stringify({
           tipo: bulkType,
           data: bulkData.trim(),
