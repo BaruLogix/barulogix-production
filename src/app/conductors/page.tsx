@@ -124,10 +124,14 @@ export default function ConductorsPage() {
       console.log('Response status:', response.status)
 
       if (response.ok) {
-        await loadConductors()
+        const newConductor = await response.json()
+        await loadConductors() // Recargar la lista
         setShowModal(false)
         setEditingConductor(null)
         setFormData({ nombre: '', zona: '', telefono: '', activo: true })
+        
+        // Mostrar mensaje de éxito
+        alert(`✅ Conductor "${formData.nombre}" creado exitosamente`)
       } else {
         const error = await response.json()
         console.error('Error response:', error)
