@@ -16,6 +16,7 @@ interface Package {
   tipo: 'Shein/Temu' | 'Dropi'
   estado: number
   fecha_entrega: string
+  fecha_entrega_cliente?: string
   valor?: number
   created_at: string
 }
@@ -62,6 +63,7 @@ export default function PackagesPage() {
     tipo: 'Shein/Temu' as 'Shein/Temu' | 'Dropi',
     estado: 0,
     fecha_entrega: '',
+    fecha_entrega_cliente: '',
     valor: ''
   })
   const router = useRouter()
@@ -72,10 +74,13 @@ export default function PackagesPage() {
     loadConductors()
     loadStats()
     
-    // Establecer fecha por defecto (hoy)
-    const today = new Date().toISOString().split('T')[0]
-    setFormData(prev => ({ ...prev, fecha_entrega: today }))
-    setBulkFechaEntrega(today)
+    // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa
+    const today = new Date()
+    const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+    const todayISO = today.toISOString().split('T')[0]
+    
+    setFormData(prev => ({ ...prev, fecha_entrega: todayISO }))
+    setBulkFechaEntrega(todayFormatted)
   }, [])
 
   const checkAuth = () => {
@@ -182,7 +187,8 @@ export default function PackagesPage() {
 
       const submitData = {
         ...formData,
-        valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
+        valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null,
+        fecha_entrega_cliente: formData.fecha_entrega_cliente || null
       }
 
       const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages'
@@ -208,6 +214,7 @@ export default function PackagesPage() {
           tipo: 'Shein/Temu',
           estado: 0,
           fecha_entrega: new Date().toISOString().split('T')[0],
+          fecha_entrega_cliente: '',
           valor: ''
         })
       } else {
@@ -243,6 +250,14 @@ export default function PackagesPage() {
         return
       }
 
+      // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd)
+      const convertDateToISO = (dateStr: string) => {
+        const [day, month, year] = dateStr.split('/')
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      }
+
+      const fechaISO = convertDateToISO(bulkFechaEntrega)
+
       const response = await fetch('/api/packages/bulk', {
         method: 'POST',
         headers: { 
@@ -253,7 +268,7 @@ export default function PackagesPage() {
           tipo: bulkType,
           data: bulkData.trim(),
           conductor_id: bulkConductor,
-          fecha_entrega: bulkFechaEntrega
+          fecha_entrega: fechaISO
         })
       })
 
@@ -263,7 +278,7 @@ export default function PackagesPage() {
         let message = `✅ Procesamiento completado:\n\n`
         message += `📦 Paquetes insertados: ${result.inserted}\n`
         message += `📋 Total procesados: ${result.total_processed}\n`
-        message += `📅 Fecha de entrega: ${new Date(bulkFechaEntrega).toLocaleDateString('es-CO')}\n`
+        message += `📅 Fecha de entrega: ${bulkFechaEntrega}\n`
         
         if (result.errors.length > 0) {
           message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
@@ -278,7 +293,9 @@ export default function PackagesPage() {
         // Limpiar formulario y recargar datos
         setBulkData('')
         setBulkConductor('')
-        setBulkFechaEntrega(new Date().toISOString().split('T')[0]) // Resetear a hoy
+        const newToday = new Date()
+        const newTodayFormatted = `${newToday.getDate().toString().padStart(2, '0')}/${(newToday.getMonth() + 1).toString().padStart(2, '0')}/${newToday.getFullYear()}`
+        setBulkFechaEntrega(newTodayFormatted) // Resetear a hoy en formato dd/mm/aaaa
         setShowBulkModal(false)
         await loadPackages()
         await loadStats()
@@ -440,6 +457,7 @@ export default function PackagesPage() {
       tipo: pkg.tipo,
       estado: pkg.estado,
       fecha_entrega: pkg.fecha_entrega,
+      fecha_entrega_cliente: pkg.fecha_entrega_cliente || '',
       valor: pkg.valor?.toString() || ''
     })
     setShowModal(true)
@@ -795,6 +813,7 @@ export default function PackagesPage() {
                     <th>Tipo</th>
                     <th>Estado</th>
                     <th>Fecha Entrega</th>
+                    <th>Fecha Cliente</th>
                     <th>Valor</th>
                     <th>Acciones</th>
                   </tr>
@@ -832,6 +851,9 @@ export default function PackagesPage() {
                       </td>
                       <td className="text-secondary-600 font-segoe text-sm">
                         {new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')}
+                      </td>
+                      <td className="text-secondary-600 font-segoe text-sm">
+                        {pkg.fecha_entrega_cliente ? new Date(pkg.fecha_entrega_cliente).toLocaleDateString('es-CO') : '-'}
                       </td>
                       <td className="text-secondary-600 font-segoe text-sm">
                         {pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '-'}
@@ -943,7 +965,7 @@ export default function PackagesPage() {
               </div>
 
               <div>
-                <label className="label-barulogix">Fecha de Entrega</label>
+                <label className="label-barulogix">📅 Fecha de Entrega al Conductor</label>
                 <input
                   type="date"
                   required
@@ -951,6 +973,22 @@ export default function PackagesPage() {
                   onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
                   className="input-barulogix-modern focus-ring"
                 />
+                <p className="text-xs text-secondary-500 mt-1">
+                  Fecha en que se entrega el paquete al conductor
+                </p>
+              </div>
+
+              <div>
+                <label className="label-barulogix">🏠 Fecha de Entrega al Cliente (Opcional)</label>
+                <input
+                  type="date"
+                  value={formData.fecha_entrega_cliente}
+                  onChange={(e) => setFormData({ ...formData, fecha_entrega_cliente: e.target.value })}
+                  className="input-barulogix-modern focus-ring"
+                />
+                <p className="text-xs text-secondary-500 mt-1">
+                  Fecha en que el conductor entrega el paquete al cliente final
+                </p>
               </div>
 
               {formData.tipo === 'Dropi' && (
@@ -1038,12 +1076,14 @@ export default function PackagesPage() {
               </div>
 
               <div>
-                <label className="label-barulogix">Fecha de Entrega</label>
+                <label className="label-barulogix">📅 Fecha de Entrega (dd/mm/aaaa)</label>
                 <input
-                  type="date"
+                  type="text"
                   required
                   value={bulkFechaEntrega}
                   onChange={(e) => setBulkFechaEntrega(e.target.value)}
+                  placeholder="dd/mm/aaaa"
+                  pattern="^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/\d{4}$"
                   className="input-barulogix-modern focus-ring"
                 />
                 <p className="text-xs text-secondary-500 mt-1">

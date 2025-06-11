@@ -99,7 +99,7 @@ export async function GET(
       dropi_valor_entregado: paquetes_dropi
         .filter(p => p.estado === 1 && p.valor)
         .reduce((sum, p) => sum + (p.valor || 0), 0),
-      dropi_valor_no_entregado: paquetes_dropi
+      dropi_valor_pendiente: paquetes_dropi
         .filter(p => p.estado === 0 && p.valor)
         .reduce((sum, p) => sum + (p.valor || 0), 0),
       
@@ -113,8 +113,14 @@ export async function GET(
         .sort((a, b) => b.dias_atraso - a.dias_atraso)
     }
 
+    // Agregar días de atraso a todos los paquetes
+    const packagesWithDays = packages.map(p => ({
+      ...p,
+      dias_atraso: p.estado === 0 ? Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24)) : 0
+    }))
+
     return NextResponse.json({ 
-      packages, 
+      packages: packagesWithDays, 
       stats,
       conductor: conductor, // Información completa del conductor
       paquetes_shein,

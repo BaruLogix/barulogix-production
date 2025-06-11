@@ -46,6 +46,7 @@ export default function ConductorAnalysisPage() {
   const [selectedConductor, setSelectedConductor] = useState('')
   const [analysis, setAnalysis] = useState<ConductorAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
+  const [filterEstado, setFilterEstado] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -153,6 +154,12 @@ export default function ConductorAnalysisPage() {
   const getPercentage = (value: number, total: number) => {
     return total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
   }
+
+  // Filtrar paquetes por estado
+  const filteredPackages = analysis?.packages.filter(pkg => {
+    if (!filterEstado) return true
+    return pkg.estado.toString() === filterEstado
+  }) || []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
@@ -365,7 +372,7 @@ export default function ConductorAnalysisPage() {
                     </div>
                     <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats.valor_pendiente_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.dropi_valor_pendiente?.toLocaleString('es-CO') || '0'}
                     </p>
                   </div>
                 </div>
@@ -374,16 +381,64 @@ export default function ConductorAnalysisPage() {
 
             {/* Lista de Paquetes */}
             <div className="card-barulogix-lg animate-fade-in">
-              <h3 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
-                Detalle de Paquetes ({analysis.packages.length})
-              </h3>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h3 className="text-2xl font-bold text-secondary-900 font-montserrat">
+                  Detalle de Paquetes ({filteredPackages.length})
+                </h3>
+                
+                {/* Filtro por Estado */}
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-secondary-700 font-segoe">🔍 Filtrar por estado:</label>
+                  <select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value)}
+                    className="input-barulogix-modern focus-ring text-sm"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="0">No Entregado</option>
+                    <option value="1">Entregado</option>
+                    <option value="2">Devuelto</option>
+                  </select>
+                </div>
+              </div>
 
-              {analysis.packages.length === 0 ? (
+              {/* Resumen por Estado Filtrado */}
+              {filterEstado && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-blue-900">
+                        📊 Resumen - {getEstadoText(parseInt(filterEstado))}
+                      </h4>
+                      <p className="text-blue-700 text-sm">
+                        {filteredPackages.length} paquetes en este estado
+                      </p>
+                    </div>
+                    {filterEstado === '0' && (
+                      <div className="text-right">
+                        <p className="text-blue-900 font-semibold">
+                          💰 Valor Pendiente: ${filteredPackages
+                            .filter(p => p.valor)
+                            .reduce((sum, p) => sum + (p.valor || 0), 0)
+                            .toLocaleString('es-CO')}
+                        </p>
+                        <p className="text-blue-700 text-sm">
+                          📦 {filteredPackages.filter(p => p.valor).length} paquetes Dropi pendientes
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {filteredPackages.length === 0 ? (
                 <div className="text-center py-12">
                   <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
                   </svg>
-                  <p className="text-secondary-600 text-lg font-segoe">Este conductor no tiene paquetes asignados</p>
+                  <p className="text-secondary-600 text-lg font-segoe">
+                    {filterEstado ? `No hay paquetes con estado "${getEstadoText(parseInt(filterEstado))}"` : 'Este conductor no tiene paquetes asignados'}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -399,7 +454,7 @@ export default function ConductorAnalysisPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {analysis.packages.map((pkg, index) => (
+                      {filteredPackages.map((pkg, index) => (
                         <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
                           <td>
                             <div className="flex items-center">
@@ -434,9 +489,9 @@ export default function ConductorAnalysisPage() {
                               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                 pkg.dias_atraso > 7 ? 'bg-red-100 text-red-800' :
                                 pkg.dias_atraso > 3 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
+                                pkg.estado === 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {pkg.dias_atraso} días
+                                {pkg.estado === 0 ? `${pkg.dias_atraso} días` : 'Entregado'}
                               </span>
                             ) : '-'}
                           </td>

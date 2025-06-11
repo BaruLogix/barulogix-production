@@ -132,15 +132,17 @@ export async function POST(request: NextRequest) {
     // Estructura de respuesta para el frontend
     const reportData = {
       general_stats: {
-        total_conductors: conductors?.length || 0,
-        active_conductors: conductors?.filter(c => c.activo).length || 0,
+        total_conductors: tipo_reporte === 'especifico' && conductor_id ? 1 : (conductors?.length || 0),
+        active_conductors: tipo_reporte === 'especifico' && conductor_id ? 1 : (conductors?.filter(c => c.activo).length || 0),
         total_packages: totalPackages,
         entregados: entregados,
         no_entregados: noEntregados,
         devueltos: devueltos,
         valor_total_dropi: valorTotalDropi
       },
-      conductor_stats: conductorStats,
+      conductor_stats: tipo_reporte === 'especifico' && conductor_id 
+        ? conductorStats.filter(stat => stat.conductor.id === conductor_id)
+        : conductorStats,
       packages: packages?.map(p => ({
         id: p.id,
         tracking: p.tracking,

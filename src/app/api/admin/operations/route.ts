@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { operation, conductor_id, conductor_id_2, new_state, new_type, new_date } = body
+    const { operation, conductor_id, conductor_id_2, new_state, new_type, new_date, transfer_type, single_tracking, bulk_trackings } = body
 
-    console.log('Operación solicitada:', { operation, conductor_id, conductor_id_2, new_state, new_type, new_date })
+    console.log('Operación solicitada:', { operation, conductor_id, conductor_id_2, new_state, new_type, new_date, transfer_type, single_tracking, bulk_trackings })
 
     if (!operation) {
       return NextResponse.json({ error: 'Tipo de operación requerido' }, { status: 400 })
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         break
       
       case 'transfer_packages':
-        result = await transferPackages(userId, conductor_id, conductor_id_2)
+        result = await transferPackages(userId, conductor_id, conductor_id_2, transfer_type, single_tracking, bulk_trackings)
         break
       
       case 'update_dates':
@@ -116,7 +116,7 @@ async function changePackageStates(userId: string, conductorId: string, newState
 }
 
 // Transferir paquetes entre conductores
-async function transferPackages(userId: string, fromConductorId: string, toConductorId: string) {
+async function transferPackages(userId: string, fromConductorId: string, toConductorId: string, transferType: string = 'all', singleTracking?: string, bulkTrackings?: string) {
   if (!fromConductorId || !toConductorId) {
     throw new Error('Ambos conductores son requeridos')
   }
@@ -139,20 +139,41 @@ async function transferPackages(userId: string, fromConductorId: string, toCondu
   const fromConductor = conductors.find(c => c.id === fromConductorId)
   const toConductor = conductors.find(c => c.id === toConductorId)
 
-  // Transferir paquetes
-  const { data: transferredPackages, error: transferError } = await supabase
+  let transferQuery = supabase
     .from('packages')
     .update({ conductor_id: toConductorId })
     .eq('conductor_id', fromConductorId)
-    .select('id')
+
+  // Aplicar filtros según el tipo de transferencia
+  if (transferType === 'individual' && singleTracking) {
+    transferQuery = transferQuery.eq('tracking', singleTracking.trim())
+  } else if (transferType === 'bulk' && bulkTrackings) {
+    const trackingList = bulkTrackings
+      .split('\n')
+      .map(t => t.trim())
+      .filter(t => t.length > 0)
+    
+    if (trackingList.length === 0) {
+      throw new Error('Lista de trackings vacía')
+    }
+    
+    transferQuery = transferQuery.in('tracking', trackingList)
+  }
+  // Si es 'all', no se aplican filtros adicionales
+
+  const { data: transferredPackages, error: transferError } = await transferQuery.select('id, tracking')
 
   if (transferError) {
     throw new Error(`Error transfiriendo paquetes: ${transferError.message}`)
   }
 
+  const transferTypeText = transferType === 'all' ? 'todos los paquetes' : 
+                          transferType === 'individual' ? `paquete "${singleTracking}"` :
+                          `${bulkTrackings?.split('\n').filter(t => t.trim()).length || 0} paquetes específicos`
+
   return {
     message: `Paquetes transferidos exitosamente`,
-    details: `${transferredPackages?.length || 0} paquetes transferidos de "${fromConductor?.nombre}" a "${toConductor?.nombre}"`
+    details: `${transferredPackages?.length || 0} paquetes transferidos (${transferTypeText}) de "${fromConductor?.nombre}" a "${toConductor?.nombre}"`
   }
 }
 

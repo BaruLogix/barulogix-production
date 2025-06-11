@@ -29,6 +29,9 @@ export default function AdminPage() {
   const [showModal, setShowModal] = useState(false)
   const [currentOperation, setCurrentOperation] = useState<AdminOperation | null>(null)
   const [operationResult, setOperationResult] = useState('')
+  const [transferType, setTransferType] = useState('all') // all, individual, bulk
+  const [singleTracking, setSingleTracking] = useState('')
+  const [bulkTrackings, setBulkTrackings] = useState('')
   const router = useRouter()
 
   const adminOperations: AdminOperation[] = [
@@ -137,7 +140,10 @@ export default function AdminPage() {
         conductor_id_2: selectedConductor2,
         new_state: parseInt(newState),
         new_type: newType,
-        new_date: newDate
+        new_date: newDate,
+        transfer_type: transferType,
+        single_tracking: singleTracking,
+        bulk_trackings: bulkTrackings
       }
 
       const response = await fetch('/api/admin/operations', {
@@ -177,6 +183,9 @@ export default function AdminPage() {
     setNewState('1')
     setNewType('Shein/Temu')
     setOperationResult('')
+    setTransferType('all')
+    setSingleTracking('')
+    setBulkTrackings('')
   }
 
   return (
@@ -303,25 +312,113 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Second Conductor for Transfer */}
+              {/* Transfer Packages - Enhanced */}
               {currentOperation.type === 'transfer_packages' && (
-                <div>
-                  <label className="label-barulogix">Conductor Destino</label>
-                  <select
-                    required
-                    value={selectedConductor2}
-                    onChange={(e) => setSelectedConductor2(e.target.value)}
-                    className="input-barulogix-modern focus-ring"
-                  >
-                    <option value="">Seleccionar conductor destino</option>
-                    {conductors.filter(c => c.id !== selectedConductor).map(conductor => (
-                      <option key={conductor.id} value={conductor.id}>
-                        {conductor.nombre} - {conductor.zona} {conductor.activo ? '(Activo)' : '(Inactivo)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className="label-barulogix">🔄 Tipo de Transferencia</label>
+                    <select
+                      value={transferType}
+                      onChange={(e) => setTransferType(e.target.value)}
+                      className="input-barulogix-modern focus-ring"
+                    >
+                      <option value="all">Transferir TODOS los paquetes del conductor</option>
+                      <option value="individual">Transferir paquete individual por tracking</option>
+                      <option value="bulk">Transferir múltiples paquetes (lista masiva)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label-barulogix">Conductor Origen</label>
+                    <select
+                      required
+                      value={selectedConductor}
+                      onChange={(e) => setSelectedConductor(e.target.value)}
+                      className="input-barulogix-modern focus-ring"
+                    >
+                      <option value="">Seleccionar conductor origen</option>
+                      {conductors.map(conductor => (
+                        <option key={conductor.id} value={conductor.id}>
+                          {conductor.nombre} - {conductor.zona} {conductor.activo ? '(Activo)' : '(Inactivo)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label-barulogix">Conductor Destino</label>
+                    <select
+                      required
+                      value={selectedConductor2}
+                      onChange={(e) => setSelectedConductor2(e.target.value)}
+                      className="input-barulogix-modern focus-ring"
+                    >
+                      <option value="">Seleccionar conductor destino</option>
+                      {conductors.filter(c => c.id !== selectedConductor).map(conductor => (
+                        <option key={conductor.id} value={conductor.id}>
+                          {conductor.nombre} - {conductor.zona} {conductor.activo ? '(Activo)' : '(Inactivo)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Individual Tracking */}
+                  {transferType === 'individual' && (
+                    <div>
+                      <label className="label-barulogix">📦 Tracking del Paquete</label>
+                      <input
+                        type="text"
+                        required
+                        value={singleTracking}
+                        onChange={(e) => setSingleTracking(e.target.value)}
+                        placeholder="Ingrese el tracking del paquete a transferir"
+                        className="input-barulogix-modern focus-ring"
+                      />
+                      <p className="text-xs text-secondary-500 mt-1">
+                        Se transferirá solo este paquete específico
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Bulk Trackings */}
+                  {transferType === 'bulk' && (
+                    <div>
+                      <label className="label-barulogix">📋 Lista de Trackings</label>
+                      <textarea
+                        required
+                        value={bulkTrackings}
+                        onChange={(e) => setBulkTrackings(e.target.value)}
+                        placeholder="Ingrese los trackings, uno por línea"
+                        rows={6}
+                        className="input-barulogix-modern focus-ring"
+                      />
+                      <p className="text-xs text-secondary-500 mt-1">
+                        Ingrese un tracking por línea. Se transferirán solo los paquetes listados.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Transfer Summary */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-900 mb-2">📊 Resumen de Transferencia:</h4>
+                    <p className="text-blue-700 text-sm">
+                      <strong>Tipo:</strong> {
+                        transferType === 'all' ? 'Todos los paquetes' :
+                        transferType === 'individual' ? 'Paquete individual' :
+                        'Múltiples paquetes'
+                      }
+                    </p>
+                    {selectedConductor && selectedConductor2 && (
+                      <p className="text-blue-700 text-sm mt-1">
+                        <strong>De:</strong> {conductors.find(c => c.id === selectedConductor)?.nombre} 
+                        <strong> → A:</strong> {conductors.find(c => c.id === selectedConductor2)?.nombre}
+                      </p>
+                    )}
+                  </div>
+                </>
               )}
+
+              {/* Second Conductor for Transfer - REMOVED (now handled above) */}
 
               {/* State Selection */}
               {currentOperation.type === 'change_states' && (
