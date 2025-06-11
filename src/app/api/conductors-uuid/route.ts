@@ -18,10 +18,10 @@ function generateUUID() {
 // GET - Obtener todos los conductores
 export async function GET(request: NextRequest) {
   try {
-    // Intentar obtener todos los registros sin especificar columnas
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
+      .order('created_at', { ascending: false })
     
     if (error) {
       console.error('Error fetching conductors:', error)
@@ -63,37 +63,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // Generar UUID válido
-    const uuid = generateUUID()
-    
-    // Estrategia 1: Intentar insertar solo con ID (UUID)
-    console.log('Intentando inserción con UUID:', uuid)
-    
-    let { data: conductor, error } = await supabase
+    // Verificar si ya existe un conductor con el mismo nombre
+    const { data: existing } = await supabase
       .from('conductors')
-      .insert({ id: uuid })
+      .select('id')
+      .eq('nombre', nombre.trim())
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre' }, { status: 400 })
+    }
+
+    // Datos del conductor con esquema correcto
+    const conductorData = {
+      user_id: generateUUID(), // Generar user_id
+      nombre: nombre.trim(),
+      zona: zona.trim(),
+      telefono: telefono?.trim() || null,
+      activo: true
+    }
+
+    console.log('Insertando conductor:', conductorData)
+
+    const { data: conductor, error } = await supabase
+      .from('conductors')
+      .insert(conductorData)
       .select()
       .single()
 
     if (error) {
-      console.error('Error con UUID solo:', error)
+      console.error('Error inserting conductor:', error)
       return NextResponse.json({ 
         error: 'Error al crear conductor',
-        details: error.message,
-        debug: {
-          attemptedUUID: uuid,
-          suggestion: 'La tabla conductors necesita ser recreada con el esquema correcto'
-        }
+        details: error.message
       }, { status: 500 })
     }
 
-    console.log('Conductor creado exitosamente con UUID:', conductor)
+    console.log('Conductor creado exitosamente:', conductor)
     
-    // Si llegamos aquí, la inserción funcionó
     return NextResponse.json({ 
       conductor,
-      success: true,
-      note: 'Conductor creado con UUID. Necesitas agregar las columnas nombre, zona, telefono, activo a la tabla.'
+      success: true
     }, { status: 201 })
 
   } catch (error) {
