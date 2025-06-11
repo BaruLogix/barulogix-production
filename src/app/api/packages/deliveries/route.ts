@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { trackings, tipo_operacion } = body // tipo_operacion: 'entrega' o 'devolucion'
+    const { trackings, tipo_operacion, fecha_entrega_cliente } = body // tipo_operacion: 'entrega' o 'devolucion'
 
     if (!trackings || !Array.isArray(trackings) || trackings.length === 0) {
       return NextResponse.json({ 
@@ -89,13 +89,20 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Actualizar estado
+        // Actualizar estado y fecha de entrega al cliente
+        const updateData: any = { 
+          estado: nuevoEstado,
+          updated_at: new Date().toISOString()
+        }
+
+        // Solo agregar fecha_entrega_cliente si es una entrega y se proporcionó la fecha
+        if (tipo_operacion === 'entrega' && fecha_entrega_cliente) {
+          updateData.fecha_entrega_cliente = fecha_entrega_cliente
+        }
+
         const { data: updatedPackage, error: updateError } = await supabase
           .from('packages')
-          .update({ 
-            estado: nuevoEstado,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', package_data.id)
           .select(`
             id,

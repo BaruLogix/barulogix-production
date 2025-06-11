@@ -46,6 +46,7 @@ export default function ConductorAnalysisPage() {
   const [selectedConductor, setSelectedConductor] = useState('')
   const [analysis, setAnalysis] = useState<ConductorAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
+  const [filterEstado, setFilterEstado] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -149,6 +150,19 @@ export default function ConductorAnalysisPage() {
       default: return 'badge-neutral'
     }
   }
+
+  const getDiasAtrasoColor = (dias: number) => {
+    if (dias > 12) return 'text-red-600 bg-red-100'
+    if (dias > 7) return 'text-orange-600 bg-orange-100'
+    if (dias > 3) return 'text-yellow-600 bg-yellow-100'
+    return 'text-green-600 bg-green-100'
+  }
+
+  // Filtrar paquetes por estado
+  const filteredPackages = analysis?.packages.filter(pkg => {
+    if (!filterEstado) return true
+    return pkg.estado.toString() === filterEstado
+  }) || []
 
   const getPercentage = (value: number, total: number) => {
     return total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
@@ -325,60 +339,125 @@ export default function ConductorAnalysisPage() {
               </div>
             </div>
 
-            {/* Estadísticas de Dropi */}
-            {(analysis.stats?.dropi_total || 0) > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="card-barulogix hover-lift animate-slide-up">
-                  <div className="text-center">
-                    <div className="p-3 rounded-full bg-blue-100 text-blue-600 mx-auto mb-3 w-fit">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Total Dropi</p>
-                    <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.dropi_valor_total?.toLocaleString('es-CO') || '0'}
-                    </p>
+            {/* Estadísticas Generales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="card-barulogix hover-lift animate-slide-up">
+                <div className="text-center">
+                  <div className="p-3 rounded-full bg-blue-100 text-blue-600 mx-auto mb-3 w-fit">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
+                    </svg>
                   </div>
+                  <p className="text-sm font-medium text-secondary-600 font-segoe">Total Paquetes</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">
+                    {analysis.stats.total_packages}
+                  </p>
                 </div>
+              </div>
 
-                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
+              <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
+                <div className="text-center">
+                  <div className="p-3 rounded-full bg-green-100 text-green-600 mx-auto mb-3 w-fit">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-secondary-600 font-segoe">Entregados</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">
+                    {analysis.stats.entregados}
+                  </p>
+                </div>
+              </div>
+
+              <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+                <div className="text-center">
+                  <div className="p-3 rounded-full bg-red-100 text-red-600 mx-auto mb-3 w-fit">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-secondary-600 font-segoe">Devueltos</p>
+                  <p className="text-2xl font-bold text-secondary-900 font-montserrat">
+                    {analysis.stats.devueltos}
+                  </p>
+                </div>
+              </div>
+            </div>        {/* Estadísticas de Valor Dropi Simplificadas */}
+            {analysis.stats.dropi_count > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Reset automático banner */}
+                {analysis.stats.reset_automatico && (
+                  <div className="col-span-full bg-green-100 border border-green-300 rounded-lg p-4 mb-4">
+                    <div className="flex items-center">
+                      <svg className="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-green-800 font-semibold font-montserrat">✅ Conductor al Día</h4>
+                        <p className="text-green-700 text-sm font-segoe">Todos los paquetes Dropi han sido entregados</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="card-barulogix hover-lift animate-slide-up">
                   <div className="text-center">
                     <div className="p-3 rounded-full bg-green-100 text-green-600 mx-auto mb-3 w-fit">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Entregado</p>
+                    <p className="text-sm font-medium text-secondary-600 font-segoe">💰 Valor Entregado</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
                       ${analysis.stats?.dropi_valor_entregado?.toLocaleString('es-CO') || '0'}
+                    </p>
+                    <p className="text-xs text-secondary-500 font-segoe mt-1">
+                      {analysis.stats?.dropi_entregados || 0} paquetes
                     </p>
                   </div>
                 </div>
 
-                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
                   <div className="text-center">
                     <div className="p-3 rounded-full bg-yellow-100 text-yellow-600 mx-auto mb-3 w-fit">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
+                    <p className="text-sm font-medium text-secondary-600 font-segoe">⏳ Valor Pendiente</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats.valor_pendiente_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.dropi_valor_pendiente?.toLocaleString('es-CO') || '0'}
+                    </p>
+                    <p className="text-xs text-secondary-500 font-segoe mt-1">
+                      {analysis.stats?.dropi_no_entregados || 0} paquetes
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Lista de Paquetes */}
+            {/* Filtro por Estado */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
+                Filtrar por Estado:
+              </label>
+              <select
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value)}
+                className="input-barulogix w-full md:w-auto"
+              >
+                <option value="">Todos los estados</option>
+                <option value="0">No Entregado</option>
+                <option value="1">Entregado</option>
+                <option value="2">Devuelto</option>
+              </select>
+            </div>        {/* Lista de Paquetes */}
             <div className="card-barulogix-lg animate-fade-in">
               <h3 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
-                Detalle de Paquetes ({analysis.packages.length})
+                Detalle de Paquetes ({filteredPackages.length}{filterEstado ? ` de ${analysis.packages.length}` : ''})
               </h3>
 
-              {analysis.packages.length === 0 ? (
+              {filteredPackages.length === 0 ? (
                 <div className="text-center py-12">
                   <svg className="w-16 h-16 text-secondary-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
@@ -399,7 +478,7 @@ export default function ConductorAnalysisPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {analysis.packages.map((pkg, index) => (
+                      {filteredPackages.map((pkg, index) => (
                         <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
                           <td>
                             <div className="flex items-center">
@@ -430,12 +509,8 @@ export default function ConductorAnalysisPage() {
                             {pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '-'}
                           </td>
                           <td className="text-secondary-600 font-segoe text-sm">
-                            {pkg.dias_atraso !== undefined ? (
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                pkg.dias_atraso > 7 ? 'bg-red-100 text-red-800' :
-                                pkg.dias_atraso > 3 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
+                            {pkg.dias_atraso !== undefined && pkg.estado === 0 ? (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDiasAtrasoColor(pkg.dias_atraso)}`}>
                                 {pkg.dias_atraso} días
                               </span>
                             ) : '-'}

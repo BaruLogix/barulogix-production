@@ -149,8 +149,8 @@ export async function POST(request: NextRequest) {
         tipo: p.tipo,
         estado: p.estado,
         fecha_entrega: p.fecha_entrega,
-        valor: p.valor || 0,
-        conductor_id: p.conductor_id,
+        fecha_entrega_cliente: p.fecha_entrega_cliente,
+        valor: p.valor,
         conductor: p.conductor
       })) || [],
       metadata: {

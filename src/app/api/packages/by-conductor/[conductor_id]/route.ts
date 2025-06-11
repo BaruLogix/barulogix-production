@@ -90,33 +90,45 @@ export async function GET(
       dropi_total: paquetes_dropi.length,
       dropi_entregados: paquetes_dropi.filter(p => p.estado === 1).length,
       dropi_no_entregados: paquetes_dropi.filter(p => p.estado === 0).length,
-      dropi_devueltos: paquetes_dropi.filter(p => p.estado === 2).length,
-      
-      // Valores Dropi
-      dropi_valor_total: paquetes_dropi
-        .filter(p => p.valor)
-        .reduce((sum, p) => sum + (p.valor || 0), 0),
-      dropi_valor_entregado: paquetes_dropi
-        .filter(p => p.estado === 1 && p.valor)
-        .reduce((sum, p) => sum + (p.valor || 0), 0),
-      dropi_valor_pendiente: paquetes_dropi
-        .filter(p => p.estado === 0 && p.valor)
-        .reduce((sum, p) => sum + (p.valor || 0), 0),
-      dropi_valor_devuelto: paquetes_dropi
-        .filter(p => p.estado === 2 && p.valor)
-        .reduce((sum, p) => sum + (p.valor || 0), 0),
-      
-      // Paquetes no entregados con días de atraso
-      paquetes_atrasados: packages
-        .filter(p => p.estado === 0)
-        .map(p => ({
-          ...p,
-          dias_atraso: Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24))
-        }))
-        .sort((a, b) => b.dias_atraso - a.dias_atraso)
+      dropi_devueltos: paquetes_dropi.filter(p => p.estado === 2).length
     }
 
-    // Agregar días de atraso a todos los paquetes
+    // Valores Dropi con lógica mejorada
+    const dropi_valor_total = paquetes_dropi
+      .filter(p => p.valor)
+      .reduce((sum, p) => sum + (p.valor || 0), 0)
+    
+    const dropi_valor_entregado = paquetes_dropi
+      .filter(p => p.estado === 1 && p.valor)
+      .reduce((sum, p) => sum + (p.valor || 0), 0)
+    
+    const dropi_valor_devuelto = paquetes_dropi
+      .filter(p => p.estado === 2 && p.valor)
+      .reduce((sum, p) => sum + (p.valor || 0), 0)
+    
+    // Valor pendiente = total - entregado - devuelto
+    const dropi_valor_pendiente = dropi_valor_total - dropi_valor_entregado - dropi_valor_devuelto
+    
+    // Reset automático cuando entregado = total
+    const reset_automatico = dropi_valor_entregado >= dropi_valor_total && dropi_valor_total > 0
+
+    // Agregar valores Dropi al stats
+    stats.dropi_valor_total = reset_automatico ? 0 : dropi_valor_total
+    stats.dropi_valor_entregado = reset_automatico ? 0 : dropi_valor_entregado
+    stats.dropi_valor_pendiente = reset_automatico ? 0 : dropi_valor_pendiente
+    stats.dropi_valor_devuelto = reset_automatico ? 0 : dropi_valor_devuelto
+    stats.reset_automatico = reset_automatico
+
+    // Paquetes no entregados con días de atraso (corregido: desde fecha_entrega)
+    stats.paquetes_atrasados = packages
+      .filter(p => p.estado === 0)
+      .map(p => ({
+        ...p,
+        dias_atraso: Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+      .sort((a, b) => b.dias_atraso - a.dias_atraso)
+
+    // Agregar días de atraso a todos los paquetes (corregido: desde fecha_entrega)
     const packagesWithDays = packages.map(p => ({
       ...p,
       dias_atraso: p.estado === 0 ? Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24)) : 0
