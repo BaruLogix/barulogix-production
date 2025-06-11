@@ -24,32 +24,84 @@ export async function GET(request: NextRequest) {
     }
     
     // Obtener el user_id del usuario logueado
-    const { data: currentUser, error: userError } = await supabase
+    // Intentar múltiples métodos de búsqueda
+    let currentUser = null
+    let userError = null
+
+    // Método 1: Búsqueda exacta
+    const { data: exactUser, error: exactError } = await supabase
       .from('users')
       .select('id, email')
-      .ilike('email', userEmail)
+      .eq('email', userEmail)
       .single()
 
-    console.log('Búsqueda de usuario:', { userEmail, currentUser, userError })
-
-    if (userError || !currentUser) {
-      console.log('Usuario no encontrado:', { userEmail, userError })
-      
-      // Debug: mostrar todos los emails para comparar
-      const { data: allUsers } = await supabase
+    if (exactUser) {
+      currentUser = exactUser
+    } else {
+      // Método 2: Búsqueda case-insensitive
+      const { data: ilikeUser, error: ilikeError } = await supabase
         .from('users')
-        .select('email')
+        .select('id, email')
+        .ilike('email', userEmail)
+        .single()
+
+      if (ilikeUser) {
+        currentUser = ilikeUser
+      } else {
+        // Método 3: Búsqueda con trim
+        const { data: trimUser, error: trimError } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('email', userEmail.trim())
+          .single()
+
+        currentUser = trimUser
+        userError = trimError
+      }
+    }
+
+    console.log('Búsqueda de usuario múltiples métodos:', { 
+      userEmail, 
+      exactUser, 
+      currentUser, 
+      finalError: userError 
+    })
+
+    if (!currentUser) {
+      console.log('Usuario no encontrado con ningún método')
       
-      console.log('Todos los emails en BD:', allUsers?.map(u => u.email))
-      
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`,
-        debug: {
-          searchedEmail: userEmail,
-          allEmails: allUsers?.map(u => u.email)
-        }
-      }, { status: 401 })
+      // Debug: intentar obtener todos los usuarios
+      try {
+        const { data: allUsers } = await supabase
+          .from('users')
+          .select('email')
+          .limit(10)
+        
+        console.log('Emails encontrados en BD:', allUsers?.map(u => u.email))
+        
+        return NextResponse.json({ 
+          error: 'Usuario no encontrado',
+          details: `No se encontró usuario con email: ${userEmail}`,
+          debug: {
+            searchedEmail: userEmail,
+            allEmails: allUsers?.map(u => u.email) || ['Error al obtener emails'],
+            methods: {
+              exact: exactError?.message,
+              ilike: 'Intentado',
+              trim: userError?.message
+            }
+          }
+        }, { status: 401 })
+      } catch (debugError) {
+        return NextResponse.json({ 
+          error: 'Usuario no encontrado',
+          details: `No se encontró usuario con email: ${userEmail}`,
+          debug: {
+            searchedEmail: userEmail,
+            debugError: debugError.message
+          }
+        }, { status: 401 })
+      }
     }
 
     console.log('Usuario encontrado:', currentUser)
