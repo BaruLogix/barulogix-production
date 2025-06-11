@@ -26,15 +26,29 @@ export async function GET(request: NextRequest) {
     // Obtener el user_id del usuario logueado
     const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('id')
-      .eq('email', userEmail)
+      .select('id, email')
+      .ilike('email', userEmail)
       .single()
+
+    console.log('Búsqueda de usuario:', { userEmail, currentUser, userError })
 
     if (userError || !currentUser) {
       console.log('Usuario no encontrado:', { userEmail, userError })
+      
+      // Debug: mostrar todos los emails para comparar
+      const { data: allUsers } = await supabase
+        .from('users')
+        .select('email')
+      
+      console.log('Todos los emails en BD:', allUsers?.map(u => u.email))
+      
       return NextResponse.json({ 
         error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
+        details: `No se encontró usuario con email: ${userEmail}`,
+        debug: {
+          searchedEmail: userEmail,
+          allEmails: allUsers?.map(u => u.email)
+        }
       }, { status: 401 })
     }
 
@@ -94,15 +108,29 @@ export async function POST(request: NextRequest) {
     // Obtener el user_id del usuario logueado
     const { data: currentUser, error: userError } = await supabase
       .from('users')
-      .select('id')
-      .eq('email', userEmail)
+      .select('id, email')
+      .ilike('email', userEmail)
       .single()
+
+    console.log('Búsqueda de usuario POST:', { userEmail, currentUser, userError })
 
     if (userError || !currentUser) {
       console.error('Error obteniendo usuario logueado:', { userEmail, userError })
+      
+      // Debug: mostrar todos los emails para comparar
+      const { data: allUsers } = await supabase
+        .from('users')
+        .select('email')
+      
+      console.log('Todos los emails en BD (POST):', allUsers?.map(u => u.email))
+      
       return NextResponse.json({ 
         error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`
+        details: `No se encontró usuario con email: ${userEmail}`,
+        debug: {
+          searchedEmail: userEmail,
+          allEmails: allUsers?.map(u => u.email)
+        }
       }, { status: 401 })
     }
 
