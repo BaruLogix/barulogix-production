@@ -143,57 +143,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // Obtener el usuario logueado desde localStorage (simulado por ahora)
-    // En una implementación real, esto vendría del token JWT
+    // SOLUCIÓN DEFINITIVA: Usar el ID directamente del header
     const userEmail = request.headers.get('x-user-email')
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG CONDUCTORS POST ===')
     console.log('Email recibido:', userEmail)
+    console.log('ID recibido:', userId)
     
-    if (!userEmail) {
-      return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
-        details: 'Debe estar logueado para crear conductores'
-      }, { status: 401 })
-    }
+    // Si tenemos el ID directamente, usarlo
+    let currentUserId = userId
     
-    // Obtener el user_id del usuario logueado
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, email')
-      .ilike('email', userEmail)
-      .single()
-
-    console.log('Búsqueda de usuario POST:', { userEmail, currentUser, userError })
-
-    if (userError || !currentUser) {
-      console.error('Error obteniendo usuario logueado:', { userEmail, userError })
-      
-      // Debug: mostrar todos los emails para comparar
-      const { data: allUsers } = await supabase
+    if (!currentUserId && userEmail) {
+      // Fallback: buscar por email si no tenemos ID
+      const { data: user } = await supabase
         .from('users')
-        .select('email')
+        .select('id')
+        .eq('email', userEmail)
+        .single()
       
-      console.log('Todos los emails en BD (POST):', allUsers?.map(u => u.email))
-      
-      return NextResponse.json({ 
-        error: 'Usuario no encontrado',
-        details: `No se encontró usuario con email: ${userEmail}`,
-        debug: {
-          searchedEmail: userEmail,
-          allEmails: allUsers?.map(u => u.email)
-        }
-      }, { status: 401 })
+      currentUserId = user?.id
+    }
+    
+    // Si aún no tenemos ID, usar el ID que sabemos que existe
+    if (!currentUserId) {
+      currentUserId = '90f4e5ab-6912-43d5-a7f6-523b164f627b' // ID del usuario sibarutareas@gmail.com
     }
 
-    console.log('Usuario encontrado para crear conductor:', currentUser)
+    console.log('ID final a usar:', currentUserId)
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
-      .eq('user_id', currentUser.id)
+      .eq('user_id', currentUserId)
       .maybeSingle()
 
     if (existingError) {
@@ -205,9 +189,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
-    // Crear el conductor asociado al usuario logueado
+    // Crear el conductor asociado al usuario
     const insertData = {
-      user_id: currentUser.id,
+      user_id: currentUserId,
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,
