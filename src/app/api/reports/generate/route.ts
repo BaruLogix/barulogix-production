@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Conductores encontrados:', conductors?.length || 0)
 
-    // Obtener paquetes en el rango de fechas
+    // Obtener paquetes en el rango de fechas (usar created_at en lugar de fecha_entrega)
     let packagesQuery = supabase
       .from('packages')
       .select(`
@@ -52,8 +52,16 @@ export async function POST(request: NextRequest) {
         conductor:conductors!inner(id, nombre, zona, user_id)
       `)
       .eq('conductor.user_id', userId)
-      .gte('fecha_entrega', fecha_inicio)
-      .lte('fecha_entrega', fecha_fin)
+      .gte('created_at', fecha_inicio)
+      .lte('created_at', fecha_fin + 'T23:59:59.999Z') // Incluir todo el día final
+
+    console.log('Query de paquetes:', {
+      userId,
+      fecha_inicio,
+      fecha_fin: fecha_fin + 'T23:59:59.999Z',
+      tipo_reporte,
+      conductor_id
+    })
 
     // Si es reporte específico, filtrar por conductor
     if (tipo_reporte === 'especifico' && conductor_id) {
