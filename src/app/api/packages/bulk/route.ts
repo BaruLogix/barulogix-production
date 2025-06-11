@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
     console.log('Creando paquetes masivos para user ID:', userId)
 
     const body = await request.json()
-    const { tipo, data, conductor_id } = body
+    const { tipo, data, conductor_id, fecha_entrega } = body
 
-    if (!tipo || !data || !conductor_id) {
-      return NextResponse.json({ error: 'Tipo, datos y conductor son requeridos' }, { status: 400 })
+    if (!tipo || !data || !conductor_id || !fecha_entrega) {
+      return NextResponse.json({ error: 'Tipo, datos, conductor y fecha de entrega son requeridos' }, { status: 400 })
     }
 
     // Verificar que el conductor existe Y pertenece al usuario actual
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           conductor_id: conductor_id,
           tipo: 'Shein/Temu',
           estado: 0, // No entregado
-          fecha_entrega: new Date().toISOString().split('T')[0],
+          fecha_entrega: fecha_entrega, // Usar fecha proporcionada
           valor: null
         })
       }
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           conductor_id: conductor_id,
           tipo: 'Dropi',
           estado: 0, // No entregado
-          fecha_entrega: new Date().toISOString().split('T')[0],
+          fecha_entrega: fecha_entrega, // Usar fecha proporcionada
           valor: valor
         })
       }

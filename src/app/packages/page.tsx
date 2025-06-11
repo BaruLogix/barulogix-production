@@ -43,6 +43,7 @@ export default function PackagesPage() {
   const [bulkData, setBulkData] = useState('')
   const [bulkType, setBulkType] = useState<'shein_temu' | 'dropi'>('shein_temu')
   const [bulkConductor, setBulkConductor] = useState('')
+  const [bulkFechaEntrega, setBulkFechaEntrega] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
   const [deliveryData, setDeliveryData] = useState('')
   const [deliveryLoading, setDeliveryLoading] = useState(false)
@@ -74,6 +75,7 @@ export default function PackagesPage() {
     // Establecer fecha por defecto (hoy)
     const today = new Date().toISOString().split('T')[0]
     setFormData(prev => ({ ...prev, fecha_entrega: today }))
+    setBulkFechaEntrega(today)
   }, [])
 
   const checkAuth = () => {
@@ -223,8 +225,8 @@ export default function PackagesPage() {
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!bulkData.trim() || !bulkConductor) {
-      alert('Por favor complete todos los campos')
+    if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
+      alert('Por favor complete todos los campos incluyendo la fecha de entrega')
       return
     }
 
@@ -250,7 +252,8 @@ export default function PackagesPage() {
         body: JSON.stringify({
           tipo: bulkType,
           data: bulkData.trim(),
-          conductor_id: bulkConductor
+          conductor_id: bulkConductor,
+          fecha_entrega: bulkFechaEntrega
         })
       })
 
@@ -260,6 +263,7 @@ export default function PackagesPage() {
         let message = `✅ Procesamiento completado:\n\n`
         message += `📦 Paquetes insertados: ${result.inserted}\n`
         message += `📋 Total procesados: ${result.total_processed}\n`
+        message += `📅 Fecha de entrega: ${new Date(bulkFechaEntrega).toLocaleDateString('es-CO')}\n`
         
         if (result.errors.length > 0) {
           message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
@@ -274,6 +278,7 @@ export default function PackagesPage() {
         // Limpiar formulario y recargar datos
         setBulkData('')
         setBulkConductor('')
+        setBulkFechaEntrega(new Date().toISOString().split('T')[0]) // Resetear a hoy
         setShowBulkModal(false)
         await loadPackages()
         await loadStats()
@@ -1030,6 +1035,20 @@ export default function PackagesPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Fecha de Entrega</label>
+                <input
+                  type="date"
+                  required
+                  value={bulkFechaEntrega}
+                  onChange={(e) => setBulkFechaEntrega(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                />
+                <p className="text-xs text-secondary-500 mt-1">
+                  📅 Esta fecha se usará para calcular los días de atraso de los paquetes
+                </p>
               </div>
 
               <div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 
 interface ReportData {
   general_stats: {
@@ -773,6 +774,164 @@ export default function ReportsPage() {
                   </p>
                   <p className="text-xs text-secondary-500 mt-1">En pesos colombianos</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Gráficas Interactivas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Gráfica de Pastel - Estados de Paquetes */}
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                  </svg>
+                  Estados de Paquetes
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Entregados', value: reportData.general_stats?.entregados || 0, color: '#10b981' },
+                        { name: 'Pendientes', value: reportData.general_stats?.no_entregados || 0, color: '#f59e0b' },
+                        { name: 'Devueltos', value: reportData.general_stats?.devueltos || 0, color: '#ef4444' }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        { name: 'Entregados', value: reportData.general_stats?.entregados || 0, color: '#10b981' },
+                        { name: 'Pendientes', value: reportData.general_stats?.no_entregados || 0, color: '#f59e0b' },
+                        { name: 'Devueltos', value: reportData.general_stats?.devueltos || 0, color: '#ef4444' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [value, 'Paquetes']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Gráfica de Barras - Paquetes por Conductor */}
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Paquetes por Conductor
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={(reportData.conductor_stats || []).slice(0, 10)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="conductor.nombre" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      fontSize={12}
+                    />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value, name) => [value, name === 'stats.total_packages' ? 'Total Paquetes' : name]}
+                      labelFormatter={(label) => `Conductor: ${label}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="stats.total_packages" fill="#3b82f6" name="Total Paquetes" />
+                    <Bar dataKey="stats.entregados" fill="#10b981" name="Entregados" />
+                    <Bar dataKey="stats.no_entregados" fill="#f59e0b" name="Pendientes" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Gráficas Adicionales */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Gráfica de Pastel - Tipos de Paquetes */}
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  Tipos de Paquetes
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { 
+                          name: 'Shein/Temu', 
+                          value: (reportData.conductor_stats || []).reduce((sum, c) => sum + (c.stats?.shein_temu_count || 0), 0),
+                          color: '#8b5cf6' 
+                        },
+                        { 
+                          name: 'Dropi', 
+                          value: (reportData.conductor_stats || []).reduce((sum, c) => sum + (c.stats?.dropi_count || 0), 0),
+                          color: '#06b6d4' 
+                        }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        { 
+                          name: 'Shein/Temu', 
+                          value: (reportData.conductor_stats || []).reduce((sum, c) => sum + (c.stats?.shein_temu_count || 0), 0),
+                          color: '#8b5cf6' 
+                        },
+                        { 
+                          name: 'Dropi', 
+                          value: (reportData.conductor_stats || []).reduce((sum, c) => sum + (c.stats?.dropi_count || 0), 0),
+                          color: '#06b6d4' 
+                        }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [value, 'Paquetes']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Gráfica de Barras - Días Promedio de Atraso */}
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-xl font-bold text-secondary-900 mb-6 font-montserrat flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Días Promedio de Atraso
+                </h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={(reportData.conductor_stats || []).filter(c => (c.stats?.dias_promedio_atraso || 0) > 0).slice(0, 10)}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="conductor.nombre" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      fontSize={12}
+                    />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value) => [value, 'Días de Atraso']}
+                      labelFormatter={(label) => `Conductor: ${label}`}
+                    />
+                    <Bar 
+                      dataKey="stats.dias_promedio_atraso" 
+                      fill="#ef4444" 
+                      name="Días Promedio de Atraso"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 

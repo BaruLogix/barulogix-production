@@ -8,7 +8,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(request: NextRequest) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
     const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG REPORTS GENERATE ===')
@@ -21,10 +20,10 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    console.log('Generando reporte para user ID:', userId)
-
     const body = await request.json()
     const { tipo_reporte, fecha_inicio, fecha_fin, conductor_id } = body
+
+    console.log('Parámetros recibidos:', { tipo_reporte, fecha_inicio, fecha_fin, conductor_id })
 
     if (!tipo_reporte || !fecha_inicio || !fecha_fin) {
       return NextResponse.json({ 
@@ -32,297 +31,135 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const fechaInicio = new Date(fecha_inicio)
-    const fechaFin = new Date(fecha_fin)
-    const fechaGeneracion = new Date()
+    // Obtener conductores del usuario
+    const { data: conductors, error: conductorsError } = await supabase
+      .from('conductors')
+      .select('*')
+      .eq('user_id', userId)
 
-    let reportData: string[] = []
-
-    if (tipo_reporte === 'general') {
-      reportData = await generateGeneralReport(userId, fechaInicio, fechaFin, fechaGeneracion)
-    } else if (tipo_reporte === 'especifico' && conductor_id) {
-      reportData = await generateSpecificReport(userId, conductor_id, fechaInicio, fechaFin, fechaGeneracion)
-    } else {
-      return NextResponse.json({ error: 'Tipo de reporte inválido o falta conductor_id para reporte específico' }, { status: 400 })
+    if (conductorsError) {
+      console.error('Error obteniendo conductores:', conductorsError)
+      return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      report: reportData.join('\n'),
-      reportLines: reportData
-    })
+    console.log('Conductores encontrados:', conductors?.length || 0)
+
+    // Obtener paquetes en el rango de fechas
+    let packagesQuery = supabase
+      .from('packages')
+      .select(`
+        *,
+        conductor:conductors!inner(id, nombre, zona, user_id)
+      `)
+      .eq('conductor.user_id', userId)
+      .gte('fecha_entrega', fecha_inicio)
+      .lte('fecha_entrega', fecha_fin)
+
+    // Si es reporte específico, filtrar por conductor
+    if (tipo_reporte === 'especifico' && conductor_id) {
+      packagesQuery = packagesQuery.eq('conductor_id', conductor_id)
+    }
+
+    const { data: packages, error: packagesError } = await packagesQuery
+
+    if (packagesError) {
+      console.error('Error obteniendo paquetes:', packagesError)
+      return NextResponse.json({ error: 'Error al obtener paquetes' }, { status: 500 })
+    }
+
+    console.log('Paquetes encontrados:', packages?.length || 0)
+
+    // Calcular estadísticas generales
+    const totalPackages = packages?.length || 0
+    const entregados = packages?.filter(p => p.estado === 1).length || 0
+    const noEntregados = packages?.filter(p => p.estado === 0).length || 0
+    const devueltos = packages?.filter(p => p.estado === 2).length || 0
+    const valorTotalDropi = packages?.filter(p => p.tipo === 'Dropi' && p.valor)
+      .reduce((sum, p) => sum + (p.valor || 0), 0) || 0
+
+    // Estadísticas por conductor
+    const conductorStats = conductors?.map(conductor => {
+      const conductorPackages = packages?.filter(p => p.conductor_id === conductor.id) || []
+      const conductorShein = conductorPackages.filter(p => p.tipo === 'Shein/Temu')
+      const conductorDropi = conductorPackages.filter(p => p.tipo === 'Dropi')
+      const conductorEntregados = conductorPackages.filter(p => p.estado === 1).length
+      const conductorNoEntregados = conductorPackages.filter(p => p.estado === 0).length
+      const conductorDevueltos = conductorPackages.filter(p => p.estado === 2).length
+      const conductorValorDropi = conductorDropi
+        .filter(p => p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0)
+
+      // Calcular días promedio de atraso
+      const paquetesPendientes = conductorPackages.filter(p => p.estado === 0)
+      let diasPromedioAtraso = 0
+      if (paquetesPendientes.length > 0) {
+        const totalDiasAtraso = paquetesPendientes.reduce((sum, p) => {
+          const fechaEntrega = new Date(p.fecha_entrega)
+          const hoy = new Date()
+          const diasAtraso = Math.floor((hoy.getTime() - fechaEntrega.getTime()) / (1000 * 60 * 60 * 24))
+          return sum + Math.max(0, diasAtraso)
+        }, 0)
+        diasPromedioAtraso = Math.round(totalDiasAtraso / paquetesPendientes.length)
+      }
+
+      return {
+        conductor: {
+          id: conductor.id,
+          nombre: conductor.nombre,
+          zona: conductor.zona
+        },
+        stats: {
+          total_packages: conductorPackages.length,
+          shein_temu_count: conductorShein.length,
+          dropi_count: conductorDropi.length,
+          entregados: conductorEntregados,
+          no_entregados: conductorNoEntregados,
+          devueltos: conductorDevueltos,
+          valor_total_dropi: conductorValorDropi,
+          dias_promedio_atraso: diasPromedioAtraso
+        }
+      }
+    }) || []
+
+    // Estructura de respuesta para el frontend
+    const reportData = {
+      general_stats: {
+        total_conductors: conductors?.length || 0,
+        active_conductors: conductors?.filter(c => c.activo).length || 0,
+        total_packages: totalPackages,
+        entregados: entregados,
+        no_entregados: noEntregados,
+        devueltos: devueltos,
+        valor_total_dropi: valorTotalDropi
+      },
+      conductor_stats: conductorStats,
+      packages: packages?.map(p => ({
+        id: p.id,
+        tracking: p.tracking,
+        tipo: p.tipo,
+        estado: p.estado,
+        fecha_entrega: p.fecha_entrega,
+        valor: p.valor || 0,
+        conductor_id: p.conductor_id,
+        conductor: p.conductor
+      })) || [],
+      metadata: {
+        tipo_reporte,
+        fecha_inicio,
+        fecha_fin,
+        conductor_id,
+        generated_at: new Date().toISOString()
+      }
+    }
+
+    console.log('Estadísticas calculadas:', reportData.general_stats)
+    console.log('Conductores con estadísticas:', reportData.conductor_stats.length)
+
+    return NextResponse.json(reportData)
+
   } catch (error) {
     console.error('Error generating report:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
-}
-
-async function generateGeneralReport(userId: string, fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
-  const reportData: string[] = []
-
-  // Obtener todos los paquetes en el rango de fechas del usuario
-  const { data: packages, error } = await supabase
-    .from('packages')
-    .select(`
-      *,
-      conductor:conductors!inner(id, nombre, zona, user_id)
-    `)
-    .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
-    .gte('fecha_entrega', fechaInicio.toISOString().split('T')[0])
-    .lte('fecha_entrega', fechaFin.toISOString().split('T')[0])
-    .order('fecha_entrega', { ascending: true })
-
-  if (error) {
-    console.error('Error obteniendo paquetes:', error)
-    throw new Error('Error al obtener paquetes para el reporte')
-  }
-
-  // Obtener todos los conductores del usuario
-  const { data: conductors, error: conductorsError } = await supabase
-    .from('conductors')
-    .select('*')
-    .eq('user_id', userId) // Solo conductores del usuario
-    .order('nombre', { ascending: true })
-
-  if (conductorsError) {
-    throw new Error('Error al obtener conductores para el reporte')
-  }
-
-  // Encabezado del reporte
-  reportData.push(`Fecha de generación del informe: ${fechaGeneracion.toLocaleDateString('es-CO')}`)
-  reportData.push(`Franja de fechas analizadas: ${fechaInicio.toLocaleDateString('es-CO')} - ${fechaFin.toLocaleDateString('es-CO')}`)
-  reportData.push('')
-
-  // Agrupar paquetes por día y tipo
-  const paquetesPorDiaTipo: { [key: string]: { 'Shein/Temu': number, 'Dropi': number } } = {}
-  const devueltosPorCiudadFecha: { [key: string]: { [key: string]: number } } = {}
-
-  packages.forEach(pkg => {
-    const dia = new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')
-    
-    if (!paquetesPorDiaTipo[dia]) {
-      paquetesPorDiaTipo[dia] = { 'Shein/Temu': 0, 'Dropi': 0 }
-    }
-    
-    if (pkg.tipo === 'Shein/Temu' || pkg.tipo === 'Dropi') {
-      paquetesPorDiaTipo[dia][pkg.tipo]++
-    }
-
-    // Paquetes devueltos por ciudad y fecha
-    if (pkg.estado === 2) {
-      const ciudad = pkg.conductor.zona
-      const fechaRegistro = new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')
-      
-      if (!devueltosPorCiudadFecha[ciudad]) {
-        devueltosPorCiudadFecha[ciudad] = {}
-      }
-      
-      devueltosPorCiudadFecha[ciudad][fechaRegistro] = (devueltosPorCiudadFecha[ciudad][fechaRegistro] || 0) + 1
-    }
-  })
-
-  // Total de paquetes de cada tipo por día
-  reportData.push('Total de paquetes de cada tipo por día:')
-  const diasOrdenados = Object.keys(paquetesPorDiaTipo).sort((a, b) => 
-    new Date(a.split('/').reverse().join('-')).getTime() - new Date(b.split('/').reverse().join('-')).getTime()
-  )
-  
-  diasOrdenados.forEach(dia => {
-    const shein = paquetesPorDiaTipo[dia]['Shein/Temu']
-    const dropi = paquetesPorDiaTipo[dia]['Dropi']
-    reportData.push(`  ${dia}: Shein/Temu: ${shein}, Dropi: ${dropi}`)
-  })
-
-  reportData.push('')
-
-  // Paquetes devueltos por ciudad y fecha
-  reportData.push('Número de paquetes devueltos por cada ciudad y fecha de registro:')
-  Object.entries(devueltosPorCiudadFecha).forEach(([ciudad, fechas]) => {
-    Object.entries(fechas).forEach(([fecha, cantidad]) => {
-      reportData.push(`  ${ciudad} - ${fecha}: ${cantidad}`)
-    })
-  })
-
-  reportData.push('')
-
-  // Información por cada conductor
-  reportData.push('Información por cada conductor:')
-  
-  for (const conductor of conductors) {
-    const paquetesConductor = packages.filter(p => p.conductor_id === conductor.id)
-    const paquetesShein = paquetesConductor.filter(p => p.tipo === 'Shein/Temu')
-    const paquetesDropi = paquetesConductor.filter(p => p.tipo === 'Dropi')
-    
-    const total = paquetesConductor.length
-    const entregadosShein = paquetesShein.filter(p => p.estado === 1).length
-    const noEntregadosShein = paquetesShein.filter(p => p.estado === 0)
-    const entregadosDropi = paquetesDropi.filter(p => p.estado === 1).length
-    const noEntregadosDropi = paquetesDropi.filter(p => p.estado === 0)
-
-    reportData.push('')
-    reportData.push(`Conductor: ${conductor.nombre}`)
-    reportData.push(`  Total paquetes: ${total}`)
-    reportData.push(`  Shein/Temu: ${paquetesShein.length}`)
-    reportData.push(`    Entregados: ${entregadosShein}`)
-    reportData.push(`    No entregados:`)
-    
-    noEntregadosShein.forEach(p => {
-      const diasAtraso = Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24))
-      reportData.push(`      ${p.tracking} - ${diasAtraso} días de atraso`)
-    })
-    
-    reportData.push(`  Dropi: ${paquetesDropi.length}`)
-    reportData.push(`    Entregados: ${entregadosDropi}`)
-    reportData.push(`    No entregados:`)
-    
-    noEntregadosDropi.forEach(p => {
-      const diasAtraso = Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24))
-      reportData.push(`      ${p.tracking} - ${diasAtraso} días de atraso`)
-    })
-  }
-
-  reportData.push('')
-  reportData.push('Fin de reporte')
-
-  return reportData
-}
-
-async function generateSpecificReport(userId: string, conductorId: string, fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
-  const reportData: string[] = []
-
-  // Obtener información del conductor (verificando que pertenezca al usuario)
-  const { data: conductor, error: conductorError } = await supabase
-    .from('conductors')
-    .select('*')
-    .eq('id', conductorId)
-    .eq('user_id', userId) // Verificar que el conductor pertenezca al usuario
-    .single()
-
-  if (conductorError || !conductor) {
-    throw new Error('Conductor no encontrado o no autorizado')
-  }
-
-  // Obtener paquetes del conductor en el rango de fechas
-  const { data: packages, error } = await supabase
-    .from('packages')
-    .select('*')
-    .eq('conductor_id', conductorId)
-    .gte('fecha_entrega', fechaInicio.toISOString().split('T')[0])
-    .lte('fecha_entrega', fechaFin.toISOString().split('T')[0])
-    .order('fecha_entrega', { ascending: true })
-
-  if (error) {
-    throw new Error('Error al obtener paquetes del conductor')
-  }
-
-  // Obtener todos los paquetes devueltos en el rango para estadísticas generales
-  const { data: allPackages, error: allError } = await supabase
-    .from('packages')
-    .select(`
-      *,
-      conductor:conductors(zona)
-    `)
-    .gte('fecha_entrega', fechaInicio.toISOString().split('T')[0])
-    .lte('fecha_entrega', fechaFin.toISOString().split('T')[0])
-    .eq('estado', 2)
-
-  if (allError) {
-    throw new Error('Error al obtener paquetes devueltos')
-  }
-
-  // Encabezado del reporte
-  reportData.push(`Fecha de generación del informe: ${fechaGeneracion.toLocaleDateString('es-CO')}`)
-  reportData.push(`Rango de fechas: ${fechaInicio.toLocaleDateString('es-CO')} - ${fechaFin.toLocaleDateString('es-CO')}`)
-  reportData.push(`Conductor: ${conductor.nombre}`)
-  reportData.push('')
-
-  // Paquetes devueltos por ciudad
-  const devueltosPorCiudad: { [key: string]: number } = {}
-  allPackages.forEach(p => {
-    const ciudad = p.conductor.zona
-    devueltosPorCiudad[ciudad] = (devueltosPorCiudad[ciudad] || 0) + 1
-  })
-
-  reportData.push('Paquetes devueltos por ciudad:')
-  Object.entries(devueltosPorCiudad).forEach(([ciudad, cantidad]) => {
-    reportData.push(`  ${ciudad}: ${cantidad}`)
-  })
-
-  reportData.push('')
-
-  // Paquetes entregados y no entregados por día
-  reportData.push('Paquetes entregados y no entregados por día:')
-  
-  const fechaActual = new Date(fechaInicio)
-  while (fechaActual <= fechaFin) {
-    const diaStr = fechaActual.toLocaleDateString('es-CO')
-    const fechaStr = fechaActual.toISOString().split('T')[0]
-    
-    const paquetesDia = packages.filter(p => p.fecha_entrega === fechaStr)
-    
-    const sheinEntregados = paquetesDia.filter(p => p.estado === 1 && p.tipo === 'Shein/Temu').length
-    const sheinNoEntregados = paquetesDia.filter(p => p.estado === 0 && p.tipo === 'Shein/Temu').length
-    const dropiEntregados = paquetesDia.filter(p => p.estado === 1 && p.tipo === 'Dropi').length
-    const dropiNoEntregados = paquetesDia.filter(p => p.estado === 0 && p.tipo === 'Dropi').length
-    
-    reportData.push(`  ${diaStr}: Shein/Temu Entregados: ${sheinEntregados}, No Entregados: ${sheinNoEntregados}; Dropi Entregados: ${dropiEntregados}, No Entregados: ${dropiNoEntregados}`)
-    
-    fechaActual.setDate(fechaActual.getDate() + 1)
-  }
-
-  // Totales
-  const totalEntregados = packages.filter(p => p.estado === 1).length
-  const totalNoEntregados = packages.filter(p => p.estado === 0).length
-  
-  reportData.push('')
-  reportData.push('Totales:')
-  reportData.push(`Total entregados: ${totalEntregados}`)
-  reportData.push(`Total no entregados: ${totalNoEntregados}`)
-
-  // Shein/Temu
-  const entregadosShein = packages.filter(p => p.estado === 1 && p.tipo === 'Shein/Temu')
-  const noEntregadosShein = packages.filter(p => p.estado === 0 && p.tipo === 'Shein/Temu')
-
-  reportData.push('')
-  reportData.push(`Shein/Temu entregados: ${entregadosShein.length}`)
-  reportData.push(`Shein/Temu no entregados: ${noEntregadosShein.length}`)
-  reportData.push('Shein/Temu no entregados tracking:')
-  
-  noEntregadosShein.forEach(p => {
-    const diasAtraso = Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24))
-    reportData.push(`  ${p.tracking} - ${diasAtraso} días de atraso`)
-  })
-
-  // Dropi
-  const entregadosDropi = packages.filter(p => p.estado === 1 && p.tipo === 'Dropi')
-  const noEntregadosDropi = packages.filter(p => p.estado === 0 && p.tipo === 'Dropi')
-
-  reportData.push('')
-  reportData.push(`Dropi entregados: ${entregadosDropi.length}`)
-  reportData.push('Dropi entregados con valores:')
-  
-  entregadosDropi.forEach(p => {
-    const valorFmt = p.valor ? `$${p.valor.toLocaleString('es-CO')}` : 'N/A'
-    reportData.push(`  Tracking: ${p.tracking}, Valor: ${valorFmt}`)
-  })
-
-  reportData.push('')
-  reportData.push(`Dropi no entregados: ${noEntregadosDropi.length}`)
-  reportData.push('Dropi no entregados con valores:')
-  
-  let totalValorNoEntregados = 0
-  noEntregadosDropi.forEach(p => {
-    const valorFmt = p.valor ? `$${p.valor.toLocaleString('es-CO')}` : 'N/A'
-    reportData.push(`  Tracking: ${p.tracking}, Valor: ${valorFmt}`)
-    if (p.valor) {
-      totalValorNoEntregados += p.valor
-    }
-  })
-  
-  reportData.push(`Total valor no entregados Dropi: $${totalValorNoEntregados.toLocaleString('es-CO')}`)
-
-  reportData.push('')
-  reportData.push('Fin de reporte')
-
-  return reportData
 }
 
