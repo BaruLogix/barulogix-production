@@ -42,12 +42,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 400 })
     }
 
+    // Obtener todos los conductores del usuario para verificar duplicados
+    const { data: userConductors, error: userConductorsError } = await supabase
+      .from('conductors')
+      .select('id')
+      .eq('user_id', userId)
+
+    if (userConductorsError) {
+      console.error('Error obteniendo conductores del usuario:', userConductorsError)
+      return NextResponse.json({ error: 'Error verificando conductores' }, { status: 500 })
+    }
+
+    const conductorIds = userConductors.map(c => c.id)
+
     let packagesToInsert = []
     let errors = []
 
     if (tipo === 'shein_temu') {
       // Procesar datos de Shein/Temu (solo trackings)
-      const trackings = data.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+      const trackings = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
       
       for (let i = 0; i < trackings.length; i++) {
         const tracking = trackings[i]
@@ -57,12 +70,12 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Verificar si ya existe para este usuario
+        // Verificar duplicados solo en conductores del usuario
         const { data: existing } = await supabase
           .from('packages')
-          .select('id, conductor:conductors!inner(user_id)')
+          .select('id')
           .eq('tracking', tracking)
-          .eq('conductor.user_id', currentUser.id)
+          .in('conductor_id', conductorIds)
           .single()
 
         if (existing) {
@@ -81,7 +94,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (tipo === 'dropi') {
       // Procesar datos de Dropi (tracking + valor)
-      const lines = data.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+      const lines = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
@@ -100,20 +113,18 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Convertir valor a número
-        const valor = parseFloat(valorStr.replace(/[^\d.-]/g, '')) // Remover caracteres no numéricos excepto punto y guión
-        
+        const valor = parseFloat(valorStr.replace(/[^\d.-]/g, ''))
         if (isNaN(valor) || valor <= 0) {
           errors.push(`Línea ${i + 1}: Valor inválido: "${valorStr}"`)
           continue
         }
 
-        // Verificar si ya existe para este usuario
+        // Verificar duplicados solo en conductores del usuario
         const { data: existing } = await supabase
           .from('packages')
-          .select('id, conductor:conductors!inner(user_id)')
+          .select('id')
           .eq('tracking', tracking)
-          .eq('conductor.user_id', currentUser.id)
+          .in('conductor_id', conductorIds)
           .single()
 
         if (existing) {
@@ -131,36 +142,37 @@ export async function POST(request: NextRequest) {
         })
       }
     } else {
-      return NextResponse.json({ error: 'Tipo de paquete no válido' }, { status: 400 })
+      return NextResponse.json({ error: 'Tipo de paquete inválido' }, { status: 400 })
     }
+
+    console.log(`Paquetes a insertar: ${packagesToInsert.length}`)
+    console.log(`Errores encontrados: ${errors.length}`)
 
     // Insertar paquetes válidos
     let insertedCount = 0
     if (packagesToInsert.length > 0) {
-      const { data: inserted, error: insertError } = await supabase
+      const { data: insertedPackages, error: insertError } = await supabase
         .from('packages')
         .insert(packagesToInsert)
         .select()
 
       if (insertError) {
-        console.error('Error inserting packages:', insertError)
-        return NextResponse.json({ error: 'Error al insertar paquetes' }, { status: 500 })
+        console.error('Error insertando paquetes:', insertError)
+        return NextResponse.json({ error: 'Error al insertar paquetes en la base de datos' }, { status: 500 })
       }
 
-      insertedCount = inserted.length
+      insertedCount = insertedPackages?.length || 0
     }
-
-    console.log(`Paquetes insertados masivamente: ${insertedCount}`)
 
     return NextResponse.json({
       success: true,
       inserted: insertedCount,
-      errors: errors,
-      total_processed: packagesToInsert.length + errors.length
+      total_processed: packagesToInsert.length + errors.length,
+      errors: errors
     })
 
   } catch (error) {
-    console.error('Error in bulk packages API:', error)
+    console.error('Error in packages bulk POST:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }

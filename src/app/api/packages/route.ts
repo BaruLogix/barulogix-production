@@ -120,12 +120,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 400 })
     }
 
-    // Verificar que el tracking no existe para este usuario
+    // Verificar que el tracking no existe para conductores de este usuario
+    // Primero obtener todos los conductores del usuario
+    const { data: userConductors, error: userConductorsError } = await supabase
+      .from('conductors')
+      .select('id')
+      .eq('user_id', userId)
+
+    if (userConductorsError) {
+      console.error('Error obteniendo conductores del usuario:', userConductorsError)
+      return NextResponse.json({ error: 'Error verificando conductores' }, { status: 500 })
+    }
+
+    const conductorIds = userConductors.map(c => c.id)
+
+    // Verificar duplicados solo en conductores del usuario
     const { data: existingPackage, error: checkError } = await supabase
       .from('packages')
-      .select('tracking, conductor:conductors!inner(user_id)')
+      .select('tracking')
       .eq('tracking', tracking)
-      .eq('conductor.user_id', userId)
+      .in('conductor_id', conductorIds)
       .single()
 
     if (existingPackage) {
