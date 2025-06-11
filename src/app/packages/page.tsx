@@ -1051,6 +1051,140 @@ export default function PackagesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Registrar Entregas */}
+      {showDeliveryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-secondary-200">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                📦 Registrar Entregas
+              </h3>
+              <button
+                onClick={() => setShowDeliveryModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-semibold text-green-800 mb-1">Instrucciones</h4>
+                    <p className="text-sm text-green-700">
+                      Ingrese los números de tracking de los paquetes entregados, uno por línea. 
+                      El sistema detectará automáticamente el tipo y conductor de cada paquete.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Trackings de Paquetes Entregados</label>
+                <textarea
+                  value={deliveryData}
+                  onChange={(e) => setDeliveryData(e.target.value)}
+                  className="input-barulogix-modern focus-ring min-h-[300px] font-mono text-sm"
+                  placeholder="Ejemplo:&#10;LP123456789CN&#10;YT987654321&#10;DR456789123"
+                />
+                <p className="text-xs text-secondary-500 mt-1">
+                  {deliveryData.split('\n').filter(line => line.trim().length > 0).length} trackings ingresados
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeliveryModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelivery}
+                  disabled={deliveryLoading || !deliveryData.trim()}
+                  className="flex-1 btn-success disabled:opacity-50"
+                >
+                  {deliveryLoading ? 'Procesando...' : 'Registrar Entregas'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Paquetes Devueltos */}
+      {showReturnModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-secondary-200">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                🔄 Paquetes Devueltos
+              </h3>
+              <button
+                onClick={() => setShowReturnModal(false)}
+                className="text-secondary-400 hover:text-secondary-600 transition-colors duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-semibold text-yellow-800 mb-1">Instrucciones</h4>
+                    <p className="text-sm text-yellow-700">
+                      Ingrese los números de tracking de los paquetes que fueron devueltos, uno por línea. 
+                      El sistema detectará automáticamente el tipo y conductor de cada paquete.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Trackings de Paquetes Devueltos</label>
+                <textarea
+                  value={returnData}
+                  onChange={(e) => setReturnData(e.target.value)}
+                  className="input-barulogix-modern focus-ring min-h-[300px] font-mono text-sm"
+                  placeholder="Ejemplo:&#10;LP123456789CN&#10;YT987654321&#10;DR456789123"
+                />
+                <p className="text-xs text-secondary-500 mt-1">
+                  {returnData.split('\n').filter(line => line.trim().length > 0).length} trackings ingresados
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowReturnModal(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReturn}
+                  disabled={returnLoading || !returnData.trim()}
+                  className="flex-1 btn-warning disabled:opacity-50"
+                >
+                  {returnLoading ? 'Procesando...' : 'Registrar Devoluciones'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
