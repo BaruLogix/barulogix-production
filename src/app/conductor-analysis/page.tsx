@@ -238,23 +238,23 @@ export default function ConductorAnalysisPage() {
                 <div className="flex items-center">
                   <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mr-6">
                     <span className="text-primary-600 font-bold text-2xl font-montserrat">
-                      {analysis.conductor.nombre.charAt(0).toUpperCase()}
+                      {analysis.conductor?.nombre?.charAt(0)?.toUpperCase() || 'C'}
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-secondary-900 font-montserrat">{analysis.conductor.nombre}</h3>
-                    <p className="text-lg text-secondary-600 font-segoe">Zona: {analysis.conductor.zona}</p>
+                    <h3 className="text-2xl font-bold text-secondary-900 font-montserrat">{analysis.conductor?.nombre || 'Conductor'}</h3>
+                    <p className="text-lg text-secondary-600 font-segoe">Zona: {analysis.conductor?.zona || 'N/A'}</p>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${
-                      analysis.conductor.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      analysis.conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      <div className={`w-2 h-2 rounded-full mr-2 ${analysis.conductor.activo ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      {analysis.conductor.activo ? 'Activo' : 'Inactivo'}
+                      <div className={`w-2 h-2 rounded-full mr-2 ${analysis.conductor?.activo ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      {analysis.conductor?.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-secondary-600 font-segoe">Total de Paquetes</p>
-                  <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats.total_packages}</p>
+                  <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats?.total_packages || 0}</p>
                 </div>
               </div>
             </div>
@@ -269,9 +269,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.shein_temu_count}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.shein_temu_count || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats.shein_temu_count, analysis.stats.total_packages)}% del total
+                    {getPercentage(analysis.stats?.shein_temu_count || 0, analysis.stats?.total_packages || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -284,9 +284,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dropi_count}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dropi_count || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats.dropi_count, analysis.stats.total_packages)}% del total
+                    {getPercentage(analysis.stats?.dropi_count || 0, analysis.stats?.total_packages || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -299,9 +299,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Entregados</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.entregados}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.entregados || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats.entregados, analysis.stats.total_packages)}% del total
+                    {getPercentage(analysis.stats?.entregados || 0, analysis.stats?.total_packages || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -314,14 +314,14 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Días Atraso Prom.</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dias_promedio_atraso || 0}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dias_promedio_atraso || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">Para paquetes pendientes</p>
                 </div>
               </div>
             </div>
 
             {/* Estadísticas de Dropi */}
-            {analysis.stats.dropi_count > 0 && (
+            {(analysis.stats?.dropi_count || 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="card-barulogix hover-lift animate-slide-up">
                   <div className="text-center">
@@ -332,7 +332,7 @@ export default function ConductorAnalysisPage() {
                     </div>
                     <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Total Dropi</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.valor_total_dropi?.toLocaleString('es-CO') || '0'}
                     </p>
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export default function ConductorAnalysisPage() {
                     </div>
                     <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Entregado</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats.valor_entregado_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.valor_entregado_dropi?.toLocaleString('es-CO') || '0'}
                     </p>
                   </div>
                 </div>

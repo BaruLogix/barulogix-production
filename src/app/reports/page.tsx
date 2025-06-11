@@ -144,9 +144,19 @@ export default function ReportsPage() {
   const exportData = async (format: 'json' | 'csv', dataType: 'conductors' | 'packages' | 'both') => {
     setExportLoading(true)
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setExportLoading(false)
+        return
+      }
+
       const queryParams = new URLSearchParams()
       queryParams.append('format', format)
-      queryParams.append('data_type', dataType)
+      queryParams.append('dataType', dataType)
       
       if (selectedConductor) {
         queryParams.append('conductor_id', selectedConductor)
@@ -160,7 +170,15 @@ export default function ReportsPage() {
         queryParams.append('fecha_hasta', dateRange.fecha_hasta)
       }
 
-      const response = await fetch(`/api/reports/export?${queryParams}`)
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch(`/api/reports/export?${queryParams}`, {
+        method: 'GET',
+        headers
+      })
+      
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -173,8 +191,9 @@ export default function ReportsPage() {
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
       } else {
-        console.error('Error exporting data')
-        alert('Error al exportar los datos')
+        const error = await response.json()
+        console.error('Error exporting data:', error)
+        alert(error.error || 'Error al exportar los datos')
       }
     } catch (error) {
       console.error('Error exporting data:', error)
@@ -223,6 +242,7 @@ export default function ReportsPage() {
         
       } else {
         const error = await response.json()
+        console.error('Error generating PDF:', error)
         alert(error.error || 'Error al generar reporte PDF')
       }
     } catch (error) {
@@ -259,50 +279,50 @@ export default function ReportsPage() {
         <div class="header">
           <h1>BaruLogix - Reporte ${type === 'general' ? 'General' : 'Específico'}</h1>
           <p>Generado el: ${new Date().toLocaleDateString('es-ES')}</p>
-          ${data.metadata.fecha_desde ? `<p>Período: ${data.metadata.fecha_desde} - ${data.metadata.fecha_hasta || 'Presente'}</p>` : ''}
+          ${data.metadata?.fecha_desde ? `<p>Período: ${data.metadata.fecha_desde} - ${data.metadata.fecha_hasta || 'Presente'}</p>` : ''}
         </div>
 
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-value">${data.general_stats.total_conductors}</div>
+            <div class="stat-value">${data.general_stats?.total_conductors || 0}</div>
             <div class="stat-label">Total Conductores</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${data.general_stats.total_packages}</div>
+            <div class="stat-value">${data.general_stats?.total_packages || 0}</div>
             <div class="stat-label">Total Paquetes</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${data.general_stats.entregados}</div>
+            <div class="stat-value">${data.general_stats?.entregados || 0}</div>
             <div class="stat-label">Entregados</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">${data.general_stats.devueltos}</div>
+            <div class="stat-value">${data.general_stats?.devueltos || 0}</div>
             <div class="stat-label">Devueltos</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">$${data.general_stats.valor_total_dropi.toLocaleString()}</div>
+            <div class="stat-value">$${data.general_stats?.valor_total_dropi?.toLocaleString() || '0'}</div>
             <div class="stat-label">Valor Total Dropi</div>
           </div>
         </div>
 
-        ${data.conductor_stats.map((conductor: any) => `
+        ${(data.conductor_stats || []).map((conductor: any) => `
           <div class="conductor-section">
-            <div class="conductor-title">${conductor.conductor.nombre} - ${conductor.conductor.zona}</div>
+            <div class="conductor-title">${conductor.conductor?.nombre || 'N/A'} - ${conductor.conductor?.zona || 'N/A'}</div>
             <div class="stats-grid">
               <div class="stat-card">
-                <div class="stat-value">${conductor.stats.total_packages}</div>
+                <div class="stat-value">${conductor.stats?.total_packages || 0}</div>
                 <div class="stat-label">Total Paquetes</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">${conductor.stats.entregados}</div>
+                <div class="stat-value">${conductor.stats?.entregados || 0}</div>
                 <div class="stat-label">Entregados</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">${conductor.stats.devueltos}</div>
+                <div class="stat-value">${conductor.stats?.devueltos || 0}</div>
                 <div class="stat-label">Devueltos</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value">$${conductor.stats.valor_total_dropi.toLocaleString()}</div>
+                <div class="stat-value">$${conductor.stats?.valor_total_dropi?.toLocaleString() || '0'}</div>
                 <div class="stat-label">Valor Dropi</div>
               </div>
             </div>
@@ -322,15 +342,15 @@ export default function ReportsPage() {
             </tr>
           </thead>
           <tbody>
-            ${data.packages.map((pkg: any) => `
+            ${(data.packages || []).map((pkg: any) => `
               <tr>
-                <td>${pkg.tracking}</td>
-                <td>${pkg.conductor}</td>
-                <td>${pkg.zona}</td>
-                <td>${pkg.tipo}</td>
-                <td>${pkg.estado}</td>
-                <td>${pkg.fecha_entrega}</td>
-                <td>$${pkg.valor.toLocaleString()}</td>
+                <td>${pkg.tracking || 'N/A'}</td>
+                <td>${pkg.conductor || 'N/A'}</td>
+                <td>${pkg.zona || 'N/A'}</td>
+                <td>${pkg.tipo || 'N/A'}</td>
+                <td>${pkg.estado || 'N/A'}</td>
+                <td>${pkg.fecha_entrega || 'N/A'}</td>
+                <td>$${pkg.valor?.toLocaleString() || '0'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -346,8 +366,10 @@ export default function ReportsPage() {
       printWindow.document.close()
       
       printWindow.onload = () => {
-        printWindow.print()
-        printWindow.close()
+        setTimeout(() => {
+          printWindow.print()
+          printWindow.close()
+        }, 500)
       }
     }
   }
@@ -552,12 +574,17 @@ export default function ReportsPage() {
 
               {/* Botones de PDF */}
               <div className="border-t pt-4 mt-4">
-                <h4 className="text-md font-semibold text-secondary-800 font-montserrat mb-3">Exportar PDF</h4>
+                <h4 className="text-md font-semibold text-secondary-800 font-montserrat mb-3 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar PDF
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => exportPDF('general')}
                     disabled={pdfLoading}
-                    className="btn-success disabled:opacity-50"
+                    className="btn-pdf disabled:opacity-50"
                   >
                     {pdfLoading ? (
                       <>
@@ -576,7 +603,7 @@ export default function ReportsPage() {
                   <button
                     onClick={() => exportPDF('specific')}
                     disabled={pdfLoading || !selectedConductor}
-                    className="btn-success disabled:opacity-50"
+                    className="btn-pdf disabled:opacity-50"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

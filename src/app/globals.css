@@ -201,3 +201,57 @@ body {
   @apply bg-white rounded-xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto;
 }
 
+
+/* Botones especializados para entregas y devoluciones */
+.btn-delivery {
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-emerald-500 border border-transparent rounded-lg shadow-md hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+
+.btn-return {
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-red-500 border border-transparent rounded-lg shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+
+.btn-success {
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-green-600 border border-transparent rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+
+.btn-warning {
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-amber-500 border border-transparent rounded-lg shadow-md hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+
+/* Botones de PDF con estilo profesional */
+.btn-pdf {
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+
+/* Sección de filtros mejorada */
+.filters-section {
+  @apply bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm;
+}
+
+.filter-group {
+  @apply space-y-3;
+}
+
+.filter-label {
+  @apply block text-sm font-semibold text-gray-700 mb-2 flex items-center;
+}
+
+.filter-input {
+  @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-blue-300;
+}
+
+/* Iconos para filtros */
+.filter-icon {
+  @apply w-4 h-4 mr-2 text-blue-600;
+}
+
+/* Mejoras para botones de acción */
+.action-buttons-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.action-button {
+  @apply w-full flex items-center justify-center px-4 py-3 text-sm font-medium rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 hover:shadow-lg;
+}
+

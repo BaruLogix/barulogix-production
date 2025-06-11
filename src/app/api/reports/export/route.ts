@@ -6,110 +6,122 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { formato, fecha_inicio, fecha_fin, conductor_id, incluir_conductores, incluir_paquetes } = body
-
-    if (!formato || !fecha_inicio || !fecha_fin) {
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG REPORTS EXPORT ===')
+    console.log('User ID recibido:', userId)
+    
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Faltan campos requeridos: formato, fecha_inicio, fecha_fin' 
-      }, { status: 400 })
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para exportar datos'
+      }, { status: 401 })
     }
 
-    let query = supabase
-      .from('packages')
-      .select(`
-        *,
-        conductor:conductors(id, nombre, zona, activo)
-      `)
-      .gte('fecha_entrega', fecha_inicio)
-      .lte('fecha_entrega', fecha_fin)
-      .order('fecha_entrega', { ascending: false })
+    const { searchParams } = new URL(request.url)
+    const format = searchParams.get('format') || 'json'
+    const dataType = searchParams.get('dataType') || 'both'
+    const conductor_id = searchParams.get('conductor_id')
+    const fecha_desde = searchParams.get('fecha_desde')
+    const fecha_hasta = searchParams.get('fecha_hasta')
 
-    // Filtro por conductor específico
-    if (conductor_id) {
-      query = query.eq('conductor_id', conductor_id)
-    }
+    console.log('Parámetros de exportación:', { format, dataType, conductor_id, fecha_desde, fecha_hasta })
 
-    const { data: packages, error } = await query
+    let exportData: any = {}
 
-    if (error) {
-      console.error('Error fetching packages for export:', error)
-      return NextResponse.json({ error: 'Error al obtener datos para exportación' }, { status: 500 })
-    }
-
-    // Obtener conductores si se requiere
-    let conductors = []
-    if (incluir_conductores) {
-      const { data: conductorsData, error: conductorsError } = await supabase
+    // Exportar conductores
+    if (dataType === 'conductors' || dataType === 'both') {
+      const { data: conductors, error: conductorsError } = await supabase
         .from('conductors')
         .select('*')
+        .eq('user_id', userId) // Solo conductores del usuario
         .order('nombre', { ascending: true })
 
       if (conductorsError) {
-        console.error('Error fetching conductors for export:', conductorsError)
-        return NextResponse.json({ error: 'Error al obtener conductores para exportación' }, { status: 500 })
+        console.error('Error fetching conductors:', conductorsError)
+        return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
       }
 
-      conductors = conductorsData || []
+      exportData.conductors = conductors
     }
 
-    if (formato === 'json') {
-      const exportData = {
-        fecha_exportacion: new Date().toISOString(),
-        rango_fechas: {
-          inicio: fecha_inicio,
-          fin: fecha_fin
-        },
-        total_paquetes: packages.length,
-        ...(incluir_conductores && { conductores: conductors }),
-        ...(incluir_paquetes && { paquetes: packages })
+    // Exportar paquetes
+    if (dataType === 'packages' || dataType === 'both') {
+      let query = supabase
+        .from('packages')
+        .select(`
+          *,
+          conductor:conductors!inner(id, nombre, zona, user_id)
+        `)
+        .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
+        .order('fecha_entrega', { ascending: false })
+
+      // Filtros opcionales
+      if (conductor_id) {
+        query = query.eq('conductor_id', conductor_id)
+      }
+      
+      if (fecha_desde) {
+        query = query.gte('fecha_entrega', fecha_desde)
+      }
+      
+      if (fecha_hasta) {
+        query = query.lte('fecha_entrega', fecha_hasta)
       }
 
-      return NextResponse.json(exportData)
+      const { data: packages, error: packagesError } = await query
+
+      if (packagesError) {
+        console.error('Error fetching packages:', packagesError)
+        return NextResponse.json({ error: 'Error al obtener paquetes' }, { status: 500 })
+      }
+
+      exportData.packages = packages
     }
 
-    if (formato === 'csv') {
+    // Generar respuesta según formato
+    if (format === 'csv') {
       let csvContent = ''
       
-      if (incluir_paquetes) {
-        // CSV de paquetes
-        csvContent += 'Tracking,Conductor,Zona,Tipo,Estado,Fecha_Entrega,Valor,Fecha_Creacion\n'
-        
-        packages.forEach(pkg => {
-          const estado = pkg.estado === 0 ? 'No Entregado' : pkg.estado === 1 ? 'Entregado' : 'Devuelto'
-          const valor = pkg.valor ? pkg.valor.toString() : ''
-          const fechaEntrega = new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')
-          const fechaCreacion = new Date(pkg.created_at).toLocaleDateString('es-CO')
-          
-          csvContent += `"${pkg.tracking}","${pkg.conductor.nombre}","${pkg.conductor.zona}","${pkg.tipo}","${estado}","${fechaEntrega}","${valor}","${fechaCreacion}"\n`
+      if (dataType === 'conductors' || dataType === 'both') {
+        csvContent += 'CONDUCTORES\n'
+        csvContent += 'ID,Nombre,Zona,Teléfono,Activo,Fecha Creación\n'
+        exportData.conductors?.forEach((conductor: any) => {
+          csvContent += `${conductor.id},"${conductor.nombre}","${conductor.zona}","${conductor.telefono || ''}",${conductor.activo ? 'Sí' : 'No'},${conductor.created_at}\n`
         })
+        csvContent += '\n'
       }
-
-      if (incluir_conductores) {
-        if (csvContent) csvContent += '\n\n'
-        csvContent += 'Nombre,Zona,Activo,Fecha_Creacion\n'
-        
-        conductors.forEach(conductor => {
-          const activo = conductor.activo ? 'Sí' : 'No'
-          const fechaCreacion = new Date(conductor.created_at).toLocaleDateString('es-CO')
-          
-          csvContent += `"${conductor.nombre}","${conductor.zona}","${activo}","${fechaCreacion}"\n`
+      
+      if (dataType === 'packages' || dataType === 'both') {
+        csvContent += 'PAQUETES\n'
+        csvContent += 'ID,Tracking,Conductor,Zona,Tipo,Estado,Fecha Entrega,Valor\n'
+        exportData.packages?.forEach((pkg: any) => {
+          const estado = pkg.estado === 0 ? 'No Entregado' : pkg.estado === 1 ? 'Entregado' : 'Devuelto'
+          csvContent += `${pkg.id},"${pkg.tracking}","${pkg.conductor?.nombre || 'N/A'}","${pkg.conductor?.zona || 'N/A'}","${pkg.tipo}","${estado}",${pkg.fecha_entrega},${pkg.valor || 0}\n`
         })
       }
 
       return new NextResponse(csvContent, {
         headers: {
           'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="barulogix_export_${new Date().toISOString().split('T')[0]}.csv"`
+          'Content-Disposition': `attachment; filename="barulogix_export_${dataType}_${new Date().toISOString().split('T')[0]}.csv"`
+        }
+      })
+    } else {
+      // Formato JSON
+      return new NextResponse(JSON.stringify(exportData, null, 2), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="barulogix_export_${dataType}_${new Date().toISOString().split('T')[0]}.json"`
         }
       })
     }
 
-    return NextResponse.json({ error: 'Formato no soportado' }, { status: 400 })
   } catch (error) {
-    console.error('Error in export:', error)
+    console.error('Error in export route:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }

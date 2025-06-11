@@ -617,50 +617,93 @@ export default function PackagesPage() {
           </div>
         </div>
 
-        {/* Controles */}
+        {/* Controles y Filtros */}
         <div className="card-barulogix-lg mb-8 animate-fade-in">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
-              <input
-                type="text"
-                placeholder="Buscar por tracking o conductor..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-barulogix-modern focus-ring"
-              />
-              <select
-                value={filterConductor}
-                onChange={(e) => setFilterConductor(e.target.value)}
-                className="input-barulogix-modern focus-ring"
-              >
-                <option value="">Todos los conductores</option>
-                {conductors.filter(c => c.activo).map(conductor => (
-                  <option key={conductor.id} value={conductor.id}>
-                    {conductor.nombre} - {conductor.zona}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={filterTipo}
-                onChange={(e) => setFilterTipo(e.target.value)}
-                className="input-barulogix-modern focus-ring"
-              >
-                <option value="">Todos los tipos</option>
-                <option value="Shein/Temu">Shein/Temu</option>
-                <option value="Dropi">Dropi</option>
-              </select>
-              <select
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value)}
-                className="input-barulogix-modern focus-ring"
-              >
-                <option value="">Todos los estados</option>
-                <option value="0">No Entregado</option>
-                <option value="1">Entregado</option>
-                <option value="2">Devuelto</option>
-              </select>
+          <h3 className="text-lg font-semibold text-secondary-800 mb-4 font-montserrat flex items-center">
+            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
+            </svg>
+            Filtros y Búsqueda
+          </h3>
+          
+          <div className="filters-section">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="filter-group">
+                <label className="filter-label">
+                  <svg className="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Buscar Tracking/Conductor
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ingrese tracking o nombre del conductor..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="filter-input"
+                />
+              </div>
+              
+              <div className="filter-group">
+                <label className="filter-label">
+                  <svg className="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Conductor
+                </label>
+                <select
+                  value={filterConductor}
+                  onChange={(e) => setFilterConductor(e.target.value)}
+                  className="filter-input"
+                >
+                  <option value="">Todos los conductores</option>
+                  {conductors.filter(c => c.activo).map(conductor => (
+                    <option key={conductor.id} value={conductor.id}>
+                      {conductor.nombre} - {conductor.zona}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label className="filter-label">
+                  <svg className="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
+                  </svg>
+                  Tipo de Paquete
+                </label>
+                <select
+                  value={filterTipo}
+                  onChange={(e) => setFilterTipo(e.target.value)}
+                  className="filter-input"
+                >
+                  <option value="">Todos los tipos</option>
+                  <option value="Shein/Temu">Shein/Temu</option>
+                  <option value="Dropi">Dropi</option>
+                </select>
+              </div>
+              
+              <div className="filter-group">
+                <label className="filter-label">
+                  <svg className="filter-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Estado
+                </label>
+                <select
+                  value={filterEstado}
+                  onChange={(e) => setFilterEstado(e.target.value)}
+                  className="filter-input"
+                >
+                  <option value="">Todos los estados</option>
+                  <option value="0">No Entregado</option>
+                  <option value="1">Entregado</option>
+                  <option value="2">Devuelto</option>
+                </select>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3">
+            
+            <div className="action-buttons-grid">
               <button
                 onClick={() => {
                   setEditingPackage(null)
@@ -674,7 +717,7 @@ export default function PackagesPage() {
                   })
                   setShowModal(true)
                 }}
-                className="btn-primary hover-glow"
+                className="btn-primary hover-glow action-button"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -688,7 +731,7 @@ export default function PackagesPage() {
                   setBulkType('shein_temu')
                   setShowBulkModal(true)
                 }}
-                className="btn-accent hover-glow"
+                className="btn-accent hover-glow action-button"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -700,7 +743,7 @@ export default function PackagesPage() {
                   setDeliveryData('')
                   setShowDeliveryModal(true)
                 }}
-                className="btn-success hover-glow"
+                className="btn-delivery hover-glow action-button"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -712,7 +755,7 @@ export default function PackagesPage() {
                   setReturnData('')
                   setShowReturnModal(true)
                 }}
-                className="btn-warning hover-glow"
+                className="btn-return hover-glow action-button"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
