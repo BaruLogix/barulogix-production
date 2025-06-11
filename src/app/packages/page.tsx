@@ -215,30 +215,28 @@ export default function PackagesPage() {
         body: JSON.stringify(submitData)
       })
 
-      // Procesar la respuesta y cerrar el modal ANTES de mostrar cualquier mensaje
-      if (response.ok) {
-        // Cerrar modal y limpiar datos primero
-        setShowModal(false)
-        setEditingPackage(null)
-        setFormData({
-          tracking: '',
-          conductor_id: '',
-          tipo: 'Shein/Temu',
-          estado: 0,
-          fecha_entrega: todayFormatted,
-          valor: ''
-        })
-        
-        // Recargar datos después de cerrar el modal
-        await loadPackages()
-        await loadStats()
-        
-        // No mostrar ningún mensaje de éxito, la desaparición del modal es suficiente feedback
-      } else {
-        // Solo en caso de error real mostrar mensaje
+      // Cerrar modal y limpiar datos primero, ANTES de cualquier mensaje
+      setShowModal(false)
+      setEditingPackage(null)
+      setFormData({
+        tracking: '',
+        conductor_id: '',
+        tipo: 'Shein/Temu',
+        estado: 0,
+        fecha_entrega: todayFormatted,
+        valor: ''
+      })
+      
+      // Recargar datos después de cerrar el modal
+      await loadPackages()
+      await loadStats()
+      
+      // Solo mostrar error si la respuesta no fue exitosa
+      if (!response.ok) {
         const error = await response.json()
         alert(error.error || 'Error al guardar paquete')
       }
+      // No mostrar ningún mensaje de éxito, la desaparición del modal es suficiente feedback
     } catch (error) {
       console.error('Error saving package:', error)
       alert('Error al guardar paquete')
@@ -246,7 +244,7 @@ export default function PackagesPage() {
       setLoading(false)
     }
   }
-
+  
   const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
