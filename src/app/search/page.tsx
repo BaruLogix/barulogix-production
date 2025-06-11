@@ -73,7 +73,20 @@ export default function SearchPage() {
 
   const loadConductors = async () => {
     try {
-      const response = await fetch('/api/conductors')
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para cargar conductores')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/conductors', { headers })
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
@@ -88,12 +101,26 @@ export default function SearchPage() {
     setLoading(true)
 
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setLoading(false)
+        return
+      }
+
       const queryParams = new URLSearchParams()
       Object.entries(searchParams).forEach(([key, value]) => {
         if (value) queryParams.append(key, value)
       })
 
-      const response = await fetch(`/api/packages/search?${queryParams}`)
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch(`/api/packages/search?${queryParams}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setResults(data.packages || [])

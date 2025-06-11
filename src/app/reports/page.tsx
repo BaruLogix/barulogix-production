@@ -50,6 +50,7 @@ export default function ReportsPage() {
     fecha_hasta: ''
   })
   const [exportLoading, setExportLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -69,7 +70,20 @@ export default function ReportsPage() {
 
   const loadConductors = async () => {
     try {
-      const response = await fetch('/api/conductors')
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario para cargar conductores')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/conductors', { headers })
       if (response.ok) {
         const data = await response.json()
         setConductors(data.conductors || [])
@@ -82,6 +96,16 @@ export default function ReportsPage() {
   const generateReport = async (type: 'general' | 'specific') => {
     setLoading(true)
     try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setLoading(false)
+        return
+      }
+
       const queryParams = new URLSearchParams()
       queryParams.append('type', type)
       
@@ -97,7 +121,11 @@ export default function ReportsPage() {
         queryParams.append('fecha_hasta', dateRange.fecha_hasta)
       }
 
-      const response = await fetch(`/api/reports/generate?${queryParams}`)
+      const headers = {
+        'x-user-id': userId
+      }
+
+      const response = await fetch(`/api/reports/generate?${queryParams}`, { headers })
       if (response.ok) {
         const data = await response.json()
         setReportData(data)
@@ -153,6 +181,174 @@ export default function ReportsPage() {
       alert('Error al exportar los datos')
     } finally {
       setExportLoading(false)
+    }
+  }
+
+  const exportPDF = async (type: 'general' | 'specific') => {
+    setPdfLoading(true)
+    try {
+      // Obtener el ID del usuario logueado
+      const userData = localStorage.getItem('user')
+      const userId = userData ? JSON.parse(userData).id : null
+      
+      if (!userId) {
+        alert('Error: No se pudo obtener información del usuario')
+        setPdfLoading(false)
+        return
+      }
+
+      const requestBody = {
+        type,
+        conductor_id: type === 'specific' ? selectedConductor : null,
+        fecha_desde: dateRange.fecha_desde || null,
+        fecha_hasta: dateRange.fecha_hasta || null
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-user-id': userId
+      }
+
+      const response = await fetch('/api/reports/pdf', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Generar PDF en el frontend usando los datos
+        generatePDFFromData(data.report_data, type)
+        
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al generar reporte PDF')
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Error al generar reporte PDF')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const generatePDFFromData = (data: any, type: string) => {
+    // Crear contenido HTML para el PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Reporte BaruLogix</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+          .stat-card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+          .stat-value { font-size: 24px; font-weight: bold; color: #2563eb; }
+          .stat-label { font-size: 14px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .conductor-section { margin-bottom: 30px; }
+          .conductor-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>BaruLogix - Reporte ${type === 'general' ? 'General' : 'Específico'}</h1>
+          <p>Generado el: ${new Date().toLocaleDateString('es-ES')}</p>
+          ${data.metadata.fecha_desde ? `<p>Período: ${data.metadata.fecha_desde} - ${data.metadata.fecha_hasta || 'Presente'}</p>` : ''}
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">${data.general_stats.total_conductors}</div>
+            <div class="stat-label">Total Conductores</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${data.general_stats.total_packages}</div>
+            <div class="stat-label">Total Paquetes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${data.general_stats.entregados}</div>
+            <div class="stat-label">Entregados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${data.general_stats.devueltos}</div>
+            <div class="stat-label">Devueltos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">$${data.general_stats.valor_total_dropi.toLocaleString()}</div>
+            <div class="stat-label">Valor Total Dropi</div>
+          </div>
+        </div>
+
+        ${data.conductor_stats.map((conductor: any) => `
+          <div class="conductor-section">
+            <div class="conductor-title">${conductor.conductor.nombre} - ${conductor.conductor.zona}</div>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${conductor.stats.total_packages}</div>
+                <div class="stat-label">Total Paquetes</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${conductor.stats.entregados}</div>
+                <div class="stat-label">Entregados</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${conductor.stats.devueltos}</div>
+                <div class="stat-label">Devueltos</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">$${conductor.stats.valor_total_dropi.toLocaleString()}</div>
+                <div class="stat-label">Valor Dropi</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+
+        <table>
+          <thead>
+            <tr>
+              <th>Tracking</th>
+              <th>Conductor</th>
+              <th>Zona</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Fecha Entrega</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.packages.map((pkg: any) => `
+              <tr>
+                <td>${pkg.tracking}</td>
+                <td>${pkg.conductor}</td>
+                <td>${pkg.zona}</td>
+                <td>${pkg.tipo}</td>
+                <td>${pkg.estado}</td>
+                <td>${pkg.fecha_entrega}</td>
+                <td>$${pkg.valor.toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+
+    // Crear y descargar el PDF
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      
+      printWindow.onload = () => {
+        printWindow.print()
+        printWindow.close()
+      }
     }
   }
 
@@ -353,6 +549,42 @@ export default function ReportsPage() {
                   </>
                 )}
               </button>
+
+              {/* Botones de PDF */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-md font-semibold text-secondary-800 font-montserrat mb-3">Exportar PDF</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => exportPDF('general')}
+                    disabled={pdfLoading}
+                    className="btn-success disabled:opacity-50"
+                  >
+                    {pdfLoading ? (
+                      <>
+                        <div className="loading-spinner w-4 h-4 mr-2"></div>
+                        Generando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        PDF General
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => exportPDF('specific')}
+                    disabled={pdfLoading || !selectedConductor}
+                    className="btn-success disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    PDF Específico
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
