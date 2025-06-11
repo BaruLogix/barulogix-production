@@ -254,7 +254,7 @@ export default function ConductorAnalysisPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-secondary-600 font-segoe">Total de Paquetes</p>
-                  <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats?.total_packages || 0}</p>
+                  <p className="text-4xl font-bold text-primary-600 font-montserrat">{analysis.stats?.total_paquetes || 0}</p>
                 </div>
               </div>
             </div>
@@ -269,9 +269,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.shein_temu_count || 0}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.shein_total || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats?.shein_temu_count || 0, analysis.stats?.total_packages || 0)}% del total
+                    {getPercentage(analysis.stats?.shein_total || 0, analysis.stats?.total_paquetes || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -284,9 +284,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dropi_count || 0}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dropi_total || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats?.dropi_count || 0, analysis.stats?.total_packages || 0)}% del total
+                    {getPercentage(analysis.stats?.dropi_total || 0, analysis.stats?.total_paquetes || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -299,9 +299,9 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Entregados</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.entregados || 0}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{(analysis.stats?.shein_entregados || 0) + (analysis.stats?.dropi_entregados || 0)}</p>
                   <p className="text-xs text-secondary-500 mt-1">
-                    {getPercentage(analysis.stats?.entregados || 0, analysis.stats?.total_packages || 0)}% del total
+                    {getPercentage((analysis.stats?.shein_entregados || 0) + (analysis.stats?.dropi_entregados || 0), analysis.stats?.total_paquetes || 0)}% del total
                   </p>
                 </div>
               </div>
@@ -314,14 +314,18 @@ export default function ConductorAnalysisPage() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">Días Atraso Prom.</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dias_promedio_atraso || 0}</p>
+                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{
+                    analysis.stats?.paquetes_atrasados?.length > 0 
+                      ? Math.round(analysis.stats.paquetes_atrasados.reduce((sum: number, p: any) => sum + p.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length)
+                      : 0
+                  }</p>
                   <p className="text-xs text-secondary-500 mt-1">Para paquetes pendientes</p>
                 </div>
               </div>
             </div>
 
             {/* Estadísticas de Dropi */}
-            {(analysis.stats?.dropi_count || 0) > 0 && (
+            {(analysis.stats?.dropi_total || 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="card-barulogix hover-lift animate-slide-up">
                   <div className="text-center">
@@ -332,7 +336,7 @@ export default function ConductorAnalysisPage() {
                     </div>
                     <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Total Dropi</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.dropi_valor_total?.toLocaleString('es-CO') || '0'}
                     </p>
                   </div>
                 </div>
@@ -346,7 +350,7 @@ export default function ConductorAnalysisPage() {
                     </div>
                     <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Entregado</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.valor_entregado_dropi?.toLocaleString('es-CO') || '0'}
+                      ${analysis.stats?.dropi_valor_entregado?.toLocaleString('es-CO') || '0'}
                     </p>
                   </div>
                 </div>

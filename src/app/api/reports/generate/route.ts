@@ -56,28 +56,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateGeneralReport(fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
+async function generateGeneralReport(userId: string, fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
   const reportData: string[] = []
 
-  // Obtener todos los paquetes en el rango de fechas
+  // Obtener todos los paquetes en el rango de fechas del usuario
   const { data: packages, error } = await supabase
     .from('packages')
     .select(`
       *,
-      conductor:conductors(id, nombre, zona)
+      conductor:conductors!inner(id, nombre, zona, user_id)
     `)
+    .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
     .gte('fecha_entrega', fechaInicio.toISOString().split('T')[0])
     .lte('fecha_entrega', fechaFin.toISOString().split('T')[0])
     .order('fecha_entrega', { ascending: true })
 
   if (error) {
+    console.error('Error obteniendo paquetes:', error)
     throw new Error('Error al obtener paquetes para el reporte')
   }
 
-  // Obtener todos los conductores
+  // Obtener todos los conductores del usuario
   const { data: conductors, error: conductorsError } = await supabase
     .from('conductors')
     .select('*')
+    .eq('user_id', userId) // Solo conductores del usuario
     .order('nombre', { ascending: true })
 
   if (conductorsError) {
@@ -183,18 +186,19 @@ async function generateGeneralReport(fechaInicio: Date, fechaFin: Date, fechaGen
   return reportData
 }
 
-async function generateSpecificReport(conductorId: string, fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
+async function generateSpecificReport(userId: string, conductorId: string, fechaInicio: Date, fechaFin: Date, fechaGeneracion: Date): Promise<string[]> {
   const reportData: string[] = []
 
-  // Obtener información del conductor
+  // Obtener información del conductor (verificando que pertenezca al usuario)
   const { data: conductor, error: conductorError } = await supabase
     .from('conductors')
     .select('*')
     .eq('id', conductorId)
+    .eq('user_id', userId) // Verificar que el conductor pertenezca al usuario
     .single()
 
   if (conductorError || !conductor) {
-    throw new Error('Conductor no encontrado')
+    throw new Error('Conductor no encontrado o no autorizado')
   }
 
   // Obtener paquetes del conductor en el rango de fechas

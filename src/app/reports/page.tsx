@@ -106,32 +106,31 @@ export default function ReportsPage() {
         return
       }
 
-      const queryParams = new URLSearchParams()
-      queryParams.append('type', type)
-      
-      if (type === 'specific' && selectedConductor) {
-        queryParams.append('conductor_id', selectedConductor)
-      }
-      
-      if (dateRange.fecha_desde) {
-        queryParams.append('fecha_desde', dateRange.fecha_desde)
-      }
-      
-      if (dateRange.fecha_hasta) {
-        queryParams.append('fecha_hasta', dateRange.fecha_hasta)
+      const requestBody = {
+        tipo_reporte: type,
+        fecha_inicio: dateRange.fecha_desde || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 días atrás por defecto
+        fecha_fin: dateRange.fecha_hasta || new Date().toISOString().split('T')[0], // Hoy por defecto
+        conductor_id: type === 'specific' ? selectedConductor : undefined
       }
 
       const headers = {
+        'Content-Type': 'application/json',
         'x-user-id': userId
       }
 
-      const response = await fetch(`/api/reports/generate?${queryParams}`, { headers })
+      const response = await fetch('/api/reports/generate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setReportData(data)
       } else {
-        console.error('Error generating report')
-        alert('Error al generar el reporte')
+        const error = await response.json()
+        console.error('Error generating report:', error)
+        alert(error.error || 'Error al generar el reporte')
       }
     } catch (error) {
       console.error('Error generating report:', error)
@@ -359,19 +358,17 @@ export default function ReportsPage() {
       </html>
     `
 
-    // Crear y descargar el PDF
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
-      
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print()
-          printWindow.close()
-        }, 500)
-      }
-    }
+    // Crear blob y descargar directamente
+    const blob = new Blob([htmlContent], { type: 'text/html' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = url
+    a.download = `barulogix_reporte_${type}_${new Date().toISOString().split('T')[0]}.html`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
   }
 
   const getPercentage = (value: number, total: number) => {
