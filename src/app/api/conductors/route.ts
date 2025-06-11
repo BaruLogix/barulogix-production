@@ -8,26 +8,26 @@ const supabase = createClient(
 // GET - Obtener todos los conductores del usuario logueado
 export async function GET(request: NextRequest) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar email directamente sin tabla users
-    const userEmail = request.headers.get('x-user-email')
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG CONDUCTORS GET ===')
-    console.log('Email recibido:', userEmail)
+    console.log('User ID recibido:', userId)
     
-    if (!userEmail) {
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
+        error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para ver conductores'
       }, { status: 401 })
     }
 
-    console.log('Buscando conductores para email:', userEmail)
+    console.log('Buscando conductores para user ID:', userId)
 
     // Obtener conductores del usuario actual
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
-      .eq('user_id', userEmail)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -62,27 +62,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // SOLUCIÓN DEFINITIVA: Usar email directamente sin tabla users
-    const userEmail = request.headers.get('x-user-email')
+    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
+    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG CONDUCTORS POST ===')
-    console.log('Email recibido:', userEmail)
+    console.log('User ID recibido:', userId)
     
-    if (!userEmail) {
+    if (!userId) {
       return NextResponse.json({ 
-        error: 'Email de usuario no proporcionado',
+        error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para crear conductores'
       }, { status: 401 })
     }
 
-    console.log('Creando conductor para email:', userEmail)
+    console.log('Creando conductor para user ID:', userId)
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
-      .eq('user_id', userEmail)
+      .eq('user_id', userId)
       .maybeSingle()
 
     if (existingError) {
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
-    // Crear el conductor asociado al email del usuario
+    // Crear el conductor asociado al ID del usuario
     const insertData = {
-      user_id: userEmail, // Usar email como identificador
+      user_id: userId, // Usar ID real del usuario
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,

@@ -41,25 +41,23 @@ export default function ConductorsPage() {
       router.push('/auth/login')
       return
     }
-  }
-
-  const loadConductors = async () => {
+    const loadConductors = async () => {
     try {
-      // Obtener el email del usuario logueado
+      // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
-      const userEmail = userData ? JSON.parse(userData).email : null
+      const userId = userData ? JSON.parse(userData).id : null
       
       console.log('=== DEBUG FRONTEND ===')
       console.log('userData from localStorage:', userData)
-      console.log('userEmail extracted:', userEmail)
+      console.log('userId extracted:', userId)
       
-      if (!userEmail) {
-        console.error('No se pudo obtener email del usuario')
+      if (!userId) {
+        console.error('No se pudo obtener ID del usuario')
         return
       }
       
       const headers = {
-        'x-user-email': userEmail
+        'x-user-id': userId
       }
       
       console.log('Headers a enviar:', headers)
@@ -79,7 +77,8 @@ export default function ConductorsPage() {
       }
     } catch (error) {
       console.error('Error loading conductors:', error)
-    } finally {
+    }
+  }finally {
       setLoading(false)
     }
   }
@@ -89,15 +88,15 @@ export default function ConductorsPage() {
     setLoading(true)
 
     try {
-      // Obtener el email del usuario logueado
+      // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
-      const userEmail = userData ? JSON.parse(userData).email : null
+      const userId = userData ? JSON.parse(userData).id : null
       
       console.log('=== DEBUG FRONTEND SUBMIT ===')
       console.log('userData from localStorage:', userData)
-      console.log('userEmail extracted:', userEmail)
+      console.log('userId extracted:', userId)
       
-      if (!userEmail) {
+      if (!userId) {
         alert('No se pudo obtener información del usuario logueado')
         return
       }
@@ -107,7 +106,7 @@ export default function ConductorsPage() {
 
       const headers = { 
         'Content-Type': 'application/json',
-        'x-user-email': userEmail
+        'x-user-id': userId
       }
       
       console.log('Headers a enviar:', headers)
