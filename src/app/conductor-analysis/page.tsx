@@ -332,51 +332,79 @@ export default function ConductorAnalysisPage() {
               </div>
             </div>
 
-            {/* Estadísticas de Dropi */}
+            {/* Estadísticas de Dropi - Simplificadas */}
             {(analysis.stats?.dropi_total || 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="card-barulogix hover-lift animate-slide-up">
-                  <div className="text-center">
-                    <div className="p-3 rounded-full bg-blue-100 text-blue-600 mx-auto mb-3 w-fit">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Total Dropi</p>
-                    <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.dropi_valor_total?.toLocaleString('es-CO') || '0'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
                   <div className="text-center">
                     <div className="p-3 rounded-full bg-green-100 text-green-600 mx-auto mb-3 w-fit">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Entregado</p>
+                    <p className="text-sm font-medium text-secondary-600 font-segoe">💰 Valor Entregado</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
                       ${analysis.stats?.dropi_valor_entregado?.toLocaleString('es-CO') || '0'}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      {analysis.stats?.dropi_entregados || 0} paquetes entregados
                     </p>
                   </div>
                 </div>
 
-                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
                   <div className="text-center">
                     <div className="p-3 rounded-full bg-yellow-100 text-yellow-600 mx-auto mb-3 w-fit">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
+                    <p className="text-sm font-medium text-secondary-600 font-segoe">⏳ Valor Pendiente</p>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat">
                       ${analysis.stats?.dropi_valor_pendiente?.toLocaleString('es-CO') || '0'}
+                    </p>
+                    <p className="text-xs text-yellow-600 mt-1">
+                      {analysis.stats?.dropi_no_entregados || 0} paquetes pendientes
+                    </p>
+                  </div>
+                </div>
+
+                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+                  <div className="text-center">
+                    <div className="p-3 rounded-full bg-red-100 text-red-600 mx-auto mb-3 w-fit">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-secondary-600 font-segoe">↩️ Valor Devuelto</p>
+                    <p className="text-2xl font-bold text-secondary-900 font-montserrat">
+                      ${analysis.stats?.dropi_valor_devuelto?.toLocaleString('es-CO') || '0'}
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      {analysis.stats?.dropi_devueltos || 0} paquetes devueltos
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* Reset Automático cuando entregado = total */}
+              {analysis.stats?.dropi_valor_entregado === analysis.stats?.dropi_valor_total && analysis.stats?.dropi_valor_total > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-full bg-green-100 text-green-600 mr-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-green-900">✅ Conductor al Día</h4>
+                      <p className="text-green-700 text-sm">
+                        Todos los paquetes Dropi han sido entregados. Valor total: ${analysis.stats?.dropi_valor_total?.toLocaleString('es-CO')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             )}
 
             {/* Lista de Paquetes */}

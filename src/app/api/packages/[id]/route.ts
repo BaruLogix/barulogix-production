@@ -37,7 +37,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { tracking, conductor_id, tipo, estado, fecha_entrega, valor } = body
+    const { tracking, conductor_id, tipo, estado, fecha_entrega, fecha_entrega_cliente, valor } = body
 
     // Validaciones
     if (!tracking || !conductor_id || !tipo || fecha_entrega === undefined) {
@@ -78,6 +78,7 @@ export async function PUT(
         tipo,
         estado: estado !== undefined ? estado : 0,
         fecha_entrega,
+        fecha_entrega_cliente: fecha_entrega_cliente || null,
         valor: tipo === 'Dropi' ? valor : null
       })
       .eq('id', params.id)

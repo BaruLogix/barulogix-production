@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     console.log('Creando paquete para user ID:', userId)
 
     const body = await request.json()
-    const { tracking, conductor_id, tipo, fecha_entrega, valor } = body
+    const { tracking, conductor_id, tipo, fecha_entrega, fecha_entrega_cliente, valor } = body
 
     // Validaciones
     if (!tracking || !conductor_id || !tipo || !fecha_entrega) {
@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
         tipo,
         estado: 0, // No entregado por defecto
         fecha_entrega,
+        fecha_entrega_cliente: fecha_entrega_cliente || null,
         valor: tipo === 'Dropi' ? valor : null
       }])
       .select(`

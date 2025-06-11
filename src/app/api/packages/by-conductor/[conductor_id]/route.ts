@@ -102,6 +102,9 @@ export async function GET(
       dropi_valor_pendiente: paquetes_dropi
         .filter(p => p.estado === 0 && p.valor)
         .reduce((sum, p) => sum + (p.valor || 0), 0),
+      dropi_valor_devuelto: paquetes_dropi
+        .filter(p => p.estado === 2 && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
       
       // Paquetes no entregados con días de atraso
       paquetes_atrasados: packages
