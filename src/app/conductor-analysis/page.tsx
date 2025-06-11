@@ -376,59 +376,20 @@ export default function ConductorAnalysisPage() {
               </div>
             </div>
 
-            {/* Estadísticas de Valor Dropi Simplificadas */}
-            {analysis.stats.dropi_count > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Reset automático banner */}
-                {analysis.stats.reset_automatico && (
-                  <div className="col-span-full bg-green-100 border border-green-300 rounded-lg p-4 mb-4">
-                    <div className="flex items-center">
-                      <svg className="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <h4 className="text-green-800 font-semibold font-montserrat">✅ Conductor al Día</h4>
-                        <p className="text-green-700 text-sm font-segoe">Todos los paquetes Dropi han sido entregados</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="card-barulogix hover-lift animate-slide-up">
-                  <div className="text-center">
-                    <div className="p-3 rounded-full bg-green-100 text-green-600 mx-auto mb-3 w-fit">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">💰 Valor Entregado</p>
-                    <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.dropi_valor_entregado?.toLocaleString('es-CO') || '0'}
-                    </p>
-                    <p className="text-xs text-secondary-500 font-segoe mt-1">
-                      {analysis.stats?.dropi_entregados || 0} paquetes
-                    </p>
-                  </div>
-                </div>
-
-                <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
-                  <div className="text-center">
-                    <div className="p-3 rounded-full bg-yellow-100 text-yellow-600 mx-auto mb-3 w-fit">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-secondary-600 font-segoe">⏳ Valor Pendiente</p>
-                    <p className="text-2xl font-bold text-secondary-900 font-montserrat">
-                      ${analysis.stats?.dropi_valor_pendiente?.toLocaleString('es-CO') || '0'}
-                    </p>
-                    <p className="text-xs text-secondary-500 font-segoe mt-1">
-                      {analysis.stats?.dropi_no_entregados || 0} paquetes
-                    </p>
+            {/* Reset automático banner */}
+            {analysis.stats.dropi_count > 0 && analysis.stats.reset_automatico && (
+              <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-8">
+                <div className="flex items-center">
+                  <svg className="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-green-800 font-semibold font-montserrat">✅ Conductor al Día</h4>
+                    <p className="text-green-700 text-sm font-segoe">Todos los paquetes Dropi han sido entregados</p>
                   </div>
                 </div>
               </div>
-            )}
+            }
 
             {/* Filtro por Estado */}
             <div className="mb-6">
