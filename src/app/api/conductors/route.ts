@@ -9,40 +9,41 @@ const supabase = createClient(
 // GET - Obtener todos los conductores del usuario logueado
 export async function GET(request: NextRequest) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar el ID directamente del header
+    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
     const userEmail = request.headers.get('x-user-email')
-    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG CONDUCTORS GET ===')
     console.log('Email recibido:', userEmail)
-    console.log('ID recibido:', userId)
     
-    // Si tenemos el ID directamente, usarlo
-    let currentUserId = userId
-    
-    if (!currentUserId && userEmail) {
-      // Fallback: buscar por email si no tenemos ID
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userEmail)
-        .single()
-      
-      currentUserId = user?.id
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para ver conductores'
+      }, { status: 401 })
     }
     
-    // Si aún no tenemos ID, usar el ID que sabemos que existe
-    if (!currentUserId) {
-      currentUserId = '90f4e5ab-6912-43d5-a7f6-523b164f627b' // ID del usuario sibarutareas@gmail.com
+    // Buscar el usuario por email
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', userEmail)
+      .single()
+
+    if (userError || !currentUser) {
+      console.log('Usuario no encontrado:', { userEmail, userError })
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: `No se encontró usuario con email: ${userEmail}`
+      }, { status: 401 })
     }
 
-    console.log('ID final a usar para GET:', currentUserId)
+    console.log('Usuario encontrado:', currentUser)
 
     // Obtener solo los conductores de este usuario
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
-      .eq('user_id', currentUserId)
+      .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -77,41 +78,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
-    // SOLUCIÓN DEFINITIVA: Usar el ID directamente del header
+    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
     const userEmail = request.headers.get('x-user-email')
-    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG CONDUCTORS POST ===')
     console.log('Email recibido:', userEmail)
-    console.log('ID recibido:', userId)
     
-    // Si tenemos el ID directamente, usarlo
-    let currentUserId = userId
-    
-    if (!currentUserId && userEmail) {
-      // Fallback: buscar por email si no tenemos ID
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userEmail)
-        .single()
-      
-      currentUserId = user?.id
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para crear conductores'
+      }, { status: 401 })
     }
     
-    // Si aún no tenemos ID, usar el ID que sabemos que existe
-    if (!currentUserId) {
-      currentUserId = '90f4e5ab-6912-43d5-a7f6-523b164f627b' // ID del usuario sibarutareas@gmail.com
+    // Buscar el usuario por email
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', userEmail)
+      .single()
+
+    if (userError || !currentUser) {
+      console.log('Usuario no encontrado:', { userEmail, userError })
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: `No se encontró usuario con email: ${userEmail}`
+      }, { status: 401 })
     }
 
-    console.log('ID final a usar:', currentUserId)
+    console.log('Usuario encontrado para crear conductor:', currentUser)
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
       .eq('nombre', nombre)
-      .eq('user_id', currentUserId)
+      .eq('user_id', currentUser.id)
       .maybeSingle()
 
     if (existingError) {
@@ -123,9 +125,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
-    // Crear el conductor asociado al usuario
+    // Crear el conductor asociado al usuario logueado
     const insertData = {
-      user_id: currentUserId,
+      user_id: currentUser.id,
       nombre: nombre.trim(),
       zona: zona.trim(),
       telefono: telefono ? telefono.trim() : null,
