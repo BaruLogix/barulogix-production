@@ -8,34 +8,35 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(request: NextRequest) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar el ID directamente del header
+    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
     const userEmail = request.headers.get('x-user-email')
-    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG PACKAGES GET ===')
     console.log('Email recibido:', userEmail)
-    console.log('ID recibido:', userId)
     
-    // Si tenemos el ID directamente, usarlo
-    let currentUserId = userId
-    
-    if (!currentUserId && userEmail) {
-      // Fallback: buscar por email si no tenemos ID
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userEmail)
-        .single()
-      
-      currentUserId = user?.id
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para ver paquetes'
+      }, { status: 401 })
     }
     
-    // Si aún no tenemos ID, usar el ID que sabemos que existe
-    if (!currentUserId) {
-      currentUserId = '90f4e5ab-6912-43d5-a7f6-523b164f627b' // ID del usuario sibarutareas@gmail.com
+    // Buscar el usuario por email
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', userEmail)
+      .single()
+
+    if (userError || !currentUser) {
+      console.log('Usuario no encontrado:', { userEmail, userError })
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: `No se encontró usuario con email: ${userEmail}`
+      }, { status: 401 })
     }
 
-    console.log('ID final a usar para GET packages:', currentUserId)
+    console.log('Usuario encontrado:', currentUser)
 
     const { searchParams } = new URL(request.url)
     const conductor_id = searchParams.get('conductor_id')
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
         *,
         conductor:conductors!inner(id, nombre, zona, user_id)
       `)
-      .eq('conductor.user_id', currentUserId) // Solo paquetes de conductores del usuario
+      .eq('conductor.user_id', currentUser.id) // Solo paquetes de conductores del usuario
       .order('created_at', { ascending: false })
 
     // Filtros
@@ -97,34 +98,35 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar el ID directamente del header
+    // SOLUCIÓN CORRECTA: Obtener el ID real del usuario logueado
     const userEmail = request.headers.get('x-user-email')
-    const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG PACKAGES POST ===')
     console.log('Email recibido:', userEmail)
-    console.log('ID recibido:', userId)
     
-    // Si tenemos el ID directamente, usarlo
-    let currentUserId = userId
-    
-    if (!currentUserId && userEmail) {
-      // Fallback: buscar por email si no tenemos ID
-      const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', userEmail)
-        .single()
-      
-      currentUserId = user?.id
+    if (!userEmail) {
+      return NextResponse.json({ 
+        error: 'Email de usuario no proporcionado',
+        details: 'Debe estar logueado para crear paquetes'
+      }, { status: 401 })
     }
     
-    // Si aún no tenemos ID, usar el ID que sabemos que existe
-    if (!currentUserId) {
-      currentUserId = '90f4e5ab-6912-43d5-a7f6-523b164f627b' // ID del usuario sibarutareas@gmail.com
+    // Buscar el usuario por email
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', userEmail)
+      .single()
+
+    if (userError || !currentUser) {
+      console.log('Usuario no encontrado:', { userEmail, userError })
+      return NextResponse.json({ 
+        error: 'Usuario no encontrado',
+        details: `No se encontró usuario con email: ${userEmail}`
+      }, { status: 401 })
     }
 
-    console.log('ID final a usar para POST packages:', currentUserId)
+    console.log('Usuario encontrado:', currentUser)
 
     const body = await request.json()
     const { tracking, conductor_id, tipo, fecha_entrega, valor } = body
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
       .from('conductors')
       .select('id, user_id')
       .eq('id', conductor_id)
-      .eq('user_id', currentUserId) // Solo conductores del usuario actual
+      .eq('user_id', currentUser.id) // Solo conductores del usuario actual
       .single()
 
     if (conductorError || !conductor) {
@@ -153,7 +155,7 @@ export async function POST(request: NextRequest) {
       .from('packages')
       .select('tracking, conductor:conductors!inner(user_id)')
       .eq('tracking', tracking)
-      .eq('conductor.user_id', currentUserId)
+      .eq('conductor.user_id', currentUser.id)
       .single()
 
     if (existingPackage) {
