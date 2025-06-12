@@ -31,8 +31,12 @@ export default function LoginPage() {
 
       if (response.ok) {
         // Guardar datos de usuario y sesión
+        if (!data.session || !data.session.access_token) {
+          setError('Error de autenticación: No se recibió un token válido')
+          return
+        }
         localStorage.setItem('user', JSON.stringify(data.user))
-        localStorage.setItem('session', JSON.stringify(data.session || { token: 'authenticated' }))
+        localStorage.setItem('session', JSON.stringify(data.session))
         
         // Redirigir al dashboard
         router.push('/dashboard')
