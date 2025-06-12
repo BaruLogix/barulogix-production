@@ -271,6 +271,18 @@ export default function HomePage() {
               <p className="text-gray-500 text-xs mt-1 font-segoe">
                 Plataforma diseñada para pequeñas empresas de distribución
               </p>
+              <div className="flex items-center justify-end mt-3">
+                <p className="text-gray-400 text-xs font-segoe mr-2">
+                  Programa desarrollado por: ScibaruAI
+                </p>
+                <Image
+                  src="/logo-scibaru.png"
+                  alt="ScibaruAI"
+                  width={24}
+                  height={24}
+                  className="opacity-70"
+                />
+              </div>
             </div>
           </div>
         </div>

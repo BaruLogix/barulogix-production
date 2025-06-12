@@ -437,6 +437,47 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="bg-secondary-900 text-white py-8 mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex items-center mb-4 md:mb-0">
+              <Image
+                src="/logo-oficial-transparente.png"
+                alt="BaruLogix"
+                width={40}
+                height={40}
+                className="mr-3"
+              />
+              <div>
+                <div className="flex items-baseline">
+                  <h3 className="text-xl font-bold font-montserrat">BaruLogix</h3>
+                  <p className="text-gray-500 text-xs ml-2">By BaruCourier S.A.S</p>
+                </div>
+                <p className="text-gray-400 text-sm font-segoe">Panel de Control</p>
+              </div>
+            </div>
+            <div className="text-center md:text-right">
+              <p className="text-gray-400 text-sm font-segoe">
+                © 2025 BaruLogix. Todos los derechos reservados.
+              </p>
+              <div className="flex items-center justify-end mt-3">
+                <p className="text-gray-400 text-xs font-segoe mr-2">
+                  Programa desarrollado por: ScibaruAI
+                </p>
+                <Image
+                  src="/logo-scibaru.png"
+                  alt="ScibaruAI"
+                  width={24}
+                  height={24}
+                  className="opacity-70"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
