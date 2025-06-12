@@ -39,7 +39,7 @@ export async function GET(
     return NextResponse.json({ conductor })
   } catch (error) {
     console.error('Error in GET /api/conductors/[id]:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
   }
 }
 
@@ -117,8 +117,8 @@ export async function PUT(
 
     return NextResponse.json({ conductor })
   } catch (error) {
-    console.error('Error in PUT /api/conductors/[id]:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    console.error("Error in PUT /api/conductors/[id]:", error)
+    return NextResponse.json({ error: "Error interno del servidor", details: error instanceof Error ? error.message : "Error desconocido" }, { status: 500 })
   }
 }
 
@@ -176,13 +176,13 @@ export async function DELETE(
 
     if (error) {
       console.error('Error deleting conductor:', error)
-      return NextResponse.json({ error: 'Error al eliminar conductor' }, { status: 500 })
+      return NextResponse.json({ error: 'Error al eliminar conductor', details: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ message: 'Conductor eliminado exitosamente' })
   } catch (error) {
     console.error('Error in DELETE /api/conductors/[id]:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
   }
 }
 

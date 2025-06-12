@@ -48,11 +48,7 @@ export default function PackagesPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [deliveryData, setDeliveryData] = useState('')
   const [deliveryLoading, setDeliveryLoading] = useState(false)
-  const [deliveryFechaCliente, setDeliveryFechaCliente] = useState("")
-  const [todayFormatted, setTodayFormatted] = useState(() => {
-    const today = new Date();
-    return `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-  })
+  const [deliveryFechaCliente, setDeliveryFechaCliente] = useState('')
   const [returnData, setReturnData] = useState('')
   const [returnLoading, setReturnLoading] = useState(false)
   const [stats, setStats] = useState({
@@ -78,6 +74,9 @@ export default function PackagesPage() {
     loadConductors()
     loadStats()
         // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa
+    const today = new Date()
+    const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+    const todayISO = today.toISOString().split('T')[0]
     setFormData(prev => ({ ...prev, fecha_entrega: todayFormatted }))
     setBulkFechaEntrega(todayFormatted)
     setDeliveryFechaCliente(todayFormatted)
@@ -367,10 +366,9 @@ export default function PackagesPage() {
         }
         
         alert(message)
-        window.location.reload()
         
         // Limpiar y cerrar modal
-        setDeliveryData("")
+        setDeliveryData('')
         setDeliveryFechaCliente(todayFormatted)
         setShowDeliveryModal(false)
         
