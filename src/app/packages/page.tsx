@@ -373,6 +373,7 @@ export default function PackagesPage() {
         // Recargar datos
         await loadPackages()
         await loadStats()
+        window.location.reload() // Recargar la página para reflejar los cambios y evitar el falso positivo de error
       } else if (!response.ok && (!result.processed || result.processed === 0)) {
         // Solo mostrar error si no se procesó ningún paquete exitosamente
         alert(result.error || "Error al procesar entregas")
