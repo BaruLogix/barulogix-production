@@ -372,9 +372,12 @@ export default function PackagesPage() {
         setDeliveryFechaCliente(todayFormatted)
         setShowDeliveryModal(false)
         
-        // Recargar datos
-        await loadPackages()
-        await loadStats()
+        // Recargar la página automáticamente para evitar el falso positivo de error
+        window.location.reload()
+        
+        // Estas líneas ya no se ejecutarán debido al reload, pero las mantenemos por si se cambia la lógica
+        // await loadPackages()
+        // await loadStats()
       } else {
         const error = await response.json()
         alert(error.error || 'Error al procesar entregas')
