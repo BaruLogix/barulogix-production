@@ -317,6 +317,10 @@ export default function PackagesPage() {
     setDeliveryLoading(true)
     
     try {
+      // Definir todayFormatted localmente para evitar el ReferenceError
+      const today = new Date()
+      const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+      
       // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
       const userId = userData ? JSON.parse(userData).id : null
