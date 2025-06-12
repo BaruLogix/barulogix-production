@@ -48,7 +48,7 @@ export default function PackagesPage() {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [deliveryData, setDeliveryData] = useState('')
   const [deliveryLoading, setDeliveryLoading] = useState(false)
-  const [deliveryFechaCliente, setDeliveryFechaCliente] = useState("")
+  const [deliveryFechaCliente, setDeliveryFechaCliente] = useState('')
   const [returnData, setReturnData] = useState('')
   const [returnLoading, setReturnLoading] = useState(false)
   const [stats, setStats] = useState({
@@ -73,6 +73,10 @@ export default function PackagesPage() {
     loadPackages()
     loadConductors()
     loadStats()
+        // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa
+    const today = new Date()
+    const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+    const todayISO = today.toISOString().split('T')[0]
     setFormData(prev => ({ ...prev, fecha_entrega: todayFormatted }))
     setBulkFechaEntrega(todayFormatted)
     setDeliveryFechaCliente(todayFormatted)
@@ -197,21 +201,26 @@ export default function PackagesPage() {
         body: JSON.stringify(submitData)
       })
 
-           if (response.ok) {
+      if (response.ok) {
         await loadPackages()
         await loadStats()
         setShowModal(false)
         setEditingPackage(null)
         setFormData({
-          tracking: "",          conductor_id: "",
+          tracking: '',
+          conductor_id: '',
           tipo: 'Shein/Temu',
           estado: 0,
           fecha_entrega: todayFormatted,
           valor: ''
         })
       } else {
-        // No hacer nada, el error ya se maneja en el backend o no es crítico
+        const error = await response.json()
+        alert(error.error || 'Error al guardar paquete')
       }
+    } catch (error) {
+      console.error('Error saving package:', error)
+      alert('Error al guardar paquete')
     } finally {
       setLoading(false)
     }
@@ -341,19 +350,16 @@ export default function PackagesPage() {
         })
       })
 
-      // Siempre procesar la respuesta JSON, independientemente del status
-      const result = await response.json()
-      
-      // Si hay paquetes procesados exitosamente, considerarlo como éxito
-      // aunque haya errores parciales
-      if (response.ok || (result.processed && result.processed > 0)) {
-        let message = `✅ Entregas procesadas:\n\n`
-        message += `📦 Paquetes entregados: ${result.processed || 0}\n`
-        message += `📋 Total procesados: ${result.total_trackings || trackings.length}\n`
+      if (response.ok) {
+        const result = await response.json()
         
-        if (result.errors && result.errors.length > 0) {
+        let message = `✅ Entregas procesadas:\n\n`
+        message += `📦 Paquetes entregados: ${result.processed}\n`
+        message += `📋 Total procesados: ${result.total_trackings}\n`
+        
+        if (result.errors.length > 0) {
           message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
-          message += result.errors.slice(0, 10).join("\n")
+          message += result.errors.slice(0, 10).join('\n')
           if (result.errors.length > 10) {
             message += `\n... y ${result.errors.length - 10} errores más`
           }
@@ -362,18 +368,16 @@ export default function PackagesPage() {
         alert(message)
         
         // Limpiar y cerrar modal
-        setDeliveryData("")
-        const today = new Date();
-        const localTodayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-        setDeliveryFechaCliente(localTodayFormatted)
+        setDeliveryData('')
+        setDeliveryFechaCliente(todayFormatted)
         setShowDeliveryModal(false)
         
         // Recargar datos
         await loadPackages()
         await loadStats()
-      } else if (!response.ok && (!result.processed || result.processed === 0)) {
-        // Solo mostrar error si no se procesó ningún paquete exitosamente
-        alert(result.error || "Error al procesar entregas")
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Error al procesar entregas')
       }
     } catch (error) {
       console.error('Error in delivery submit:', error)
