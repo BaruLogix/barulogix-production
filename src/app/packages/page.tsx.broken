@@ -157,7 +157,7 @@ export default function PackagesPage() {
         'x-user-id': userId
       }
 
-      const response = await fetch('/api/packages/stats', { headers })
+      const response = await fetch('/api/stats', { headers })
       if (response.ok) {
         const data = await response.json()
         setStats(data.stats || {})
@@ -172,7 +172,7 @@ export default function PackagesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
+    
     try {
       // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
@@ -184,14 +184,28 @@ export default function PackagesPage() {
         return
       }
 
+      // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd)
+      const convertDateToISO = (dateStr: string) => {
+        const [day, month, year] = dateStr.split('/')
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      }
+
+      const fechaISO = convertDateToISO(formData.fecha_entrega)
+
       const submitData = {
         ...formData,
+        fecha_entrega: fechaISO,
         valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
       }
 
-      const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages'
+      const url = editingPackage 
+        ? `/api/packages/${editingPackage.id}` 
+        : '/api/packages'
+      
       const method = editingPackage ? 'PUT' : 'POST'
 
+      console.log('Enviando datos de paquete:', submitData);
+      
       const response = await fetch(url, {
         method,
         headers: { 
@@ -201,30 +215,48 @@ export default function PackagesPage() {
         body: JSON.stringify(submitData)
       })
 
-           if (response.ok) {
-        await loadPackages()
-        await loadStats()
+      // Procesar la respuesta y cerrar el modal ANTES de mostrar cualquier mensaje
+      if (response.ok) {
+        // Cerrar modal y limpiar datos primero
         setShowModal(false)
         setEditingPackage(null)
         setFormData({
-          tracking: "",          conductor_id: "",
+          tracking: '',
+          conductor_id: '',
           tipo: 'Shein/Temu',
           estado: 0,
           fecha_entrega: todayFormatted,
           valor: ''
         })
+        
+        // Recargar datos después de cerrar el modal
+        await loadPackages()
+        await loadStats()
+        
+        // No mostrar ningún mensaje de éxito, la desaparición del modal es suficiente feedback
       } else {
-        // No hacer nada, el error ya se maneja en el backend o no es crítico
+        // Solo en caso de error real mostrar mensaje
+        const error = await response.json()
+        alert(error.error || 'Error al guardar paquete')
       }
+    } catch (error) {
+      console.error('Error saving package:', error)
+      alert('Error al guardar paquete')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleBulkSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
+  }Stats()
+      } else {
+        // Solo mostrar error si la respuesta no fue exitosa
+        alert(result.error || 'Error al guardar paquete')
+      }
+    } catch (error) {
+      console.error('Error saving package:', error)
+      alert('Error al guardar paquete')
+    } finally {
+      setLoading(false)
+    }
+  }  if (!bulkData.trim() || !bulkConductor || !bulkFechaEntrega) {
       alert('Por favor complete todos los campos incluyendo la fecha de entrega')
       return
     }
@@ -332,6 +364,11 @@ export default function PackagesPage() {
 
       const fechaClienteISO = deliveryFechaCliente ? convertDateToISO(deliveryFechaCliente) : null
 
+      console.log('Enviando entregas:', {
+        trackings: trackings.length,
+        fecha_entrega_cliente: fechaClienteISO
+      });
+
       const response = await fetch('/api/packages/deliveries', {
         method: 'POST',
         headers: { 
@@ -345,37 +382,41 @@ export default function PackagesPage() {
         })
       })
 
-      // Siempre procesar la respuesta JSON, independientemente del status
+      // Procesar la respuesta
       const result = await response.json()
+      console.log('Respuesta del servidor (entregas):', result);
       
-      // Si hay paquetes procesados exitosamente, considerarlo como éxito
-      // aunque haya errores parciales
-      if (response.ok || (result.processed && result.processed > 0)) {
+      // Cerrar modal y limpiar datos PRIMERO, antes de cualquier mensaje
+      setDeliveryData('')
+      setDeliveryFechaCliente(todayFormatted)
+      setShowDeliveryModal(false)
+      
+      // Recargar datos
+      await loadPackages()
+      await loadStats()
+      
+      // Verificar si hay paquetes procesados exitosamente
+      const procesados = result.processed || 0;
+      const hayExito = procesados > 0 || result.success === true;
+      
+      if (hayExito) {
         let message = `✅ Entregas procesadas:\n\n`
-        message += `📦 Paquetes entregados: ${result.processed || 0}\n`
+        message += `📦 Paquetes entregados: ${procesados}\n`
         message += `📋 Total procesados: ${result.total_trackings || trackings.length}\n`
         
         if (result.errors && result.errors.length > 0) {
           message += `\n⚠️ Errores encontrados (${result.errors.length}):\n`
-          message += result.errors.slice(0, 10).join("\n")
+          message += result.errors.slice(0, 10).join('\n')
           if (result.errors.length > 10) {
             message += `\n... y ${result.errors.length - 10} errores más`
           }
         }
         
         alert(message)
-        
-        // Limpiar y cerrar modal
-        setDeliveryData("")
-        setDeliveryFechaCliente(todayFormatted)
-        setShowDeliveryModal(false)
-        
-        // Recargar datos
-        await loadPackages()
-        await loadStats()
-      } else if (!response.ok && (!result.processed || result.processed === 0)) {
-        // Solo mostrar error si no se procesó ningún paquete exitosamente
-        alert(result.error || "Error al procesar entregas")
+      } else if (!response.ok) {
+        // Solo mostrar error si la respuesta no fue exitosa Y no se procesó ningún paquete
+        console.error('Error en registro de entregas:', result);
+        alert(result.error || 'Error al procesar entregas')
       }
     } catch (error) {
       console.error('Error in delivery submit:', error)
@@ -984,7 +1025,6 @@ export default function PackagesPage() {
                   <input
                     type="number"
                     min="0"
-                    step="1000"
                     value={formData.valor}
                     onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
                     className="input-barulogix-modern focus-ring"
