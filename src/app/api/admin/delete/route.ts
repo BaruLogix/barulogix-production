@@ -302,36 +302,57 @@ async function deleteBulkPackages(userId: string, bulkTrackings: string) {
 
 // Eliminar todos los conductores de la cuenta
 async function deleteAllConductors(userId: string) {
-  // Primero eliminar todos los paquetes asociados
-  const { data: deletedPackages, error: packagesError } = await supabase
-    .from('packages')
-    .delete()
-    .in('conductor_id', 
-      supabase
-        .from('conductors')
-        .select('id')
-        .eq('user_id', userId)
-    )
-    .select('id')
+  try {
+    // Primero obtener los IDs de todos los conductores
+    const { data: conductors, error: conductorsQueryError } = await supabase
+      .from('conductors')
+      .select('id')
+      .eq('user_id', userId)
+    
+    if (conductorsQueryError) {
+      throw new Error(`Error obteniendo conductores: ${conductorsQueryError.message}`)
+    }
+    
+    if (!conductors || conductors.length === 0) {
+      return {
+        message: `No hay conductores para eliminar`,
+        details: `No se encontraron conductores asociados a su cuenta`
+      }
+    }
+    
+    const conductorIds = conductors.map(c => c.id)
+    console.log(`Eliminando paquetes para ${conductorIds.length} conductores`)
+    
+    // Eliminar todos los paquetes asociados a estos conductores
+    const { data: deletedPackages, error: packagesError } = await supabase
+      .from('packages')
+      .delete()
+      .in('conductor_id', conductorIds)
+      .select('id')
 
-  if (packagesError) {
-    console.warn('Error eliminando paquetes asociados:', packagesError.message)
-  }
+    if (packagesError) {
+      console.warn("Error eliminando paquetes asociados:", packagesError.message)
+      // Continuamos con la eliminación de conductores aunque falle la de paquetes
+    }
 
-  // Luego eliminar todos los conductores
-  const { data: deletedConductors, error: conductorsError } = await supabase
-    .from('conductors')
-    .delete()
-    .eq('user_id', userId)
-    .select('id, nombre')
+    // Luego eliminar todos los conductores
+    const { data: deletedConductors, error: conductorsError } = await supabase
+      .from('conductors')
+      .delete()
+      .eq('user_id', userId)
+      .select('id, nombre')
 
-  if (conductorsError) {
-    throw new Error(`Error eliminando conductores: ${conductorsError.message}`)
-  }
+    if (conductorsError) {
+      throw new Error(`Error eliminando conductores: ${conductorsError.message}`)
+    }
 
-  return {
-    message: `Todos los conductores eliminados exitosamente`,
-    details: `${deletedConductors?.length || 0} conductores y ${deletedPackages?.length || 0} paquetes asociados eliminados`
+    return {
+      message: `Todos los conductores eliminados exitosamente`,
+      details: `${deletedConductors?.length || 0} conductores y ${deletedPackages?.length || 0} paquetes asociados eliminados`
+    }
+  } catch (error) {
+    console.error("Error en deleteAllConductors:", error)
+    throw error
   }
 }
 
@@ -376,22 +397,32 @@ async function nuclearReset(userId: string) {
   let deletedConductorsCount = 0
 
   try {
-    // Primero eliminar todos los paquetes
-    const { data: deletedPackages, error: packagesError } = await supabase
-      .from('packages')
-      .delete()
-      .in('conductor_id', 
-        supabase
-          .from('conductors')
-          .select('id')
-          .eq('user_id', userId)
-      )
+    // Primero obtener los IDs de todos los conductores
+    const { data: conductors, error: conductorsQueryError } = await supabase
+      .from('conductors')
       .select('id')
+      .eq('user_id', userId)
+    
+    if (conductorsQueryError) {
+      throw new Error(`Error obteniendo conductores: ${conductorsQueryError.message}`)
+    }
+    
+    if (conductors && conductors.length > 0) {
+      const conductorIds = conductors.map(c => c.id)
+      console.log(`Reset nuclear: Eliminando paquetes para ${conductorIds.length} conductores`)
+      
+      // Eliminar todos los paquetes asociados a estos conductores
+      const { data: deletedPackages, error: packagesError } = await supabase
+        .from('packages')
+        .delete()
+        .in('conductor_id', conductorIds)
+        .select('id')
 
-    if (packagesError) {
-      console.warn('Error eliminando paquetes en reset nuclear:', packagesError.message)
-    } else {
-      deletedPackagesCount = deletedPackages?.length || 0
+      if (packagesError) {
+        console.warn('Error eliminando paquetes en reset nuclear:', packagesError.message)
+      } else {
+        deletedPackagesCount = deletedPackages?.length || 0
+      }
     }
 
     // Luego eliminar todos los conductores
@@ -413,6 +444,7 @@ async function nuclearReset(userId: string) {
     }
 
   } catch (error) {
+    console.error("Error en nuclearReset:", error)
     throw new Error(`Error en reset nuclear: ${error instanceof Error ? error.message : 'Error desconocido'}`)
   }
 }
