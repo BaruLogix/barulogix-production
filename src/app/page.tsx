@@ -56,7 +56,7 @@ export default function HomePage() {
               className="mr-3"
             />
             <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
-            <p className="text-xs text-gray-500">By BaruCourier</p>
+            <p className="text-xs text-gray-500 -mt-1">By BaruCourier</p>
           </div>
           <div className="flex space-x-4">
             <button
@@ -257,6 +257,7 @@ export default function HomePage() {
               <div>
                 <h3 className="text-xl font-bold font-montserrat">BaruLogix</h3>
                 <p className="text-gray-400 text-sm font-segoe">Gestión logística profesional</p>
+                <p className="text-gray-500 text-xs -mt-1 font-segoe">By BaruCourier</p>
               </div>
             </div>
             <div className="text-center md:text-right">
