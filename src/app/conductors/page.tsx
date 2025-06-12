@@ -162,15 +162,37 @@ export default function ConductorsPage() {
     }
 
     try {
+      // Obtener el ID del usuario y el token de sesión
+      const userData = localStorage.getItem('user')
+      const sessionData = localStorage.getItem('session')
+      const userId = userData ? JSON.parse(userData).id : null
+      const token = sessionData ? JSON.parse(sessionData).access_token : null
+      
+      if (!userId || !token) {
+        console.error('No se pudo obtener información de autenticación')
+        alert('Error de autenticación. Por favor, inicie sesión nuevamente.')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId,
+        'authorization': `Bearer ${token}`
+      }
+      
+      console.log('Headers para eliminación:', headers)
+      
       const response = await fetch(`/api/conductors/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: headers
       })
 
       if (response.ok) {
         await loadConductors()
         alert('Conductor eliminado exitosamente')
       } else {
-        alert('Error al eliminar conductor')
+        const errorData = await response.json()
+        console.error('Error response:', errorData)
+        alert(errorData.error || 'Error al eliminar conductor')
       }
     } catch (error) {
       console.error('Error deleting conductor:', error)
