@@ -125,10 +125,13 @@ export default function DashboardPage() {
               className="mr-4"
             />
             <div>
-              <h1 className="text-2xl font-bold text-secondary-800 font-montserrat mb-0">BaruLogix</h1>
-              <p className="text-sm text-secondary-600 font-segoe mt-0 mb-0">Panel de Control</p>
-              <p className="text-xs text-gray-500 mt-0">By BaruCourier S.A.S</p>
-            </div>
+              <div>
+              <div className="flex items-baseline">
+                <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
+                <p className="text-xs text-gray-500 ml-2">By BaruCourier S.A.S</p>
+              </div>
+              <p className="text-sm text-secondary-600 font-segoe">Panel de Control</p>
+            </div>div>>
           </div>
 
           <div className="flex items-center space-x-4">
