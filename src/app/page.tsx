@@ -56,6 +56,7 @@ export default function HomePage() {
               className="mr-3"
             />
             <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
+            <p className="text-xs text-gray-500">By BaruCourier</p>
           </div>
           <div className="flex space-x-4">
             <button
