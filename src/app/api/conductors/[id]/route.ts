@@ -63,9 +63,9 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, zone, phone, email, is_active } = body
+    const { nombre, zona, telefono, email, activo } = body
 
-    if (!name || !zone) {
+    if (!nombre || !zona) {
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
@@ -86,8 +86,8 @@ export async function PUT(
       .from('conductors')
       .select('id')
       .eq('user_id', user.id)
-      .eq('name', name)
-      .eq('zone', zone)
+      .eq('nombre', nombre)
+      .eq('zona', zona)
       .neq('id', params.id)
       .single()
 
@@ -99,11 +99,11 @@ export async function PUT(
     const { data: conductor, error } = await supabase
       .from('conductors')
       .update({
-        name: name.trim(),
-        zone: zone.trim(),
-        phone: phone?.trim() || null,
+        nombre: nombre.trim(),
+        zona: zona.trim(),
+        telefono: telefono?.trim() || null,
         email: email?.trim() || null,
-        is_active: is_active !== undefined ? is_active : true
+        activo: activo !== undefined ? activo : true
       })
       .eq('id', params.id)
       .eq('user_id', user.id)
@@ -144,7 +144,7 @@ export async function DELETE(
     // Verificar que el conductor existe y pertenece al usuario
     const { data: existing } = await supabase
       .from('conductors')
-      .select('id, name')
+      .select('id, nombre')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single()
