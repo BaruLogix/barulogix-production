@@ -77,7 +77,12 @@ export async function POST(req: NextRequest) {
     // 4. Hashear la contraseña
     console.log(`[${requestId}] Hashing password...`)
     const hashedPassword = await hashPassword(password)
-    console.log(`[${requestId}] Password hashed successfully`)
+    console.log(`[${requestId}] Password hashed successfully. Value: ${hashedPassword ? 'Present' : 'NULL/Undefined'}`)
+
+    if (!hashedPassword) {
+      console.error(`[${requestId}] Hashed password is NULL or undefined after hashing.`)
+      return NextResponse.json({ error: 'Error interno al hashear la contraseña' }, { status: 500 })
+    }
 
     // 5. Generar token de verificación
     console.log(`[${requestId}] Generating verification token...`)
