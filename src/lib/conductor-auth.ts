@@ -8,9 +8,9 @@ const JWT_EXPIRES_IN = process.env.CONDUCTOR_JWT_EXPIRES_IN || '24h'
 
 // Configuración SMTP
 const SMTP_CONFIG = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true para 465, false para otros puertos
+  secure: parseInt(process.env.SMTP_PORT || '587') === 465, // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -70,15 +70,30 @@ export function isValidEmail(email: string): boolean {
 }
 
 // Validar fortaleza de contraseña
-export function isValidPassword(password: string): boolean {
-  // Al menos 8 caracteres, 1 mayúscula, 1 minúscula, 1 número
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/
-  return passwordRegex.test(password)
+export function isValidPassword(password: string): { valid: boolean; message?: string } {
+  if (password.length < 8) {
+    return { valid: false, message: 'La contraseña debe tener al menos 8 caracteres' }
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: 'La contraseña debe contener al menos una letra mayúscula' }
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: 'La contraseña debe contener al menos una letra minúscula' }
+  }
+  if (!/\d/.test(password)) {
+    return { valid: false, message: 'La contraseña debe contener al menos un número' }
+  }
+  return { valid: true }
 }
 
 // Crear transporter de nodemailer
 function createTransporter() {
-  return nodemailer.createTransporter(SMTP_CONFIG)
+  // Asegurarse de que las variables de entorno SMTP estén definidas
+  if (!SMTP_CONFIG.host || !SMTP_CONFIG.auth.user || !SMTP_CONFIG.auth.pass) {
+    console.error('Missing SMTP environment variables. Email sending will not work.')
+    throw new Error('Missing SMTP environment variables.')
+  }
+  return nodemailer.createTransport(SMTP_CONFIG)
 }
 
 // Enviar email de verificación

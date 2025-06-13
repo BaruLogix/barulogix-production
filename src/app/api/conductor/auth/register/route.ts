@@ -1,36 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { hashPassword, generateVerificationToken, isValidEmail, isValidPassword } from '@/lib/conductor-auth'
-import nodemailer from 'nodemailer'
-import { v4 as uuidv4 } from 'uuid'
+import { hashPassword, generateVerificationToken, isValidEmail, isValidPassword, sendVerificationEmail } from '@/lib/conductor-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-const smtpHost = process.env.SMTP_HOST
-const smtpPort = process.env.SMTP_PORT
-const smtpUser = process.env.SMTP_USER
-const smtpPass = process.env.SMTP_PASS
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error('Missing Supabase URL or Service Role Key environment variables.')
 }
 
-if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
-  console.warn('Missing SMTP environment variables. Email verification will not work.')
-}
-
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
-
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: parseInt(smtpPort || '587'),
-  secure: parseInt(smtpPort || '587') === 465, // true for 465, false for other ports
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,7 +32,7 @@ export async function POST(req: NextRequest) {
     // 2. Verificar si el conductor_id existe en la tabla conductors
     const { data: conductorData, error: conductorError } = await supabaseAdmin
       .from('conductors')
-      .select('id')
+      .select('id, nombre')
       .eq('id', conductor_id)
       .single()
 
@@ -98,22 +77,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error interno al registrar conductor' }, { status: 500 })
     }
 
-    // 7. Enviar correo de verificación
-    const verificationLink = `${req.nextUrl.origin}/auth/conductor/verify?token=${verificationToken}`
-    
+    // 7. Enviar correo de verificación usando la función centralizada
     try {
-      await transporter.sendMail({
-        from: `"BaruLogix" <${smtpUser}>`,
-        to: email,
-        subject: 'Verifica tu cuenta de conductor en BaruLogix',
-        html: `
-          <p>Hola,</p>
-          <p>Gracias por registrarte como conductor en BaruLogix. Por favor, verifica tu email haciendo clic en el siguiente enlace:</p>
-          <p><a href="${verificationLink}">Verificar Email</a></p>
-          <p>Este enlace expirará en 24 horas.</p>
-          <p>Si no solicitaste esto, puedes ignorar este correo.</p>
-        `,
-      })
+      await sendVerificationEmail(
+        email,
+        conductorData.nombre || 'Conductor',
+        verificationToken
+      )
     } catch (emailError) {
       console.error('Error al enviar correo de verificación:', emailError)
       // Aunque falle el email, el registro en DB fue exitoso
