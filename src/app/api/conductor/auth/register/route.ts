@@ -63,8 +63,33 @@ export async function POST(req: NextRequest) {
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
     console.log(`[${requestId}] Verification token generated.`)
 
-    // 5. Insertar en la tabla conductor_auth
+    // 5. Verificar si el email ya existe en conductor_auth
     const normalizedEmail = email.toLowerCase().trim()
+    console.log(`[${requestId}] Checking if email already exists in conductor_auth:`, normalizedEmail)
+    
+    const { data: existingAuth, error: checkError } = await supabaseAdmin
+      .from('conductor_auth')
+      .select('id, email, conductor_id')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error(`[${requestId}] Error checking existing email:`, checkError)
+      return NextResponse.json({ error: 'Error interno al verificar email' }, { status: 500 })
+    }
+
+    if (existingAuth) {
+      console.log(`[${requestId}] Email already exists in conductor_auth:`, {
+        id: existingAuth.id,
+        email: existingAuth.email,
+        conductor_id: existingAuth.conductor_id
+      })
+      return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
+    }
+
+    console.log(`[${requestId}] Email is available for registration`)
+
+    // 6. Insertar en la tabla conductor_auth
     console.log(`[${requestId}] Inserting new conductor auth entry for conductor_id:`, conductor_id, 'email:', normalizedEmail)
     
     const { data: newConductorAuth, error: insertError } = await supabaseAdmin
@@ -104,7 +129,7 @@ export async function POST(req: NextRequest) {
       email: newConductorAuth.email
     })
 
-    // 6. Enviar correo de verificación usando la función centralizada
+    // 7. Enviar correo de verificación usando la función centralizada
     try {
       console.log(`[${requestId}] Attempting to send verification email to:`, normalizedEmail)
       await sendVerificationEmail(
