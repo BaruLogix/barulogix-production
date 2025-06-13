@@ -2,9 +2,19 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import { createClient } from '@supabase/supabase-js'
 
 const JWT_SECRET = process.env.CONDUCTOR_JWT_SECRET || 'conductor_secret_key_change_in_production'
 const JWT_EXPIRES_IN = process.env.CONDUCTOR_JWT_EXPIRES_IN || '24h'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  throw new Error('Missing Supabase URL or Service Role Key environment variables.')
+}
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 // Configuración SMTP
 const SMTP_CONFIG = {
@@ -17,22 +27,23 @@ const SMTP_CONFIG = {
   },
 }
 
-// Hash de contraseña
+// Hash de contraseña (mantenido para compatibilidad, pero Supabase Auth maneja esto)
 export async function hashPassword(password: string): Promise<string> {
   const saltRounds = 12
   return await bcrypt.hash(password, saltRounds)
 }
 
-// Verificar contraseña
+// Verificar contraseña (mantenido para compatibilidad, pero Supabase Auth maneja esto)
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return await bcrypt.compare(password, hash)
 }
 
-// Generar JWT para conductor
-export function generateConductorJWT(conductorId: string, email: string): string {
+// Generar JWT para conductor usando datos de Supabase Auth
+export function generateConductorJWT(userId: string, email: string, conductorId?: string): string {
   return jwt.sign(
     { 
-      conductor_id: conductorId, 
+      user_id: userId,
+      conductor_id: conductorId,
       email,
       type: 'conductor'
     },
@@ -58,7 +69,7 @@ export function extractTokenFromHeader(authHeader: string | null): string | null
   return authHeader.substring(7)
 }
 
-// Generar token de verificación
+// Generar token de verificación (ya no necesario con Supabase Auth, pero mantenido para compatibilidad)
 export function generateVerificationToken(): string {
   return crypto.randomBytes(32).toString('hex')
 }
@@ -86,6 +97,85 @@ export function isValidPassword(password: string): { valid: boolean; message?: s
   return { valid: true }
 }
 
+// Autenticar conductor usando Supabase Auth
+export async function authenticateConductor(email: string, password: string): Promise<{
+  success: boolean;
+  user?: any;
+  conductor?: any;
+  token?: string;
+  error?: string;
+}> {
+  try {
+    // Intentar autenticar con Supabase Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password: password
+    })
+
+    if (authError || !authData.user) {
+      return {
+        success: false,
+        error: 'Credenciales inválidas'
+      }
+    }
+
+    // Verificar que el usuario esté verificado
+    if (!authData.user.email_confirmed_at) {
+      return {
+        success: false,
+        error: 'Por favor, verifica tu email antes de iniciar sesión'
+      }
+    }
+
+    // Obtener datos del conductor desde conductor_auth
+    const { data: conductorAuth, error: conductorError } = await supabaseAdmin
+      .from('conductor_auth')
+      .select(`
+        *,
+        conductors:conductor_id (
+          id,
+          nombre,
+          telefono,
+          cedula,
+          licencia_conducir,
+          fecha_vencimiento_licencia,
+          vehiculo_asignado,
+          estado
+        )
+      `)
+      .eq('id', authData.user.id)
+      .single()
+
+    if (conductorError || !conductorAuth) {
+      return {
+        success: false,
+        error: 'Conductor no encontrado'
+      }
+    }
+
+    // Generar JWT personalizado
+    const token = generateConductorJWT(
+      authData.user.id,
+      authData.user.email!,
+      conductorAuth.conductor_id
+    )
+
+    return {
+      success: true,
+      user: authData.user,
+      conductor: conductorAuth,
+      token: token
+    }
+
+  } catch (error) {
+    console.error('Error in authenticateConductor:', error)
+    return {
+      success: false,
+      error: 'Error interno del servidor'
+    }
+  }
+}
+
 // Crear transporter de nodemailer
 function createTransporter() {
   // Asegurarse de que las variables de entorno SMTP estén definidas
@@ -93,10 +183,10 @@ function createTransporter() {
     console.error('Missing SMTP environment variables. Email sending will not work.')
     throw new Error('Missing SMTP environment variables.')
   }
-  return nodemailer.createTransport(SMTP_CONFIG)
+  return nodemailer.createTransporter(SMTP_CONFIG)
 }
 
-// Enviar email de verificación
+// Enviar email de verificación (ya no necesario con Supabase Auth, pero mantenido para compatibilidad)
 export async function sendVerificationEmail(
   email: string, 
   name: string, 
@@ -150,7 +240,7 @@ export async function sendVerificationEmail(
   await transporter.sendMail(mailOptions)
 }
 
-// Enviar email de restablecimiento de contraseña
+// Enviar email de restablecimiento de contraseña (Supabase Auth maneja esto automáticamente)
 export async function sendPasswordResetEmail(
   email: string, 
   name: string, 

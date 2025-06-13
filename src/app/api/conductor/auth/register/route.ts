@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { hashPassword, generateVerificationToken, isValidEmail, isValidPassword, sendVerificationEmail } from '@/lib/conductor-auth'
+import { isValidEmail, isValidPassword } from '@/lib/conductor-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function POST(req: NextRequest) {
   const requestId = Math.random().toString(36).substring(7)
-  console.log(`[${requestId}] === INICIO REGISTER API ===`)
+  console.log(`[${requestId}] === INICIO REGISTER API (SUPABASE AUTH) ===`)
   
   try {
     const { conductor_id, email, password } = await req.json()
@@ -54,86 +54,95 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[${requestId}] Conductor data found:`, { id: conductorData.id, nombre: conductorData.nombre })
 
-    // 3. Hashear la contraseña
-    const passwordHash = await hashPassword(password)
-    console.log(`[${requestId}] Password hashed.`)
+    // 3. Usar Supabase Auth para registrar el usuario
+    console.log(`[${requestId}] Creating user with Supabase Auth...`)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password: password,
+      options: {
+        data: {
+          conductor_id: conductor_id,
+          nombre: conductorData.nombre,
+          user_type: 'conductor'
+        }
+      }
+    })
 
-    // 4. Generar token de verificación
-    const verificationToken = generateVerificationToken()
-    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
-    console.log(`[${requestId}] Verification token generated.`)
+    if (authError) {
+      console.error(`[${requestId}] Supabase Auth error:`, authError)
+      
+      // Manejar específicamente el error de email duplicado
+      if (authError.message?.includes('already registered') || authError.message?.includes('already exists')) {
+        console.log(`[${requestId}] Email already registered in Supabase Auth`)
+        return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
+      }
+      
+      return NextResponse.json({ error: 'Error al registrar usuario: ' + authError.message }, { status: 500 })
+    }
 
-    // 5. Insertar en la tabla conductor_auth
-    const normalizedEmail = email.toLowerCase().trim()
-    console.log(`[${requestId}] Inserting new conductor auth entry for conductor_id:`, conductor_id, 'email:', normalizedEmail)
-    
-    const { data: newConductorAuth, error: insertError } = await supabaseAdmin
+    if (!authData.user) {
+      console.error(`[${requestId}] No user data returned from Supabase Auth`)
+      return NextResponse.json({ error: 'Error interno: No se pudo crear el usuario' }, { status: 500 })
+    }
+
+    console.log(`[${requestId}] User created successfully with Supabase Auth:`, {
+      id: authData.user.id,
+      email: authData.user.email,
+      email_confirmed_at: authData.user.email_confirmed_at
+    })
+
+    // 4. Crear entrada en conductor_auth vinculada al usuario de Supabase Auth
+    console.log(`[${requestId}] Creating conductor_auth entry...`)
+    const { data: conductorAuthData, error: conductorAuthError } = await supabaseAdmin
       .from('conductor_auth')
       .insert({
+        id: authData.user.id, // Usar el mismo ID del usuario de Supabase Auth
         conductor_id: conductor_id,
-        email: normalizedEmail,
-        password_hash: passwordHash,
-        email_verified: false,
-        verification_token: verificationToken,
-        verification_token_expires: verificationTokenExpires.toISOString(),
+        email: authData.user.email,
+        email_verified: !!authData.user.email_confirmed_at,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single()
 
-    if (insertError) {
-      console.error(`[${requestId}] Error al registrar conductor en conductor_auth (insert error):`, {
-        code: insertError.code,
-        message: insertError.message,
-        details: insertError.details,
-        hint: insertError.hint
-      })
+    if (conductorAuthError) {
+      console.error(`[${requestId}] Error creating conductor_auth entry:`, conductorAuthError)
       
-      // Manejar específicamente el error de email duplicado
-      if (insertError.code === '23505') {
-        console.log(`[${requestId}] Unique constraint violation: Email already registered.`)
-        return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
-      }
+      // Si falla la creación de conductor_auth, eliminar el usuario de Supabase Auth
+      console.log(`[${requestId}] Cleaning up: Deleting user from Supabase Auth...`)
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       
-      console.log(`[${requestId}] Returning 500 error for non-unique constraint violation`)
-      return NextResponse.json({ error: 'Error interno al registrar conductor' }, { status: 500 })
+      return NextResponse.json({ error: 'Error interno al crear perfil de conductor' }, { status: 500 })
     }
 
     console.log(`[${requestId}] Conductor auth entry created successfully:`, {
-      id: newConductorAuth.id,
-      conductor_id: newConductorAuth.conductor_id,
-      email: newConductorAuth.email
+      id: conductorAuthData.id,
+      conductor_id: conductorAuthData.conductor_id,
+      email: conductorAuthData.email
     })
 
-    // 6. Enviar correo de verificación usando la función centralizada
-    try {
-      console.log(`[${requestId}] Attempting to send verification email to:`, normalizedEmail)
-      await sendVerificationEmail(
-        normalizedEmail,
-        conductorData.nombre || 'Conductor',
-        verificationToken
-      )
-      console.log(`[${requestId}] Verification email sent successfully.`)
-    } catch (emailError) {
-      console.error(`[${requestId}] Error al enviar correo de verificación:`, emailError)
-      // Aunque falle el email, el registro en DB fue exitoso
-      return NextResponse.json({ message: 'Conductor registrado, pero falló el envío del correo de verificación.' }, { status: 200 })
+    // 5. Verificar si se necesita enviar correo de verificación
+    if (!authData.user.email_confirmed_at) {
+      console.log(`[${requestId}] Email verification required. Supabase Auth will handle email sending.`)
+      return NextResponse.json({ 
+        message: 'Conductor registrado exitosamente. Por favor, verifica tu email para completar el registro.',
+        email_verification_required: true
+      }, { status: 201 })
+    } else {
+      console.log(`[${requestId}] Email already verified.`)
+      return NextResponse.json({ 
+        message: 'Conductor registrado exitosamente.',
+        email_verification_required: false
+      }, { status: 201 })
     }
-
-    console.log(`[${requestId}] Conductor registration process completed successfully.`)
-    return NextResponse.json({ message: 'Conductor registrado exitosamente. Por favor, verifica tu email.' }, { status: 201 })
 
   } catch (error) {
     console.error(`[${requestId}] Error general en la API de registro de conductor:`, error)
-    
-    // Handle unique constraint violation for email
-    if (error.code === '23505') {
-      console.log(`[${requestId}] Unique constraint violation in catch: Email already registered.`)
-      return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
-    }
-    
-    console.log(`[${requestId}] Returning 500 error for general exception`)
-    return NextResponse.json({ error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Error interno del servidor', 
+      details: error instanceof Error ? error.message : 'Error desconocido' 
+    }, { status: 500 })
   }
 }
-
 
