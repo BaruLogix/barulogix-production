@@ -34,8 +34,8 @@ export default function ConductorLogin() {
         localStorage.setItem('conductor_token', data.token)
         localStorage.setItem('conductor_info', JSON.stringify(data.conductor))
         
-        // Redirigir al dashboard de conductor
-        router.push('/conductor-dashboard')
+        // Forzar recarga de la página para que el middleware detecte el token
+        window.location.href = '/conductor-dashboard'
       } else {
         setError(data.error || 'Error al iniciar sesión')
       }
