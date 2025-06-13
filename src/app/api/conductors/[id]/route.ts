@@ -12,24 +12,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    const userId = request.headers.get('x-user-id')
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para ver conductores'
+      }, { status: 401 })
     }
 
     const { data: conductor, error } = await supabase
       .from('conductors')
       .select('*')
       .eq('id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (error || !conductor) {
@@ -49,17 +45,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    const userId = request.headers.get('x-user-id')
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para actualizar conductores'
+      }, { status: 401 })
     }
 
     const body = await request.json()
@@ -74,7 +66,7 @@ export async function PUT(
       .from('conductors')
       .select('id')
       .eq('id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (!existing) {
@@ -85,7 +77,7 @@ export async function PUT(
     const { data: duplicate } = await supabase
       .from('conductors')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('nombre', nombre)
       .eq('zona', zona)
       .neq('id', params.id)
@@ -106,7 +98,7 @@ export async function PUT(
         activo: activo !== undefined ? activo : true
       })
       .eq('id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .select()
       .single()
 
@@ -128,38 +120,44 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
+    const userId = request.headers.get('x-user-id')
+    
+    console.log('=== DEBUG CONDUCTOR DELETE ===')
+    console.log('User ID recibido:', userId)
+    console.log('Conductor ID a eliminar:', params.id)
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        error: 'ID de usuario no proporcionado',
+        details: 'Debe estar logueado para eliminar conductores'
+      }, { status: 401 })
     }
 
     // Verificar que el conductor existe y pertenece al usuario
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id, nombre')
       .eq('id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
-    if (!existing) {
+    console.log('Conductor existente encontrado:', !!existing)
+    console.log('Error al buscar conductor:', existingError)
+
+    if (existingError || !existing) {
       return NextResponse.json({ error: 'Conductor no encontrado' }, { status: 404 })
     }
 
     // Verificar si el conductor tiene paquetes asignados
-    const { data: packages } = await supabase
+    const { data: packages, error: packagesError } = await supabase
       .from('packages')
       .select('id')
       .eq('conductor_id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .limit(1)
+
+    console.log('Paquetes encontrados:', packages?.length || 0)
+    console.log('Error al buscar paquetes:', packagesError)
 
     if (packages && packages.length > 0) {
       return NextResponse.json({ 
@@ -167,18 +165,29 @@ export async function DELETE(
       }, { status: 400 })
     }
 
+    // Eliminar credenciales de conductor si existen
+    const { error: authDeleteError } = await supabase
+      .from('conductor_auth')
+      .delete()
+      .eq('conductor_id', params.id)
+
+    console.log('Error al eliminar credenciales:', authDeleteError)
+
     // Eliminar conductor
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('conductors')
       .delete()
       .eq('id', params.id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
 
-    if (error) {
-      console.error('Error deleting conductor:', error)
-      return NextResponse.json({ error: 'Error al eliminar conductor', details: error.message }, { status: 500 })
+    console.log('Error al eliminar conductor:', deleteError)
+
+    if (deleteError) {
+      console.error('Error deleting conductor:', deleteError)
+      return NextResponse.json({ error: 'Error al eliminar conductor', details: deleteError.message }, { status: 500 })
     }
 
+    console.log('Conductor eliminado exitosamente')
     return NextResponse.json({ message: 'Conductor eliminado exitosamente' })
   } catch (error) {
     console.error('Error in DELETE /api/conductors/[id]:', error)
