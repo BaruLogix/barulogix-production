@@ -30,7 +30,14 @@ const SMTP_CONFIG = {
 // Hash de contraseña (mantenido para compatibilidad, pero Supabase Auth maneja esto)
 export async function hashPassword(password: string): Promise<string> {
   const saltRounds = 12
-  return await bcrypt.hash(password, saltRounds)
+  try {
+    const hashed = await bcrypt.hash(password, saltRounds)
+    console.log(`[DEBUG] bcrypt.hash result: ${hashed ? 'Present' : 'NULL/Undefined'}`)
+    return hashed
+  } catch (error) {
+    console.error(`[ERROR] Error during password hashing:`, error)
+    throw error // Re-throw the error to be caught by the caller
+  }
 }
 
 // Verificar contraseña (mantenido para compatibilidad, pero Supabase Auth maneja esto)
@@ -194,7 +201,7 @@ export async function sendVerificationEmail(
 ): Promise<void> {
   const transporter = createTransporter()
   
-  const verificationUrl = `https://barulogix-production.vercel.app/auth/conductor/verify?token=${verificationToken}`
+  const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://barulogix-production.vercel.app'}/auth/conductor/verify?token=${verificationToken}`
   
   const mailOptions = {
     from: `"BaruLogix" <${SMTP_CONFIG.auth.user}>`,
@@ -293,4 +300,6 @@ export async function sendPasswordResetEmail(
   
   await transporter.sendMail(mailOptions)
 }
+
+
 
