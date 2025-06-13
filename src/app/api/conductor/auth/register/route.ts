@@ -71,6 +71,15 @@ export async function POST(req: NextRequest) {
     if (authError) {
       console.error(`[${requestId}] Supabase Auth error:`, authError)
       
+      // Manejar específicamente el error de límite de tasa de envío de correos
+      if (authError.message?.includes('email_send_rate_limit') || authError.message?.includes('you can only request this after')) {
+        console.log(`[${requestId}] Email send rate limit exceeded`)
+        return NextResponse.json({ 
+          error: 'Límite de envío de correos excedido. Por favor, espera unos minutos antes de intentar registrarte nuevamente.',
+          code: 'email_send_rate_limit'
+        }, { status: 429 })
+      }
+      
       // Manejar específicamente el error de email duplicado
       if (authError.message?.includes('already registered') || authError.message?.includes('already exists')) {
         console.log(`[${requestId}] Email already registered in Supabase Auth`)
