@@ -84,6 +84,13 @@ export default function ConductorsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Prevenir doble envío
+    if (loading) {
+      console.log('Formulario ya está siendo procesado, ignorando envío duplicado')
+      return
+    }
+    
     setLoading(true)
 
     try {
