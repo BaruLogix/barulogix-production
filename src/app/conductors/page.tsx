@@ -9,8 +9,11 @@ interface Conductor {
   nombre: string
   zona: string
   telefono?: string
+  email?: string
   activo: boolean
   created_at: string
+  has_credentials?: boolean
+  email_verified?: boolean
 }
 
 export default function ConductorsPage() {
@@ -18,11 +21,15 @@ export default function ConductorsPage() {
   const [conductors, setConductors] = useState<Conductor[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false)
   const [editingConductor, setEditingConductor] = useState<Conductor | null>(null)
+  const [selectedConductor, setSelectedConductor] = useState<Conductor | null>(null)
   const [formData, setFormData] = useState({
     nombre: '',
     zona: '',
     telefono: '',
+    email: '',
+    password: '',
     activo: true
   })
   const [searchTerm, setSearchTerm] = useState('')
@@ -45,13 +52,8 @@ export default function ConductorsPage() {
 
   const loadConductors = async () => {
     try {
-      // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
       const userId = userData ? JSON.parse(userData).id : null
-      
-      console.log('=== DEBUG FRONTEND ===')
-      console.log('userData from localStorage:', userData)
-      console.log('userId extracted:', userId)
       
       if (!userId) {
         console.error('No se pudo obtener ID del usuario')
@@ -62,13 +64,9 @@ export default function ConductorsPage() {
         'x-user-id': userId
       }
       
-      console.log('Headers a enviar:', headers)
-      
       const response = await fetch('/api/conductors', {
         headers: headers
       })
-      
-      console.log('Response status:', response.status)
       
       if (response.ok) {
         const data = await response.json()
@@ -89,13 +87,8 @@ export default function ConductorsPage() {
     setLoading(true)
 
     try {
-      // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
       const userId = userData ? JSON.parse(userData).id : null
-      
-      console.log('=== DEBUG FRONTEND SUBMIT ===')
-      console.log('userData from localStorage:', userData)
-      console.log('userId extracted:', userId)
       
       if (!userId) {
         alert('No se pudo obtener información del usuario logueado')
@@ -109,11 +102,6 @@ export default function ConductorsPage() {
         'Content-Type': 'application/json',
         'x-user-id': userId
       }
-      
-      console.log('Headers a enviar:', headers)
-      console.log('URL:', url)
-      console.log('Method:', method)
-      console.log('Body:', formData)
 
       const response = await fetch(url, {
         method,
@@ -121,17 +109,19 @@ export default function ConductorsPage() {
         body: JSON.stringify(formData)
       })
 
-      console.log('Response status:', response.status)
-
       if (response.ok) {
-        const newConductor = await response.json()
-        await loadConductors() // Recargar la lista
+        // Si se está creando un conductor nuevo y se proporcionó email/password
+        if (!editingConductor && formData.email && formData.password) {
+          // Crear credenciales de conductor
+          await createConductorCredentials(response)
+        }
+        
+        await loadConductors()
         setShowModal(false)
         setEditingConductor(null)
-        setFormData({ nombre: '', zona: '', telefono: '', activo: true })
+        setFormData({ nombre: '', zona: '', telefono: '', email: '', password: '', activo: true })
         
-        // Mostrar mensaje de éxito
-        alert(`✅ Conductor "${formData.nombre}" creado exitosamente`)
+        alert(`✅ Conductor "${formData.nombre}" ${editingConductor ? 'actualizado' : 'creado'} exitosamente`)
       } else {
         const error = await response.json()
         console.error('Error response:', error)
@@ -145,15 +135,55 @@ export default function ConductorsPage() {
     }
   }
 
+  const createConductorCredentials = async (conductorResponse: Response) => {
+    try {
+      const conductorData = await conductorResponse.json()
+      const conductorId = conductorData.conductor?.id
+
+      if (!conductorId) {
+        console.error('No se pudo obtener el ID del conductor creado')
+        return
+      }
+
+      const credentialsResponse = await fetch('/api/conductor/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conductor_id: conductorId,
+          email: formData.email,
+          password: formData.password
+        })
+      })
+
+      if (!credentialsResponse.ok) {
+        const error = await credentialsResponse.json()
+        console.error('Error creating conductor credentials:', error)
+        alert(`Conductor creado pero falló la creación de credenciales: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error creating conductor credentials:', error)
+      alert('Conductor creado pero falló la creación de credenciales')
+    }
+  }
+
   const handleEdit = (conductor: Conductor) => {
     setEditingConductor(conductor)
     setFormData({
       nombre: conductor.nombre,
       zona: conductor.zona,
       telefono: conductor.telefono || '',
+      email: conductor.email || '',
+      password: '',
       activo: conductor.activo
     })
     setShowModal(true)
+  }
+
+  const handleViewCredentials = (conductor: Conductor) => {
+    setSelectedConductor(conductor)
+    setShowCredentialsModal(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -162,7 +192,6 @@ export default function ConductorsPage() {
     }
 
     try {
-      // Obtener el ID del usuario y el token de sesión
       const userData = localStorage.getItem('user')
       const sessionData = localStorage.getItem('session')
       const userId = userData ? JSON.parse(userData).id : null
@@ -178,8 +207,6 @@ export default function ConductorsPage() {
         'x-user-id': userId,
         'authorization': `Bearer ${token}`
       }
-      
-      console.log('Headers para eliminación:', headers)
       
       const response = await fetch(`/api/conductors/${id}`, {
         method: 'DELETE',
@@ -210,7 +237,7 @@ export default function ConductorsPage() {
 
   const zones = [...new Set(conductors.map(c => c.zona))].sort()
   const activeConductors = conductors.filter(c => c.activo).length
-  const inactiveConductors = conductors.filter(c => !c.activo).length
+  const conductorsWithCredentials = conductors.filter(c => c.has_credentials).length
 
   if (loading && conductors.length === 0) {
     return (
@@ -238,7 +265,7 @@ export default function ConductorsPage() {
             />
             <div>
               <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix - Conductores</h1>
-              <p className="text-sm text-secondary-600 font-segoe">Gestión de conductores por zonas</p>
+              <p className="text-sm text-secondary-600 font-segoe">Gestión de conductores y credenciales</p>
             </div>
           </div>
           <div className="flex space-x-4">
@@ -267,7 +294,7 @@ export default function ConductorsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="card-barulogix hover-lift animate-slide-up">
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-primary-100 text-primary-600">
@@ -297,6 +324,20 @@ export default function ConductorsPage() {
           </div>
 
           <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.2s'}}>
+            <div className="flex items-center">
+              <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Con Credenciales</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{conductorsWithCredentials}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.3s'}}>
             <div className="flex items-center">
               <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,7 +382,7 @@ export default function ConductorsPage() {
             <button
               onClick={() => {
                 setEditingConductor(null)
-                setFormData({ nombre: '', zona: '', telefono: '', activo: true })
+                setFormData({ nombre: '', zona: '', telefono: '', email: '', password: '', activo: true })
                 setShowModal(true)
               }}
               className="btn-primary hover-glow"
@@ -378,9 +419,23 @@ export default function ConductorsPage() {
                       <div>
                         <h3 className="text-lg font-bold text-secondary-900 font-montserrat">{conductor.nombre}</h3>
                         <p className="text-sm text-secondary-600 font-segoe">{conductor.zona}</p>
+                        {conductor.email && (
+                          <p className="text-xs text-secondary-500 font-segoe">{conductor.email}</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-2">
+                      {conductor.has_credentials && (
+                        <button
+                          onClick={() => handleViewCredentials(conductor)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver credenciales"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(conductor)}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -404,24 +459,32 @@ export default function ConductorsPage() {
                   
                   <div className="space-y-2">
                     {conductor.telefono && (
-                      <div className="flex items-center text-sm text-secondary-600 font-segoe">
+                      <div className="flex items-center text-sm text-secondary-600">
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                         {conductor.telefono}
                       </div>
                     )}
+                    
                     <div className="flex items-center justify-between">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         conductor.activo 
                           ? 'bg-accent-100 text-accent-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
                         {conductor.activo ? 'Activo' : 'Inactivo'}
                       </span>
-                      <span className="text-xs text-secondary-500 font-segoe">
-                        {new Date(conductor.created_at).toLocaleDateString()}
-                      </span>
+                      
+                      {conductor.has_credentials && (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          conductor.email_verified 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {conductor.email_verified ? 'Verificado' : 'Pendiente'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -431,28 +494,18 @@ export default function ConductorsPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal para Agregar/Editar Conductor */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
-                  {editingConductor ? 'Editar Conductor' : 'Agregar Conductor'}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-secondary-400 hover:text-secondary-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
+              <h3 className="text-lg font-bold text-secondary-900 mb-4 font-montserrat">
+                {editingConductor ? 'Editar Conductor' : 'Agregar Conductor'}
+              </h3>
+              
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Nombre *
                   </label>
                   <input
@@ -466,7 +519,7 @@ export default function ConductorsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Zona *
                   </label>
                   <input
@@ -480,7 +533,7 @@ export default function ConductorsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Teléfono
                   </label>
                   <input
@@ -492,15 +545,48 @@ export default function ConductorsPage() {
                   />
                 </div>
 
+                {!editingConductor && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-secondary-700 mb-2">
+                        Email (para acceso al dashboard)
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="input-barulogix-modern focus-ring"
+                        placeholder="email@ejemplo.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-secondary-700 mb-2">
+                        Contraseña (para acceso al dashboard)
+                      </label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        className="input-barulogix-modern focus-ring"
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                      <p className="text-xs text-secondary-500 mt-1">
+                        Debe contener al menos: 8 caracteres, 1 mayúscula, 1 minúscula, 1 número
+                      </p>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex items-center">
                   <input
                     type="checkbox"
                     id="activo"
                     checked={formData.activo}
                     onChange={(e) => setFormData({...formData, activo: e.target.checked})}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="activo" className="ml-2 block text-sm text-secondary-700 font-segoe">
+                  <label htmlFor="activo" className="ml-2 block text-sm text-secondary-700">
                     Conductor activo
                   </label>
                 </div>
@@ -508,21 +594,87 @@ export default function ConductorsPage() {
                 <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => {
+                      setShowModal(false)
+                      setEditingConductor(null)
+                      setFormData({ nombre: '', zona: '', telefono: '', email: '', password: '', activo: true })
+                    }}
                     className="btn-secondary flex-1"
-                    disabled={loading}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="btn-primary flex-1"
                     disabled={loading}
+                    className="btn-primary flex-1"
                   >
-                    {loading ? 'Guardando...' : editingConductor ? 'Actualizar' : 'Crear'}
+                    {loading ? 'Guardando...' : (editingConductor ? 'Actualizar' : 'Crear')}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Ver Credenciales */}
+      {showCredentialsModal && selectedConductor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-secondary-900 mb-4 font-montserrat">
+                Credenciales de Acceso
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
+                    Conductor
+                  </label>
+                  <p className="text-secondary-900 font-semibold">{selectedConductor.nombre}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
+                    Email de acceso
+                  </label>
+                  <p className="text-secondary-900">{selectedConductor.email}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
+                    Estado de verificación
+                  </label>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    selectedConductor.email_verified 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedConductor.email_verified ? 'Email verificado' : 'Pendiente de verificación'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
+                    URL de acceso
+                  </label>
+                  <p className="text-blue-600 text-sm break-all">
+                    {window.location.origin}/auth/conductor
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-6">
+                <button
+                  onClick={() => {
+                    setShowCredentialsModal(false)
+                    setSelectedConductor(null)
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         </div>
