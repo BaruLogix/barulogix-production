@@ -110,10 +110,12 @@ export default function ConductorsPage() {
       })
 
       if (response.ok) {
+        let credentialsSuccess = true
+        
         // Si se está creando un conductor nuevo y se proporcionó email/password
         if (!editingConductor && formData.email && formData.password) {
           // Crear credenciales de conductor
-          await createConductorCredentials(response)
+          credentialsSuccess = await createConductorCredentials(response)
         }
         
         await loadConductors()
@@ -121,7 +123,10 @@ export default function ConductorsPage() {
         setEditingConductor(null)
         setFormData({ nombre: '', zona: '', telefono: '', email: '', password: '', activo: true })
         
-        alert(`✅ Conductor "${formData.nombre}" ${editingConductor ? 'actualizado' : 'creado'} exitosamente`)
+        // Solo mostrar mensaje de éxito si ambas operaciones fueron exitosas
+        if (credentialsSuccess) {
+          alert(`✅ Conductor "${formData.nombre}" ${editingConductor ? 'actualizado' : 'creado'} exitosamente`)
+        }
       } else {
         const error = await response.json()
         console.error('Error response:', error)
@@ -135,14 +140,15 @@ export default function ConductorsPage() {
     }
   }
 
-  const createConductorCredentials = async (conductorResponse: Response) => {
+  const createConductorCredentials = async (conductorResponse: Response): Promise<boolean> => {
     try {
       const conductorData = await conductorResponse.json()
       const conductorId = conductorData.conductor?.id
 
       if (!conductorId) {
         console.error('No se pudo obtener el ID del conductor creado')
-        return
+        alert('Error: No se pudo obtener el ID del conductor creado')
+        return false
       }
 
       const credentialsResponse = await fetch('/api/conductor/auth/register', {
@@ -160,11 +166,15 @@ export default function ConductorsPage() {
       if (!credentialsResponse.ok) {
         const error = await credentialsResponse.json()
         console.error('Error creating conductor credentials:', error)
-        alert(`Conductor creado pero falló la creación de credenciales: ${error.error}`)
+        alert(`❌ Error al crear las credenciales del conductor: ${error.error}`)
+        return false
       }
+
+      return true
     } catch (error) {
       console.error('Error creating conductor credentials:', error)
-      alert('Conductor creado pero falló la creación de credenciales')
+      alert('❌ Error al crear las credenciales del conductor')
+      return false
     }
   }
 
