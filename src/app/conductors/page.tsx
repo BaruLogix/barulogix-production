@@ -111,11 +111,24 @@ export default function ConductorsPage() {
 
       if (response.ok) {
         let credentialsSuccess = true
+        let conductorData = null
         
         // Si se está creando un conductor nuevo y se proporcionó email/password
         if (!editingConductor && formData.email && formData.password) {
+          // Obtener los datos del conductor creado
+          conductorData = await response.json()
+          
           // Crear credenciales de conductor
-          credentialsSuccess = await createConductorCredentials(response)
+          credentialsSuccess = await createConductorCredentials(conductorData)
+          
+          // Si falló la creación de credenciales, eliminar el conductor creado
+          if (!credentialsSuccess) {
+            const conductorId = conductorData.conductor?.id
+            if (conductorId) {
+              await deleteConductorAfterFailure(conductorId)
+            }
+            return // Salir sin mostrar éxito ni recargar
+          }
         }
         
         await loadConductors()
@@ -140,9 +153,8 @@ export default function ConductorsPage() {
     }
   }
 
-  const createConductorCredentials = async (conductorResponse: Response): Promise<boolean> => {
+  const createConductorCredentials = async (conductorData: any): Promise<boolean> => {
     try {
-      const conductorData = await conductorResponse.json()
       const conductorId = conductorData.conductor?.id
 
       if (!conductorId) {
@@ -175,6 +187,34 @@ export default function ConductorsPage() {
       console.error('Error creating conductor credentials:', error)
       alert('❌ Error al crear las credenciales del conductor')
       return false
+    }
+  }
+
+  const deleteConductorAfterFailure = async (conductorId: string) => {
+    try {
+      const userData = localStorage.getItem('user')
+      const sessionData = localStorage.getItem('session')
+      const userId = userData ? JSON.parse(userData).id : null
+      const token = sessionData ? JSON.parse(sessionData).access_token : null
+      
+      if (!userId || !token) {
+        console.error('No se pudo obtener información de autenticación para eliminar conductor')
+        return
+      }
+      
+      const headers = {
+        'x-user-id': userId,
+        'authorization': `Bearer ${token}`
+      }
+      
+      await fetch(`/api/conductors/${conductorId}`, {
+        method: 'DELETE',
+        headers: headers
+      })
+      
+      console.log('Conductor eliminado después de fallo en credenciales')
+    } catch (error) {
+      console.error('Error eliminando conductor después de fallo:', error)
     }
   }
 

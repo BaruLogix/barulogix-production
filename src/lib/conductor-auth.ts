@@ -104,7 +104,7 @@ export async function sendVerificationEmail(
 ): Promise<void> {
   const transporter = createTransporter()
   
-  const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/conductor/verify?token=${verificationToken}`
+  const verificationUrl = `https://barulogix-production.vercel.app/auth/conductor/verify?token=${verificationToken}`
   
   const mailOptions = {
     from: `"BaruLogix" <${SMTP_CONFIG.auth.user}>`,
@@ -158,7 +158,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   const transporter = createTransporter()
   
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/conductor/reset-password?token=${resetToken}`
+  const resetUrl = `https://barulogix-production.vercel.app/auth/conductor/reset-password?token=${resetToken}`
   
   const mailOptions = {
     from: `"BaruLogix" <${SMTP_CONFIG.auth.user}>`,
