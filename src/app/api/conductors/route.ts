@@ -71,11 +71,13 @@ export async function GET(request: NextRequest) {
 
 // POST - Crear nuevo conductor para el usuario logueado
 export async function POST(request: NextRequest) {
+  console.log('=== DEBUG CONDUCTORS POST API START ===');
   try {
     const body = await request.json()
     const { nombre, zona, telefono, email, password } = body
 
     if (!nombre || !zona) {
+      console.log('Validation Error: Missing nombre or zona');
       return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
     }
 
@@ -87,6 +89,7 @@ export async function POST(request: NextRequest) {
     console.log('Password proporcionado:', !!password)
     
     if (!userId) {
+      console.log('Auth Error: User ID not provided');
       return NextResponse.json({ 
         error: 'ID de usuario no proporcionado',
         details: 'Debe estar logueado para crear conductores'
@@ -94,6 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar si ya existe un conductor con el mismo nombre para este usuario
+    console.log('Checking for existing conductor by name:', nombre);
     const { data: existing, error: existingError } = await supabase
       .from('conductors')
       .select('id')
@@ -107,12 +111,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (existing) {
+      console.log('Conflict: Conductor with this name already exists:', existing.id);
       return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
     }
 
     // Si se proporciona email, verificar que no esté en uso ANTES de crear el conductor
     if (email) {
-      console.log('Verificando email existente:', email)
+      console.log('Verificando email existente en conductor_auth:', email)
       
       const { data: existingEmail, error: emailError } = await supabase
         .from('conductor_auth')
@@ -120,16 +125,16 @@ export async function POST(request: NextRequest) {
         .eq('email', email.toLowerCase().trim())
         .maybeSingle()
 
-      console.log('Email existente encontrado:', existingEmail)
-      console.log('Error al verificar email:', emailError)
+      console.log('Email existente encontrado (maybeSingle):', existingEmail)
+      console.log('Error al verificar email (maybeSingle):', emailError)
 
       if (emailError && emailError.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.error('Error verificando email existente:', emailError)
+        console.error('Error verificando email existente (unexpected error):', emailError)
         return NextResponse.json({ error: 'Error al verificar email' }, { status: 500 })
       }
 
       if (existingEmail) {
-        console.log('Email ya existe para conductor:', existingEmail.conductor_id)
+        console.log('Conflict: Email already exists for conductor:', existingEmail.conductor_id)
         return NextResponse.json({ error: 'Ya existe un conductor con ese email' }, { status: 400 })
       }
     }
@@ -143,7 +148,7 @@ export async function POST(request: NextRequest) {
       activo: true
     }
 
-    console.log('Datos a insertar:', insertData)
+    console.log('Datos a insertar en conductors:', insertData)
 
     const { data: conductor, error } = await supabase
       .from('conductors')
@@ -152,20 +157,21 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creando conductor:', error)
+      console.error('Error creando conductor en tabla conductors:', error)
       return NextResponse.json({ 
         error: 'Error al crear conductor', 
         details: error.message 
       }, { status: 500 })
     }
 
-    console.log('Conductor creado exitosamente:', conductor)
+    console.log('Conductor creado exitosamente en tabla conductors:', conductor)
 
     // Si se proporcionaron credenciales, crear la entrada en conductor_auth
     if (email && password && conductor.id) {
-      console.log('Creando credenciales para conductor:', conductor.id)
+      console.log('Attempting to create credentials for conductor:', conductor.id)
       
       try {
+        console.log('Fetching /api/conductor/auth/register...');
         const credentialsResponse = await fetch(`${request.nextUrl.origin}/api/conductor/auth/register`, {
           method: 'POST',
           headers: {
@@ -179,46 +185,47 @@ export async function POST(request: NextRequest) {
         })
 
         const credentialsData = await credentialsResponse.json()
-        console.log('Respuesta de credenciales:', credentialsData)
+        console.log('Response from /api/conductor/auth/register:', credentialsResponse.status, credentialsData)
 
         if (!credentialsResponse.ok) {
-          console.error('Error creando credenciales:', credentialsData)
+          console.error('Error creando credenciales (response not ok):', credentialsData)
           
           // Si falló la creación de credenciales, eliminar el conductor creado
+          console.log('Rolling back: Deleting conductor due to credentials creation failure.');
           await supabase
             .from('conductors')
             .delete()
             .eq('id', conductor.id)
           
-          return NextResponse.json({ 
-            error: credentialsData.error || 'Error al crear credenciales del conductor'
-          }, { status: 400 })
+          // Throw an error to ensure the outer function stops and returns an error
+          throw new Error(credentialsData.error || 'Error al crear credenciales del conductor');
         } else {
-          console.log('Credenciales creadas exitosamente')
+          console.log('Credenciales creadas exitosamente via /api/conductor/auth/register')
         }
       } catch (credentialsError) {
-        console.error('Error en llamada a credenciales:', credentialsError)
+        console.error('Error in fetch call to /api/conductor/auth/register:', credentialsError)
         
         // Si falló la creación de credenciales, eliminar el conductor creado
+        console.log('Rolling back: Deleting conductor due to fetch error.');
         await supabase
           .from('conductors')
           .delete()
           .eq('id', conductor.id)
         
-        return NextResponse.json({ 
-          error: 'Error al crear credenciales del conductor'
-        }, { status: 500 })
+        throw new Error('Error al crear credenciales del conductor');
       }
     }
 
+    console.log('Conductor POST API finished successfully.');
     return NextResponse.json({ conductor }, { status: 201 })
 
   } catch (error) {
     console.error('Error general en POST /api/conductors:', error)
     return NextResponse.json({ 
       error: 'Error interno del servidor',
-      details: error.message
+      details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 })
   }
 }
+
 
