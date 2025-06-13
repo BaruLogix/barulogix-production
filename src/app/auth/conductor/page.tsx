@@ -34,6 +34,9 @@ export default function ConductorLogin() {
         localStorage.setItem('conductor_token', data.token)
         localStorage.setItem('conductor_info', JSON.stringify(data.conductor))
         
+        // También establecer cookie para el middleware
+        document.cookie = `conductor_token=${data.token}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`
+        
         // Forzar recarga de la página para que el middleware detecte el token
         window.location.href = '/conductor-dashboard'
       } else {

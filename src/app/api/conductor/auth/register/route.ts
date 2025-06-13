@@ -78,6 +78,13 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error('Error al registrar conductor en conductor_auth (insert error):', insertError)
+      
+      // Manejar específicamente el error de email duplicado
+      if (insertError.code === '23505' && insertError.message?.includes('conductor_auth_email_key')) {
+        console.log('Unique constraint violation: Email already registered.')
+        return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
+      }
+      
       return NextResponse.json({ error: 'Error interno al registrar conductor' }, { status: 500 })
     }
 
