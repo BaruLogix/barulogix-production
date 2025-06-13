@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isValidEmail, isValidPassword } from '@/lib/conductor-auth'
+import { isValidEmail, isValidPassword, hashPassword, generateVerificationToken } from '@/lib/conductor-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function POST(req: NextRequest) {
   const requestId = Math.random().toString(36).substring(7)
-  console.log(`[${requestId}] === INICIO REGISTER API (SUPABASE AUTH) ===`)
+  console.log(`[${requestId}] === INICIO REGISTER API (MANUAL) ===`)
   
   try {
     const { conductor_id, email, password } = await req.json()
@@ -54,61 +54,48 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[${requestId}] Conductor data found:`, { id: conductorData.id, nombre: conductorData.nombre })
 
-    // 3. Usar Supabase Auth para registrar el usuario
-    console.log(`[${requestId}] Creating user with Supabase Auth...`)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
-      email: email.toLowerCase().trim(),
-      password: password,
-      options: {
-        data: {
-          conductor_id: conductor_id,
-          nombre: conductorData.nombre,
-          user_type: 'conductor'
-        }
-      }
-    })
+    // 3. Verificar si el email ya existe en conductor_auth
+    console.log(`[${requestId}] Checking if email already exists in conductor_auth...`)
+    const { data: existingAuth, error: checkError } = await supabaseAdmin
+      .from('conductor_auth')
+      .select('id, email')
+      .eq('email', email.toLowerCase().trim())
+      .single()
 
-    if (authError) {
-      console.error(`[${requestId}] Supabase Auth error:`, authError)
-      
-      // Manejar específicamente el error de límite de tasa de envío de correos
-      if (authError.message?.includes('email_send_rate_limit') || authError.message?.includes('you can only request this after')) {
-        console.log(`[${requestId}] Email send rate limit exceeded`)
-        return NextResponse.json({ 
-          error: 'Límite de envío de correos excedido. Por favor, espera unos minutos antes de intentar registrarte nuevamente.',
-          code: 'email_send_rate_limit'
-        }, { status: 429 })
-      }
-      
-      // Manejar específicamente el error de email duplicado
-      if (authError.message?.includes('already registered') || authError.message?.includes('already exists')) {
-        console.log(`[${requestId}] Email already registered in Supabase Auth`)
-        return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
-      }
-      
-      return NextResponse.json({ error: 'Error al registrar usuario: ' + authError.message }, { status: 500 })
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error(`[${requestId}] Error checking existing email:`, checkError)
+      return NextResponse.json({ error: 'Error interno al verificar email' }, { status: 500 })
     }
 
-    if (!authData.user) {
-      console.error(`[${requestId}] No user data returned from Supabase Auth`)
-      return NextResponse.json({ error: 'Error interno: No se pudo crear el usuario' }, { status: 500 })
+    if (existingAuth) {
+      console.log(`[${requestId}] Email already exists in conductor_auth:`, existingAuth)
+      return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
     }
 
-    console.log(`[${requestId}] User created successfully with Supabase Auth:`, {
-      id: authData.user.id,
-      email: authData.user.email,
-      email_confirmed_at: authData.user.email_confirmed_at
-    })
+    console.log(`[${requestId}] Email is available for registration`)
 
-    // 4. Crear entrada en conductor_auth vinculada al usuario de Supabase Auth
+    // 4. Hashear la contraseña
+    console.log(`[${requestId}] Hashing password...`)
+    const hashedPassword = await hashPassword(password)
+    console.log(`[${requestId}] Password hashed successfully`)
+
+    // 5. Generar token de verificación
+    console.log(`[${requestId}] Generating verification token...`)
+    const verificationToken = generateVerificationToken()
+    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
+    console.log(`[${requestId}] Verification token generated`)
+
+    // 6. Crear entrada en conductor_auth
     console.log(`[${requestId}] Creating conductor_auth entry...`)
     const { data: conductorAuthData, error: conductorAuthError } = await supabaseAdmin
       .from('conductor_auth')
       .insert({
-        id: authData.user.id, // Usar el mismo ID del usuario de Supabase Auth
         conductor_id: conductor_id,
-        email: authData.user.email,
-        email_verified: !!authData.user.email_confirmed_at,
+        email: email.toLowerCase().trim(),
+        password_hash: hashedPassword,
+        email_verified: false,
+        verification_token: verificationToken,
+        verification_token_expires: verificationTokenExpires.toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -118,11 +105,13 @@ export async function POST(req: NextRequest) {
     if (conductorAuthError) {
       console.error(`[${requestId}] Error creating conductor_auth entry:`, conductorAuthError)
       
-      // Si falla la creación de conductor_auth, eliminar el usuario de Supabase Auth
-      console.log(`[${requestId}] Cleaning up: Deleting user from Supabase Auth...`)
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      // Manejar específicamente el error de unique constraint violation
+      if (conductorAuthError.code === '23505') {
+        console.log(`[${requestId}] Unique constraint violation - email already exists`)
+        return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
+      }
       
-      return NextResponse.json({ error: 'Error interno al crear perfil de conductor' }, { status: 500 })
+      return NextResponse.json({ error: 'Error interno al crear credenciales del conductor' }, { status: 500 })
     }
 
     console.log(`[${requestId}] Conductor auth entry created successfully:`, {
@@ -131,20 +120,37 @@ export async function POST(req: NextRequest) {
       email: conductorAuthData.email
     })
 
-    // 5. Verificar si se necesita enviar correo de verificación
-    if (!authData.user.email_confirmed_at) {
-      console.log(`[${requestId}] Email verification required. Supabase Auth will handle email sending.`)
-      return NextResponse.json({ 
-        message: 'Conductor registrado exitosamente. Por favor, verifica tu email para completar el registro.',
-        email_verification_required: true
-      }, { status: 201 })
-    } else {
-      console.log(`[${requestId}] Email already verified.`)
-      return NextResponse.json({ 
-        message: 'Conductor registrado exitosamente.',
-        email_verification_required: false
-      }, { status: 201 })
+    // 7. Enviar correo de verificación
+    console.log(`[${requestId}] Sending verification email...`)
+    try {
+      const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://barulogix-production.vercel.app'}/auth/conductor/verify?token=${verificationToken}`
+      
+      // Usar Supabase para enviar el correo de verificación
+      const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'signup',
+        email: email.toLowerCase().trim(),
+        options: {
+          redirectTo: verificationUrl
+        }
+      })
+
+      if (emailError) {
+        console.error(`[${requestId}] Error sending verification email:`, emailError)
+        // No fallar la operación completa por un error de email
+        console.log(`[${requestId}] Continuing despite email error...`)
+      } else {
+        console.log(`[${requestId}] Verification email sent successfully`)
+      }
+    } catch (emailError) {
+      console.error(`[${requestId}] Exception sending verification email:`, emailError)
+      // No fallar la operación completa por un error de email
     }
+
+    console.log(`[${requestId}] === REGISTRO EXITOSO ===`)
+    return NextResponse.json({ 
+      message: 'Conductor registrado exitosamente. Por favor, verifica tu email para completar el registro.',
+      email_verification_required: true
+    }, { status: 201 })
 
   } catch (error) {
     console.error(`[${requestId}] Error general en la API de registro de conductor:`, error)
