@@ -15,6 +15,11 @@ export async function POST(req: NextRequest) {
   try {
     const { conductor_id, email, password } = await req.json()
 
+    console.log('=== DEBUG REGISTER API ===')
+    console.log('Conductor ID:', conductor_id)
+    console.log('Email:', email)
+    console.log('Password provided:', !!password)
+
     // 1. Validar inputs
     if (!conductor_id || !email || !password) {
       return NextResponse.json({ error: 'Conductor ID, email y contraseña son requeridos' }, { status: 400 })
@@ -37,17 +42,28 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (conductorError || !conductorData) {
+      console.error('Error or Conductor ID not found:', conductorError)
       return NextResponse.json({ error: 'Conductor ID no encontrado o error al buscar conductor' }, { status: 404 })
     }
 
     // 3. Verificar si el email ya está registrado en conductor_auth
+    console.log('Checking for existing email in conductor_auth:', email)
     const { data: existingAuth, error: existingAuthError } = await supabaseAdmin
       .from('conductor_auth')
       .select('id')
-      .eq('email', email)
-      .single()
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle() // <-- Changed from single() to maybeSingle()
+
+    console.log('Existing auth data:', existingAuth)
+    console.log('Existing auth error:', existingAuthError)
+
+    if (existingAuthError && existingAuthError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Error checking existing email:', existingAuthError)
+      return NextResponse.json({ error: 'Error al verificar email existente' }, { status: 500 })
+    }
 
     if (existingAuth) {
+      console.log('Email already registered for another conductor:', existingAuth.id)
       return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
     }
 
@@ -59,11 +75,12 @@ export async function POST(req: NextRequest) {
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
 
     // 6. Insertar en la tabla conductor_auth
+    console.log('Inserting new conductor auth entry...')
     const { data: newConductorAuth, error: insertError } = await supabaseAdmin
       .from('conductor_auth')
       .insert({
         conductor_id: conductor_id,
-        email: email,
+        email: email.toLowerCase().trim(),
         password_hash: passwordHash,
         email_verified: false,
         verification_token: verificationToken,
@@ -77,13 +94,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error interno al registrar conductor' }, { status: 500 })
     }
 
+    console.log('Conductor auth entry created:', newConductorAuth)
+
     // 7. Enviar correo de verificación usando la función centralizada
     try {
+      console.log('Attempting to send verification email...')
       await sendVerificationEmail(
         email,
         conductorData.nombre || 'Conductor',
         verificationToken
       )
+      console.log('Verification email sent successfully.')
     } catch (emailError) {
       console.error('Error al enviar correo de verificación:', emailError)
       // Aunque falle el email, el registro en DB fue exitoso
@@ -94,7 +115,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Error en la API de registro de conductor:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
   }
 }
 
