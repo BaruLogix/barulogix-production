@@ -22,19 +22,23 @@ export async function POST(req: NextRequest) {
 
     // 1. Validar inputs
     if (!conductor_id || !email || !password) {
+      console.log('Validation Error: Missing conductor_id, email, or password')
       return NextResponse.json({ error: 'Conductor ID, email y contraseña son requeridos' }, { status: 400 })
     }
 
     if (!isValidEmail(email)) {
+      console.log('Validation Error: Invalid email format')
       return NextResponse.json({ error: 'Formato de email inválido' }, { status: 400 })
     }
 
     const passwordValidation = isValidPassword(password)
     if (!passwordValidation.valid) {
+      console.log('Validation Error: Invalid password:', passwordValidation.message)
       return NextResponse.json({ error: passwordValidation.message }, { status: 400 })
     }
 
     // 2. Verificar si el conductor_id existe en la tabla conductors
+    console.log('Checking if conductor_id exists:', conductor_id)
     const { data: conductorData, error: conductorError } = await supabaseAdmin
       .from('conductors')
       .select('id, nombre')
@@ -45,42 +49,47 @@ export async function POST(req: NextRequest) {
       console.error('Error or Conductor ID not found:', conductorError)
       return NextResponse.json({ error: 'Conductor ID no encontrado o error al buscar conductor' }, { status: 404 })
     }
+    console.log('Conductor data found:', conductorData)
 
     // 3. Verificar si el email ya está registrado en conductor_auth
-    console.log('Checking for existing email in conductor_auth:', email)
+    const normalizedEmail = email.toLowerCase().trim()
+    console.log('Checking for existing email in conductor_auth (normalized):', normalizedEmail)
     const { data: existingAuth, error: existingAuthError } = await supabaseAdmin
       .from('conductor_auth')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', normalizedEmail)
       .maybeSingle() // <-- Changed from single() to maybeSingle()
 
-    console.log('Existing auth data:', existingAuth)
-    console.log('Existing auth error:', existingAuthError)
+    console.log('Existing auth data (after maybeSingle):', existingAuth)
+    console.log('Existing auth error (after maybeSingle):', existingAuthError)
 
     if (existingAuthError && existingAuthError.code !== 'PGRST116') { // PGRST116 = no rows found
-      console.error('Error checking existing email:', existingAuthError)
+      console.error('Error checking existing email (unexpected error):', existingAuthError)
       return NextResponse.json({ error: 'Error al verificar email existente' }, { status: 500 })
     }
 
     if (existingAuth) {
-      console.log('Email already registered for another conductor:', existingAuth.id)
+      console.log('Email already registered for another conductor (conflict):', existingAuth.id)
       return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
     }
+    console.log('Email is not registered, proceeding to hash password.')
 
     // 4. Hashear la contraseña
     const passwordHash = await hashPassword(password)
+    console.log('Password hashed.')
 
     // 5. Generar token de verificación
     const verificationToken = generateVerificationToken()
     const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
+    console.log('Verification token generated.')
 
     // 6. Insertar en la tabla conductor_auth
-    console.log('Inserting new conductor auth entry...')
+    console.log('Inserting new conductor auth entry for conductor_id:', conductor_id, 'email:', normalizedEmail)
     const { data: newConductorAuth, error: insertError } = await supabaseAdmin
       .from('conductor_auth')
       .insert({
         conductor_id: conductor_id,
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password_hash: passwordHash,
         email_verified: false,
         verification_token: verificationToken,
@@ -90,17 +99,17 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error('Error al registrar conductor en conductor_auth:', insertError)
+      console.error('Error al registrar conductor en conductor_auth (insert error):', insertError)
       return NextResponse.json({ error: 'Error interno al registrar conductor' }, { status: 500 })
     }
 
-    console.log('Conductor auth entry created:', newConductorAuth)
+    console.log('Conductor auth entry created successfully:', newConductorAuth)
 
     // 7. Enviar correo de verificación usando la función centralizada
     try {
-      console.log('Attempting to send verification email...')
+      console.log('Attempting to send verification email to:', normalizedEmail)
       await sendVerificationEmail(
-        email,
+        normalizedEmail,
         conductorData.nombre || 'Conductor',
         verificationToken
       )
@@ -111,10 +120,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Conductor registrado, pero falló el envío del correo de verificación.' }, { status: 200 })
     }
 
+    console.log('Conductor registration process completed successfully.')
     return NextResponse.json({ message: 'Conductor registrado exitosamente. Por favor, verifica tu email.' }, { status: 201 })
 
   } catch (error) {
-    console.error('Error en la API de registro de conductor:', error)
+    console.error('Error general en la API de registro de conductor:', error)
     return NextResponse.json({ error: 'Error interno del servidor', details: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
   }
 }
