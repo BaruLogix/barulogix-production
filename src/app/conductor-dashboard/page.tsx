@@ -327,23 +327,32 @@ export default function ConductorDashboard() {
             </div>
 
             {/* Footer */}
-            <div className="mt-8 text-center text-sm text-secondary-500 font-segoe">
-              <p>© 2025 BaruLogix</p>
-              <p className="mt-1">BaruLogix By BaruCourier S.A.S</p>
-              <div className="flex items-center justify-center mt-2">
-                <span>Plataforma creada por:</span>
-                <div className="flex items-center ml-2">
-                  <Image
-                    src="/logo-scibaru.png"
-                    alt="ScibaruAI"
-                    width={20}
-                    height={20}
-                    className="mr-1"
-                  />
-                  <span className="font-medium">ScibaruAI</span>
+            <footer className="bg-transparent mt-8">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                  <div className="text-center md:text-left">
+                    <p className="text-secondary-700 font-segoe text-sm">
+                      © 2025 BaruLogix. Plataforma de gestión logística profesional.
+                    </p>
+                    <p className="text-secondary-600 font-segoe text-sm mt-1">
+                      BaruLogix By BaruCourier S.A.S
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-secondary-600 font-segoe text-sm">
+                      Programa desarrollado por: ScibaruAI
+                    </span>
+                    <Image
+                      src="/logo-scibaru.png"
+                      alt="ScibaruAI"
+                      width={32}
+                      height={32}
+                      className="opacity-75 hover:opacity-100 transition-opacity"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            </footer>
           </div>
         </div>
       </div>
@@ -784,5 +793,4 @@ export default function ConductorDashboard() {
     </div>
   )
 }
-
 
