@@ -65,8 +65,8 @@ interface FilterState {
   startDate: string
   endDate: string
   lastDays: string
-  month: (new Date().getMonth() + 1).toString(),
-  year: new Date().getFullYear().toString()
+  month: string,
+  year: string
 }
 
 export default function ConductorDashboard() {
