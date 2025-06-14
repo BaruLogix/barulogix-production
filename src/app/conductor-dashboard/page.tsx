@@ -71,11 +71,9 @@ interface FilterState {
 
 export default function ConductorDashboard() {
   const router = useRouter()
-  const [conductorId, setConductorId] = useState('')
   const [conductor, setConductor] = useState<Conductor | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Cambiado a true para cargar al inicio
   const [error, setError] = useState('')
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   
   // Estados para estadísticas y datos
   const [analysis, setAnalysis] = useState<ConductorAnalysisData | null>(null)
@@ -93,37 +91,38 @@ export default function ConductorDashboard() {
     year: new Date().getFullYear().toString()
   })
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!conductorId.trim()) {
-      setError('Por favor, ingresa tu ID de conductor')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    try {
-      const response = await fetch(`/api/conductor/${conductorId}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setConductor(data.conductor)
-        setIsLoggedIn(true)
-        // Cargar análisis inicial
-        loadAnalysis(data.conductor.id)
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'ID de conductor no encontrado')
+  useEffect(() => {
+    const fetchConductorData = async () => {
+      const conductorIdFromStorage = localStorage.getItem('conductorId'); // Asumiendo que el ID se guarda aquí al loguearse
+      if (!conductorIdFromStorage) {
+        setError('No se encontró ID de conductor. Por favor, inicia sesión.');
+        setLoading(false);
+        router.push('/auth/login'); // Redirigir al login si no hay ID
+        return;
       }
-    } catch (error) {
-      console.error('Error al buscar conductor:', error)
-      setError('Error al conectar con el servidor')
-    } finally {
-      setLoading(false)
-    }
-  }
+
+      try {
+        const response = await fetch(`/api/conductor/${conductorIdFromStorage}`);
+        if (response.ok) {
+          const data = await response.json();
+          setConductor(data.conductor);
+          loadAnalysis(data.conductor.id); // Cargar análisis automáticamente
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Error al cargar datos del conductor.');
+          router.push('/auth/login'); // Redirigir al login si el ID no es válido
+        }
+      } catch (err) {
+        console.error('Error fetching conductor data:', err);
+        setError('Error al conectar con el servidor.');
+        router.push('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConductorData();
+  }, []); // Se ejecuta una vez al montar el componente
 
   const loadAnalysis = async (conductorId: string, customFilter?: FilterState) => {
     setAnalysisLoading(true)
@@ -205,13 +204,13 @@ export default function ConductorDashboard() {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('conductorId'); // Eliminar el ID del almacenamiento local
     setConductor(null)
-    setIsLoggedIn(false)
-    setConductorId('')
     setError('')
     setAnalysis(null)
     setSelectedCategory(null)
     setFilteredPackages([])
+    router.push('/auth/login') // Redirigir al login
   }
 
   const getCategoryTitle = (category: string) => {
@@ -241,113 +240,35 @@ export default function ConductorDashboard() {
     return 'text-green-600 bg-green-100'
   }
 
-  if (!isLoggedIn) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-        {/* Header */}
-        <header className="header-barulogix">
-          <div className="header-content">
-            <div className="flex items-center">
-              <Image
-                src="/logo-oficial-transparente.png"
-                alt="BaruLogix"
-                width={50}
-                height={50}
-                className="mr-4"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
-                <p className="text-sm text-secondary-600 font-segoe">Dashboard de Conductor</p>
-              </div>
-            </div>
-          </div>
-        </header>
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center">
+        <div className="loading-spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-4 text-secondary-600">Cargando dashboard...</p>
+      </div>
+    );
+  }
 
-        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
-          <div className="max-w-md w-full">
-            <div className="card-barulogix-lg text-center">
-              <div className="mb-8">
-                <div className="mx-auto h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-                  <svg className="h-8 w-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
-                  Bienvenido a BaruLogix
-                </h2>
-                <p className="text-secondary-600 font-segoe">
-                  Ingresa tu ID de conductor para acceder a tu dashboard
-                </p>
-              </div>
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label htmlFor="conductorId" className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                    ID de Conductor
-                  </label>
-                  <input
-                    type="text"
-                    id="conductorId"
-                    value={conductorId}
-                    onChange={(e) => setConductorId(e.target.value)}
-                    className="input-barulogix-modern focus-ring"
-                    placeholder="Ingresa tu ID único de conductor"
-                    disabled={loading}
-                  />
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <div className="flex">
-                      <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="ml-3">
-                        <p className="text-sm text-red-800 font-segoe">{error}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn-primary btn-lg w-full"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="loading-spinner w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Verificando...
-                    </div>
-                  ) : (
-                    'Acceder al Dashboard'
-                  )}
-                </button>
-              </form>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-8 text-center text-sm text-secondary-500 font-segoe">
-              <p>© 2025 BaruLogix</p>
-              <p className="mt-1">BaruLogix By BaruCourier S.A.S</p>
-              <div className="flex items-center justify-center mt-2">
-                <span>Plataforma creada por:</span>
-                <div className="flex items-center ml-2">
-                  <Image
-                    src="/logo-scibaru.png"
-                    alt="ScibaruAI"
-                    width={20}
-                    height={20}
-                    className="mr-1"
-                  />
-                  <span className="font-medium">ScibaruAI</span>
-                </div>
-              </div>
-            </div>
-          </div>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-lg">Error: {error}</p>
+          <button onClick={() => router.push('/auth/login')} className="mt-4 btn-primary">Volver al Login</button>
         </div>
       </div>
-    )
+    );
+  }
+
+  if (!conductor) {
+    // Esto no debería ocurrir si el flujo de carga es correcto, pero es un fallback
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-secondary-600 text-lg">Redirigiendo al login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -628,7 +549,7 @@ export default function ConductorDashboard() {
           </div>
         ) : (
           <div className="card-barulogix-lg text-center py-8">
-            <p className="text-secondary-600 font-segoe">Selecciona un conductor para ver sus estadísticas.</p>
+            <p className="text-secondary-600 font-segoe">No hay estadísticas disponibles para el filtro seleccionado.</p>
           </div>
         )}
 
