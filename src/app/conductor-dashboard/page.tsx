@@ -1,528 +1,312 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  Package, 
-  TrendingUp, 
-  Clock, 
-  DollarSign, 
-  Calendar,
-  Filter,
-  LogOut,
-  User,
-  Truck,
-  CheckCircle,
-  XCircle,
-  AlertCircle
-} from 'lucide-react'
+import Image from 'next/image'
 
-interface ConductorInfo {
+interface Conductor {
   id: string
   nombre: string
   zona: string
-  email: string
-}
-
-interface Stats {
-  shein_temu_entregados: number
-  shein_temu_pendientes: number
-  dropi_entregados: number
-  dropi_pendientes: number
-  valor_pendiente: number
-  dias_atraso_promedio: number
-  total_paquetes: number
-  tasa_entrega: number
-}
-
-interface Package {
-  tracking_number: string
-  platform: 'Shein/Temu' | 'Dropi'
-  status: string
-  value: number
-  assigned_date: string
-  delivered_date?: string
-  days_late: number
+  telefono?: string
+  email?: string
+  activo: boolean
+  created_at: string
 }
 
 export default function ConductorDashboard() {
   const router = useRouter()
-  const [conductorInfo, setConductorInfo] = useState<ConductorInfo | null>(null)
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [packages, setPackages] = useState<Package[]>([])
-  const [loading, setLoading] = useState(true)
+  const [conductorId, setConductorId] = useState('')
+  const [conductor, setConductor] = useState<Conductor | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [selectedStat, setSelectedStat] = useState<string | null>(null)
-  const [dateFilter, setDateFilter] = useState('all')
-  const [customDays, setCustomDays] = useState(30)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState('')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-  useEffect(() => {
-    checkAuth()
-    loadData()
-  }, [])
-
-  useEffect(() => {
-    if (conductorInfo) {
-      loadStats()
-      if (selectedStat) {
-        loadPackages()
-      }
-    }
-  }, [dateFilter, customDays, startDate, endDate, selectedMonth, conductorInfo])
-
-  const checkAuth = () => {
-    const token = localStorage.getItem('conductor_token')
-    const info = localStorage.getItem('conductor_info')
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
     
-    if (!token || !info) {
-      router.push('/auth/conductor')
+    if (!conductorId.trim()) {
+      setError('Por favor, ingresa tu ID de conductor')
       return
     }
 
+    setLoading(true)
+    setError('')
+
     try {
-      const parsedInfo = JSON.parse(info)
-      setConductorInfo(parsedInfo)
+      const response = await fetch(`/api/conductor/${conductorId}`)
       
-      // Establecer cookie para el middleware
-      document.cookie = `conductor_token=${token}; path=/; max-age=86400`
-    } catch (error) {
-      console.error('Error parsing conductor info:', error)
-      router.push('/auth/conductor')
-    }
-  }
-
-  const loadData = async () => {
-    await Promise.all([loadStats(), loadPackages()])
-  }
-
-  const loadStats = async () => {
-    try {
-      const token = localStorage.getItem('conductor_token')
-      if (!token) return
-
-      const params = new URLSearchParams()
-      
-      if (dateFilter === 'range' && startDate && endDate) {
-        params.append('start_date', startDate)
-        params.append('end_date', endDate)
-      } else if (dateFilter === 'days') {
-        params.append('days', customDays.toString())
-      } else if (dateFilter === 'month' && selectedMonth) {
-        params.append('month', selectedMonth)
-      }
-
-      const response = await fetch(`/api/conductor/stats?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
       if (response.ok) {
         const data = await response.json()
-        setStats(data.stats)
+        setConductor(data.conductor)
+        setIsLoggedIn(true)
       } else {
-        setError('Error al cargar estadísticas')
+        const errorData = await response.json()
+        setError(errorData.error || 'ID de conductor no encontrado')
       }
     } catch (error) {
-      setError('Error de conexión al cargar estadísticas')
-    }
-  }
-
-  const loadPackages = async () => {
-    try {
-      const token = localStorage.getItem('conductor_token')
-      if (!token) return
-
-      const params = new URLSearchParams()
-      
-      if (selectedStat) {
-        params.append('filter', selectedStat)
-      }
-      
-      if (dateFilter === 'range' && startDate && endDate) {
-        params.append('start_date', startDate)
-        params.append('end_date', endDate)
-      } else if (dateFilter === 'days') {
-        params.append('days', customDays.toString())
-      } else if (dateFilter === 'month' && selectedMonth) {
-        params.append('month', selectedMonth)
-      }
-
-      const response = await fetch(`/api/conductor/packages?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setPackages(data.packages)
-      } else {
-        setError('Error al cargar paquetes')
-      }
-    } catch (error) {
-      setError('Error de conexión al cargar paquetes')
+      console.error('Error al buscar conductor:', error)
+      setError('Error al conectar con el servidor')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleStatClick = (statType: string) => {
-    setSelectedStat(statType)
-    loadPackages()
-  }
-
   const handleLogout = () => {
-    localStorage.removeItem('conductor_token')
-    localStorage.removeItem('conductor_info')
-    document.cookie = 'conductor_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT'
-    router.push('/auth/conductor')
+    setConductor(null)
+    setIsLoggedIn(false)
+    setConductorId('')
+    setError('')
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-CO')
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'entregado':
-        return 'text-green-600 bg-green-100'
-      case 'pendiente':
-        return 'text-yellow-600 bg-yellow-100'
-      case 'en_transito':
-        return 'text-blue-600 bg-blue-100'
-      default:
-        return 'text-gray-600 bg-gray-100'
-    }
-  }
-
-  const getDaysLateColor = (days: number) => {
-    if (days <= 0) return 'text-green-600'
-    if (days <= 3) return 'text-yellow-600'
-    if (days <= 7) return 'text-orange-600'
-    return 'text-red-600'
-  }
-
-  if (loading && !conductorInfo) {
+  if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
+        {/* Header */}
+        <header className="header-barulogix">
+          <div className="header-content">
+            <div className="flex items-center">
+              <Image
+                src="/logo-oficial-transparente.png"
+                alt="BaruLogix"
+                width={50}
+                height={50}
+                className="mr-4"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
+                <p className="text-sm text-secondary-600 font-segoe">Dashboard de Conductor</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
+          <div className="max-w-md w-full">
+            <div className="card-barulogix-lg text-center">
+              <div className="mb-8">
+                <div className="mx-auto h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-8 w-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                  Bienvenido a BaruLogix
+                </h2>
+                <p className="text-secondary-600 font-segoe">
+                  Ingresa tu ID de conductor para acceder a tu dashboard
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label htmlFor="conductorId" className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
+                    ID de Conductor
+                  </label>
+                  <input
+                    type="text"
+                    id="conductorId"
+                    value={conductorId}
+                    onChange={(e) => setConductorId(e.target.value)}
+                    className="input-barulogix-modern focus-ring"
+                    placeholder="Ingresa tu ID único de conductor"
+                    disabled={loading}
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <div className="flex">
+                      <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-800 font-segoe">{error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary btn-lg w-full"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="loading-spinner w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Verificando...
+                    </div>
+                  ) : (
+                    'Acceder al Dashboard'
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 text-center text-sm text-secondary-500 font-segoe">
+              <p>© 2025 BaruLogix</p>
+              <p className="mt-1">BaruLogix By BaruCourier S.A.S</p>
+              <p className="mt-1">Plataforma creada por: ScibaruAI</p>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Truck className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Dashboard de Conductor</h1>
-                <p className="text-sm text-gray-600">
-                  {conductorInfo?.nombre} - {conductorInfo?.zona}
-                </p>
-              </div>
+      <header className="header-barulogix">
+        <div className="header-content">
+          <div className="flex items-center">
+            <Image
+              src="/logo-oficial-transparente.png"
+              alt="BaruLogix"
+              width={50}
+              height={50}
+              className="mr-4"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix</h1>
+              <p className="text-sm text-secondary-600 font-segoe">Dashboard de Conductor</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium text-secondary-800 font-segoe">{conductor?.nombre}</p>
+              <p className="text-xs text-secondary-600 font-segoe">ID: {conductor?.id}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              className="btn-secondary btn-sm"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
+              Salir
             </button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
-            {error}
-          </div>
-        )}
-
-        {/* Filtros de Fecha */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Filter className="h-5 w-5 mr-2" />
-            Filtros Temporales
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Filtro
-              </label>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos los tiempos</option>
-                <option value="days">Últimos X días</option>
-                <option value="month">Mes específico</option>
-                <option value="range">Rango de fechas</option>
-              </select>
+        {/* Bienvenida */}
+        <div className="card-barulogix-lg mb-8 animate-fade-in">
+          <div className="flex items-center">
+            <div className="flex-shrink-0 h-16 w-16">
+              <div className="h-16 w-16 rounded-full bg-primary-100 flex items-center justify-center">
+                <span className="text-xl font-bold text-primary-600 font-montserrat">
+                  {conductor?.nombre.charAt(0).toUpperCase()}
+                </span>
+              </div>
             </div>
-
-            {dateFilter === 'days' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Últimos días
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={customDays}
-                  onChange={(e) => setCustomDays(parseInt(e.target.value) || 30)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            {dateFilter === 'month' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mes
-                </label>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            {dateFilter === 'range' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha Inicio
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha Fin
-                  </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </>
-            )}
+            <div className="ml-6">
+              <h2 className="text-2xl font-bold text-secondary-900 font-montserrat">
+                ¡Bienvenido, {conductor?.nombre}!
+              </h2>
+              <p className="text-secondary-600 font-segoe">
+                Zona de trabajo: <span className="font-medium">{conductor?.zona}</span>
+              </p>
+              <p className="text-sm text-secondary-500 font-segoe">
+                Conductor desde: {conductor?.created_at ? new Date(conductor.created_at).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Estadísticas */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <button
-              onClick={() => handleStatClick('shein_temu_entregados')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
+        {/* Información del conductor */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="card-barulogix hover-lift animate-slide-up">
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Información Personal
+            </h3>
+            <div className="space-y-3">
               <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Shein/Temu Entregados</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.shein_temu_entregados}</p>
-                </div>
+                <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-secondary-700 font-segoe">{conductor?.nombre}</span>
               </div>
-            </button>
-
-            <button
-              onClick={() => handleStatClick('shein_temu_pendientes')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
               <div className="flex items-center">
-                <Clock className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Shein/Temu Pendientes</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.shein_temu_pendientes}</p>
-                </div>
+                <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-secondary-700 font-segoe">{conductor?.zona}</span>
               </div>
-            </button>
-
-            <button
-              onClick={() => handleStatClick('dropi_entregados')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Dropi Entregados</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.dropi_entregados}</p>
+              {conductor?.telefono && (
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span className="text-secondary-700 font-segoe">{conductor.telefono}</span>
                 </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleStatClick('dropi_pendientes')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
-              <div className="flex items-center">
-                <Clock className="h-8 w-8 text-yellow-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Dropi Pendientes</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.dropi_pendientes}</p>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleStatClick('valor_pendiente')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
-              <div className="flex items-center">
-                <DollarSign className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Valor Pendiente</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.valor_pendiente)}</p>
-                </div>
-              </div>
-            </button>
-
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <AlertCircle className="h-8 w-8 text-orange-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Días Atraso Promedio</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.dias_atraso_promedio.toFixed(1)}</p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleStatClick('total_paquetes')}
-              className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
-            >
-              <div className="flex items-center">
-                <Package className="h-8 w-8 text-purple-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Paquetes</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total_paquetes}</p>
-                </div>
-              </div>
-            </button>
-
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Tasa de Entrega</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.tasa_entrega.toFixed(1)}%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabla de Paquetes */}
-        {selectedStat && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Paquetes Detallados - {selectedStat.replace(/_/g, ' ').toUpperCase()}
-              </h2>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tracking
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Plataforma
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Valor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha Asignación
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha Entrega
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Días Atraso
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {packages.map((pkg, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {pkg.tracking_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {pkg.platform}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status)}`}>
-                          {pkg.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(pkg.value)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(pkg.assigned_date)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {pkg.delivered_date ? formatDate(pkg.delivered_date) : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <span className={getDaysLateColor(pkg.days_late)}>
-                          {pkg.days_late > 0 ? `+${pkg.days_late}` : pkg.days_late} días
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {packages.length === 0 && (
-                <div className="text-center py-12">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No hay paquetes para mostrar</p>
+              )}
+              {conductor?.email && (
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-secondary-700 font-segoe">{conductor.email}</span>
                 </div>
               )}
             </div>
           </div>
-        )}
+
+          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Estado del Conductor
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-secondary-700 font-segoe">Estado:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  conductor?.activo 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {conductor?.activo ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-secondary-700 font-segoe">ID Único:</span>
+                <code className="text-xs bg-secondary-100 px-2 py-1 rounded font-mono">
+                  {conductor?.id}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Próximamente */}
+        <div className="card-barulogix-lg animate-fade-in">
+          <div className="text-center py-12">
+            <div className="mx-auto h-16 w-16 bg-accent-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="h-8 w-8 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-secondary-900 font-montserrat mb-2">
+              Funcionalidades en Desarrollo
+            </h3>
+            <p className="text-secondary-600 font-segoe max-w-2xl mx-auto">
+              Estamos trabajando en nuevas funcionalidades para mejorar tu experiencia como conductor. 
+              Pronto podrás gestionar tus entregas, ver tu historial y mucho más.
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-secondary-200 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center text-sm text-secondary-500 font-segoe">
+            <p>© 2025 BaruLogix</p>
+            <p className="mt-1">BaruLogix By BaruCourier S.A.S</p>
+            <p className="mt-1">Plataforma creada por: ScibaruAI</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
