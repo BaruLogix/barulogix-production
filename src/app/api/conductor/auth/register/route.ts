@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isValidEmail, isValidPassword, hashPassword, generateVerificationToken } from '@/lib/conductor-auth'
+import { isValidEmail, isValidPassword, hashPassword, generateVerificationToken, sendVerificationEmail } from '@/lib/conductor-auth'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -54,21 +54,21 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[${requestId}] Conductor data found:`, { id: conductorData.id, nombre: conductorData.nombre })
 
-    // 3. Verificar si el email ya existe en conductor_auth
-    console.log(`[${requestId}] Checking if email already exists in conductor_auth...`)
+    // 3. Verificar si el email ya existe en conductor_auth (usando limit(1) para evitar errores de single() con no-rows)
+    console.log(`[${requestId}] Checking if email already exists in conductor_auth (using limit(1))...`)
     const { data: existingAuth, error: checkError } = await supabaseAdmin
       .from('conductor_auth')
       .select('id, email')
       .eq('email', email.toLowerCase().trim())
-      .single()
+      .limit(1)
 
-    if (checkError && checkError.code !== 'PGRST116') {
+    if (checkError) {
       console.error(`[${requestId}] Error checking existing email:`, checkError)
       return NextResponse.json({ error: 'Error interno al verificar email' }, { status: 500 })
     }
 
-    if (existingAuth) {
-      console.log(`[${requestId}] Email already exists in conductor_auth:`, existingAuth)
+    if (existingAuth && existingAuth.length > 0) {
+      console.log(`[${requestId}] Email already exists in conductor_auth:`, existingAuth[0])
       return NextResponse.json({ error: 'Este email ya está registrado para un conductor' }, { status: 409 })
     }
 
@@ -125,30 +125,16 @@ export async function POST(req: NextRequest) {
       email: conductorAuthData.email
     })
 
-    // 7. Enviar correo de verificación
+    // 7. Enviar correo de verificación (usando nodemailer directamente)
     console.log(`[${requestId}] Sending verification email...`)
     try {
-      const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://barulogix-production.vercel.app'}/auth/conductor/verify?token=${verificationToken}`
-      
-      // Usar Supabase para enviar el correo de verificación
-      const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'signup',
-        email: email.toLowerCase().trim(),
-        options: {
-          redirectTo: verificationUrl
-        }
-      })
-
-      if (emailError) {
-        console.error(`[${requestId}] Error sending verification email:`, emailError)
-        // No fallar la operación completa por un error de email
-        console.log(`[${requestId}] Continuing despite email error...`)
-      } else {
-        console.log(`[${requestId}] Verification email sent successfully`)
-      }
+      const conductorName = conductorData.nombre || email.split('@')[0] // Usar nombre del conductor o parte del email
+      await sendVerificationEmail(email, conductorName, verificationToken)
+      console.log(`[${requestId}] Verification email sent successfully`)
     } catch (emailError) {
       console.error(`[${requestId}] Exception sending verification email:`, emailError)
       // No fallar la operación completa por un error de email
+      console.log(`[${requestId}] Continuing despite email error...`)
     }
 
     console.log(`[${requestId}] === REGISTRO EXITOSO ===`)
