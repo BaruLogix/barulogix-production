@@ -272,7 +272,7 @@ export default function ConductorDashboard() {
                   alt="Emblema BaruLogix"
                   width={64}
                   height={64}
-                  className="mx-auto mb-6"
+                  className="mx-auto mb-4"
                 />
                 <h2 className="text-2xl font-bold text-secondary-900 font-montserrat mb-4">
                   Bienvenido a BaruLogix
