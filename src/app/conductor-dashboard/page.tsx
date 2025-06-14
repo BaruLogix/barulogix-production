@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -65,7 +64,7 @@ interface FilterState {
   startDate: string
   endDate: string
   lastDays: string
-  month: string,
+  month: string
   year: string
 }
 
@@ -573,7 +572,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
+            <p className="text-secondary-600 font-segoe">$0</p>
           </button>
 
           {/* Shein/Temu Pendientes */}
@@ -607,7 +606,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
+            <p className="text-secondary-600 font-segoe">$0</p>
           </button>
 
           {/* Dropi Pendientes */}
@@ -617,8 +616,8 @@ export default function ConductorDashboard() {
           >
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
-              <div className="bg-red-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-orange-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -636,12 +635,11 @@ export default function ConductorDashboard() {
               <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Valor Pendiente</h4>
               <div className="bg-pink-100 p-2 rounded-full">
                 <svg className="h-6 w-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">${analysis?.stats.dropi_valor_pendiente || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0</p>
           </button>
 
           {/* Días Atraso Promedio */}
@@ -745,5 +743,4 @@ export default function ConductorDashboard() {
     </div>
   )
 }
-
 
