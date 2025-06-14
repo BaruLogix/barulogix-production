@@ -65,8 +65,8 @@ interface FilterState {
   startDate: string
   endDate: string
   lastDays: string
-  month: string
-  year: string
+  month: (new Date().getMonth() + 1).toString(),
+  year: new Date().getFullYear().toString()
 }
 
 export default function ConductorDashboard() {
@@ -263,9 +263,9 @@ export default function ConductorDashboard() {
           </div>
         </header>
 
-        <div className="flex items-center justify-center min-h-[calc(100vh-80px)] px-4">
-          <div className="max-w-md w-full">
-            <div className="card-barulogix-lg text-center">
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="w-full px-4">
+            <div className="card-barulogix-lg">
               <div className="mb-8">
                 <div className="mx-auto h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
                   <svg className="h-8 w-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,27 +328,27 @@ export default function ConductorDashboard() {
 
             {/* Footer */}
             <footer className="bg-transparent mt-8">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="py-8">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="text-center">
-                    <p className="text-secondary-700 font-segoe text-sm">
+                    <p className="text-secondary-700 font-segoe text-sm whitespace-nowrap">
                       © 2025 BaruLogix. Plataforma de gestión logística profesional.
                     </p>
-                    <p className="text-secondary-600 font-segoe text-sm mt-1">
+                    <p className="text-secondary-600 font-segoe text-sm">
                       BaruLogix By BaruCourier S.A.S
                     </p>
-                  </div>
-                  <div className="flex flex-col items-center space-y-2">
-                    <span className="text-secondary-600 font-segoe text-sm">
-                      Programa desarrollado por: ScibaruAI
-                    </span>
-                    <Image
-                      src="/logo-scibaru.png"
-                      alt="ScibaruAI"
-                      width={32}
-                      height={32}
-                      className="opacity-75 hover:opacity-100 transition-opacity"
-                    />
+                    <div className="flex items-center justify-center space-x-2 mt-2">
+                      <span className="text-secondary-600 font-segoe text-sm">
+                        Programa desarrollado por: ScibaruAI
+                      </span>
+                      <Image
+                        src="/logo-scibaru.png"
+                        alt="ScibaruAI"
+                        width={24}
+                        height={24}
+                        className="opacity-75 hover:opacity-100 transition-opacity"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -449,6 +449,7 @@ export default function ConductorDashboard() {
                   </label>
                   <input
                     type="date"
+                    id="startDate"
                     value={filter.startDate}
                     onChange={(e) => handleFilterChange({ ...filter, startDate: e.target.value })}
                     className="input-barulogix-modern"
@@ -460,6 +461,7 @@ export default function ConductorDashboard() {
                   </label>
                   <input
                     type="date"
+                    id="endDate"
                     value={filter.endDate}
                     onChange={(e) => handleFilterChange({ ...filter, endDate: e.target.value })}
                     className="input-barulogix-modern"
@@ -471,21 +473,22 @@ export default function ConductorDashboard() {
             {filter.type === 'lastDays' && (
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
-                  Últimos días (1-30)
+                  Últimos X días
                 </label>
                 <input
                   type="number"
-                  min="1"
-                  max="30"
+                  id="lastDays"
                   value={filter.lastDays}
                   onChange={(e) => handleFilterChange({ ...filter, lastDays: e.target.value })}
                   className="input-barulogix-modern"
+                  min="1"
+                  max="30"
                 />
               </div>
             )}
 
             {filter.type === 'month' && (
-              <>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
                     Mes
@@ -495,11 +498,18 @@ export default function ConductorDashboard() {
                     onChange={(e) => handleFilterChange({ ...filter, month: e.target.value })}
                     className="input-barulogix-modern"
                   >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                      <option key={m} value={m.toString()}>
-                        {new Date(0, m - 1).toLocaleString('es-ES', { month: 'long' })}
-                      </option>
-                    ))}
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
                   </select>
                 </div>
                 <div>
@@ -508,145 +518,151 @@ export default function ConductorDashboard() {
                   </label>
                   <input
                     type="number"
-                    min="2023"
-                    max={new Date().getFullYear()}
+                    id="year"
                     value={filter.year}
                     onChange={(e) => handleFilterChange({ ...filter, year: e.target.value })}
                     className="input-barulogix-modern"
+                    min="2020"
+                    max={new Date().getFullYear()}
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
 
+        {/* Información Personal y Estado del Conductor */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="card-barulogix-lg animate-fade-in">
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Información Personal
+            </h3>
+            <div className="space-y-2 text-secondary-700 font-segoe">
+              <p><span className="font-medium">Nombre:</span> {conductor?.nombre}</p>
+              <p><span className="font-medium">Zona:</span> {conductor?.zona}</p>
+              <p><span className="font-medium">Teléfono:</span> {conductor?.telefono || 'N/A'}</p>
+              <p><span className="font-medium">Email:</span> {conductor?.email || 'N/A'}</p>
+            </div>
+          </div>
+          <div className="card-barulogix-lg animate-fade-in">
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Estado del Conductor
+            </h3>
+            <div className="space-y-2 text-secondary-700 font-segoe">
+              <p><span className="font-medium">Estado:</span> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{conductor?.activo ? 'Activo' : 'Inactivo'}</span></p>
+              <p><span className="font-medium">ID Único:</span> {conductor?.id}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Estadísticas */}
-        {analysisLoading ? (
-          <div className="text-center py-12">
-            <div className="loading-spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-secondary-600 text-lg font-medium font-segoe">Cargando estadísticas...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Shein/Temu Entregados */}
+          <button
+            className="card-barulogix-stat animate-fade-in"
+            onClick={() => handleCategoryClick('shein_temu_entregados')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Entregados</h4>
+              <div className="bg-green-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_entregados || 0}</p>
+            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
+          </button>
+
+          {/* Shein/Temu Pendientes */}
+          <button
+            className="card-barulogix-stat animate-fade-in"
+            onClick={() => handleCategoryClick('shein_temu_pendientes')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Pendientes</h4>
+              <div className="bg-yellow-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_no_entregados || 0}</p>
+            <p className="text-secondary-600 font-segoe">$0</p>
+          </button>
+
+          {/* Dropi Entregados */}
+          <button
+            className="card-barulogix-stat animate-fade-in"
+            onClick={() => handleCategoryClick('dropi_entregados')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Entregados</h4>
+              <div className="bg-blue-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
+            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
+          </button>
+
+          {/* Dropi Pendientes */}
+          <button
+            className="card-barulogix-stat animate-fade-in"
+            onClick={() => handleCategoryClick('dropi_pendientes')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
+              <div className="bg-red-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_no_entregados || 0}</p>
+            <p className="text-secondary-600 font-segoe">$0</p>
+          </button>
+
+          {/* Valor Pendiente */}
+          <button
+            className="card-barulogix-stat animate-fade-in"
+            onClick={() => handleCategoryClick('valor_pendiente')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Valor Pendiente</h4>
+              <div className="bg-pink-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">${analysis?.stats.dropi_valor_pendiente || 0}</p>
+            <p className="text-secondary-600 font-segoe">$0</p>
+          </button>
+
+          {/* Días Atraso Promedio */}
+          <div className="card-barulogix-stat animate-fade-in">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Días Atraso Promedio</h4>
+              <div className="bg-purple-100 p-2 rounded-full">
+                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.paquetes_atrasados.length > 0 ? (analysis.stats.paquetes_atrasados.reduce((sum, pkg) => sum + pkg.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length).toFixed(1) : '0.0'}</p>
+            <p className="text-secondary-600 font-segoe">días</p>
           </div>
-        ) : analysis ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-            {/* Shein/Temu Entregados */}
-            <div 
-              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
-              onClick={() => handleCategoryClick('shein_temu_entregados')}
-            >
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-green-100 text-green-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Entregados</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.shein_entregados}</p>
-                {analysis.stats.shein_entregados > 0 && (
-                  <p className="text-xs text-secondary-500 mt-1">Total: {analysis.stats.shein_total}</p>
-                )}
-              </div>
-            </div>
+        </div>
 
-            {/* Shein/Temu Pendientes */}
-            <div 
-              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
-              onClick={() => handleCategoryClick('shein_temu_pendientes')}
-            >
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-yellow-100 text-yellow-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Pendientes</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.shein_no_entregados + analysis.stats.shein_devueltos}</p>
-                {analysis.stats.shein_no_entregados + analysis.stats.shein_devueltos > 0 && (
-                  <p className="text-xs text-secondary-500 mt-1">Total: {analysis.stats.shein_total}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Dropi Entregados */}
-            <div 
-              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
-              onClick={() => handleCategoryClick('dropi_entregados')}
-            >
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Entregados</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dropi_entregados}</p>
-                {analysis.stats.dropi_entregados > 0 && (
-                  <p className="text-xs text-secondary-500 mt-1">Valor: ${analysis.stats.dropi_valor_entregado.toLocaleString('es-CO')}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Dropi Pendientes */}
-            <div 
-              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
-              onClick={() => handleCategoryClick('dropi_pendientes')}
-            >
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-red-100 text-red-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Pendientes</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dropi_no_entregados + analysis.stats.dropi_devueltos}</p>
-                {analysis.stats.dropi_no_entregados + analysis.stats.dropi_devueltos > 0 && (
-                  <p className="text-xs text-secondary-500 mt-1">Valor: ${analysis.stats.dropi_valor_pendiente.toLocaleString('es-CO')}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Valor Pendiente Total */}
-            <div 
-              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
-              onClick={() => handleCategoryClick('valor_pendiente')}
-            >
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-purple-100 text-purple-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">${analysis.stats.dropi_valor_pendiente.toLocaleString('es-CO')}</p>
-                <p className="text-xs text-secondary-500 mt-1">Solo paquetes Dropi</p>
-              </div>
-            </div>
-
-            {/* Días de Atraso Promedio */}
-            <div className="card-barulogix hover-lift animate-slide-up">
-              <div className="text-center">
-                <div className="p-4 rounded-full bg-orange-100 text-orange-600 mx-auto mb-4 w-fit">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-secondary-600 font-segoe">Días Atraso Promedio</p>
-                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.paquetes_atrasados.length > 0 ? (analysis.stats.paquetes_atrasados.reduce((sum, p) => sum + p.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length).toFixed(1) : '0.0'}</p>
-                <p className="text-xs text-secondary-500 mt-1">Para paquetes no entregados</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="card-barulogix-lg text-center py-8">
-            <p className="text-secondary-600 font-segoe">No hay estadísticas disponibles para el filtro seleccionado.</p>
-          </div>
-        )}
-
-        {/* Tabla de Entregas */}
-        {selectedCategory && filteredPackages.length > 0 && (
+        {/* Tabla de Entregas Detalladas */}
+        {selectedCategory && ( 
           <div className="card-barulogix-lg mb-8 animate-fade-in">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
-                Detalle: {getCategoryTitle(selectedCategory)}
+              <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
+                {getCategoryTitle(selectedCategory)}
               </h3>
               <button
                 onClick={() => setSelectedCategory(null)}
@@ -655,142 +671,77 @@ export default function ConductorDashboard() {
                 Cerrar
               </button>
             </div>
-            {analysisLoading ? (
-              <div className="text-center py-8">
-                <div className="loading-spinner w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-secondary-600 font-segoe">Cargando detalles...</p>
-              </div>
-            ) : (
+            {filteredPackages.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-secondary-200">
+                  <thead className="bg-secondary-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plataforma</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Entrega Conductor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Entrega Cliente</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Días Atraso</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Tracking
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Tipo
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Estado
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Fecha Entrega
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Fecha Entrega Cliente
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Valor
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
+                        Días Atraso
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-secondary-200">
                     {filteredPackages.map((pkg) => (
                       <tr key={pkg.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pkg.tracking}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.tipo}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getEstadoText(pkg.estado)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '$0'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.fecha_entrega ? new Date(pkg.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.fecha_entrega_cliente ? new Date(pkg.fecha_entrega_cliente).toLocaleDateString() : 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.dias_atraso}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-secondary-900 font-segoe">
+                          {pkg.tracking}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700 font-segoe">
+                          {pkg.tipo}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-segoe">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${pkg.estado === 1 ? 'bg-green-100 text-green-800' : pkg.estado === 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                            {getEstadoText(pkg.estado)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700 font-segoe">
+                          {pkg.fecha_entrega ? new Date(pkg.fecha_entrega).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700 font-segoe">
+                          {pkg.fecha_entrega_cliente ? new Date(pkg.fecha_entrega_cliente).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700 font-segoe">
+                          {pkg.valor ? `$${pkg.valor.toFixed(2)}` : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-segoe">
+                          {pkg.dias_atraso !== undefined ? (
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getDiasAtrasoColor(pkg.dias_atraso)}`}>
+                              {pkg.dias_atraso}
+                            </span>
+                          ) : 'N/A'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <p className="text-center text-secondary-600 font-segoe">No hay datos</p>
             )}
           </div>
         )}
-
-        {/* Información Personal y Estado del Conductor */}
-        {conductor && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Información Personal */}
-            <div className="card-barulogix-lg">
-              <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-6">
-                Información Personal
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 text-secondary-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span className="text-secondary-700 font-segoe">{conductor.nombre}</span>
-                </div>
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 text-secondary-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-secondary-700 font-segoe">{conductor.zona}</span>
-                </div>
-                {conductor.telefono && (
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-secondary-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    <span className="text-secondary-700 font-segoe">{conductor.telefono}</span>
-                  </div>
-                )}
-                {conductor.email && (
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-secondary-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-secondary-700 font-segoe">{conductor.email}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Estado del Conductor */}
-            <div className="card-barulogix-lg">
-              <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-6">
-                Estado del Conductor
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-secondary-700 font-segoe">Estado:</span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    conductor.activo 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {conductor.activo ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-secondary-700 font-segoe">ID Único:</span>
-                  <span className="text-secondary-900 font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                    {conductor.id}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
-
-      {/* Footer */}
-      <footer className="bg-secondary-50 border-t border-secondary-200 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="text-center md:text-left">
-              <p className="text-secondary-700 font-segoe text-sm">
-                © 2025 BaruLogix. Plataforma de gestión logística profesional.
-              </p>
-              <p className="text-secondary-600 font-segoe text-sm mt-1">
-                BaruLogix By BaruCourier S.A.S
-              </p>
-            </div>
-            <div className="flex flex-col items-center space-y-2">
-              <span className="text-secondary-600 font-segoe text-sm">
-                Programa desarrollado por: ScibaruAI
-              </span>
-              <Image
-                src="/logo-scibaru.png"
-                alt="ScibaruAI"
-                width={32}
-                height={32}
-                className="opacity-75 hover:opacity-100 transition-opacity"
-              />
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }
+
 
