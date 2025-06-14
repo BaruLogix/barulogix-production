@@ -264,7 +264,7 @@ export default function ConductorDashboard() {
         </header>
 
         <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
-          <div className="w-full px-4">
+          <div className="w-full px-4 max-w-md mx-auto">
             <div className="card-barulogix-lg">
               <div className="mb-8">
                 <Image
