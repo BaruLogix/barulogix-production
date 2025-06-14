@@ -11,55 +11,68 @@ export async function GET(
   { params }: { params: { conductor_id: string } }
 ) {
   try {
-    // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
-    const userId = request.headers.get('x-user-id')
-    
-    console.log('=== DEBUG PACKAGES BY CONDUCTOR ===')
-    console.log('User ID recibido:', userId)
-    console.log('Conductor ID:', params.conductor_id)
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        error: 'ID de usuario no proporcionado',
-        details: 'Debe estar logueado para ver paquetes por conductor'
-      }, { status: 401 })
-    }
+    // Obtener parámetros de filtro
+    const { searchParams } = new URL(request.url)
+    const filterType = searchParams.get('filterType') || 'all'
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+    const lastDays = searchParams.get('lastDays')
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
 
-    // Verificar que el conductor pertenece al usuario actual
+    console.log('=== DEBUG PACKAGES BY CONDUCTOR ===')
+    console.log('Conductor ID:', params.conductor_id)
+    console.log('Filter Type:', filterType)
+
+    // Verificar que el conductor existe
     const { data: conductor, error: conductorError } = await supabase
       .from('conductors')
       .select('*')
       .eq('id', params.conductor_id)
-      .eq('user_id', userId) // Solo conductores del usuario actual
       .single()
 
     if (conductorError || !conductor) {
-      return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 404 })
+      return NextResponse.json({ error: 'Conductor no encontrado' }, { status: 404 })
     }
 
     console.log('Conductor encontrado:', conductor.nombre)
 
-    const { searchParams } = new URL(request.url)
-    const fecha_inicio = searchParams.get('fecha_inicio')
-    const fecha_fin = searchParams.get('fecha_fin')
-
+    // Construir query base
     let query = supabase
       .from('packages')
-      .select(`
-        *,
-        conductor:conductors!inner(id, nombre, zona, user_id)
-      `)
+      .select('*')
       .eq('conductor_id', params.conductor_id)
-      .eq('conductor.user_id', userId) // Doble verificación de seguridad
       .order('fecha_entrega', { ascending: false })
 
-    // Filtros de fecha
-    if (fecha_inicio) {
-      query = query.gte('fecha_entrega', fecha_inicio)
-    }
-    
-    if (fecha_fin) {
-      query = query.lte('fecha_entrega', fecha_fin)
+    // Aplicar filtros temporales
+    const now = new Date()
+    let dateFilter = null
+
+    switch (filterType) {
+      case 'range':
+        if (startDate) query = query.gte('fecha_entrega', startDate)
+        if (endDate) query = query.lte('fecha_entrega', endDate)
+        break
+      
+      case 'lastDays':
+        const daysAgo = new Date()
+        daysAgo.setDate(now.getDate() - parseInt(lastDays || '7'))
+        query = query.gte('fecha_entrega', daysAgo.toISOString().split('T')[0])
+        break
+      
+      case 'month':
+        const targetYear = parseInt(year || now.getFullYear().toString())
+        const targetMonth = parseInt(month || (now.getMonth() + 1).toString())
+        const monthStart = new Date(targetYear, targetMonth - 1, 1)
+        const monthEnd = new Date(targetYear, targetMonth, 0)
+        query = query.gte('fecha_entrega', monthStart.toISOString().split('T')[0])
+        query = query.lte('fecha_entrega', monthEnd.toISOString().split('T')[0])
+        break
+      
+      case 'all':
+      default:
+        // Sin filtro de fecha
+        break
     }
 
     const { data: packages, error } = await query
@@ -77,7 +90,6 @@ export async function GET(
 
     // Calcular estadísticas
     const stats = {
-      conductor: conductor,
       total_paquetes: packages.length,
       
       // Shein/Temu
@@ -90,36 +102,29 @@ export async function GET(
       dropi_total: paquetes_dropi.length,
       dropi_entregados: paquetes_dropi.filter(p => p.estado === 1).length,
       dropi_no_entregados: paquetes_dropi.filter(p => p.estado === 0).length,
-      dropi_devueltos: paquetes_dropi.filter(p => p.estado === 2).length
+      dropi_devueltos: paquetes_dropi.filter(p => p.estado === 2).length,
+      
+      // Valores Dropi
+      dropi_valor_total: paquetes_dropi
+        .filter(p => p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      
+      dropi_valor_entregado: paquetes_dropi
+        .filter(p => p.estado === 1 && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      
+      dropi_valor_pendiente: paquetes_dropi
+        .filter(p => p.estado !== 1 && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      
+      dropi_valor_devuelto: paquetes_dropi
+        .filter(p => p.estado === 2 && p.valor)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      
+      reset_automatico: false
     }
 
-    // Valores Dropi con lógica mejorada
-    const dropi_valor_total = paquetes_dropi
-      .filter(p => p.valor)
-      .reduce((sum, p) => sum + (p.valor || 0), 0)
-    
-    const dropi_valor_entregado = paquetes_dropi
-      .filter(p => p.estado === 1 && p.valor)
-      .reduce((sum, p) => sum + (p.valor || 0), 0)
-    
-    const dropi_valor_devuelto = paquetes_dropi
-      .filter(p => p.estado === 2 && p.valor)
-      .reduce((sum, p) => sum + (p.valor || 0), 0)
-    
-    // Valor pendiente = total - entregado - devuelto
-    const dropi_valor_pendiente = dropi_valor_total - dropi_valor_entregado - dropi_valor_devuelto
-    
-    // Reset automático cuando entregado = total
-    const reset_automatico = dropi_valor_entregado >= dropi_valor_total && dropi_valor_total > 0
-
-    // Agregar valores Dropi al stats
-    stats.dropi_valor_total = reset_automatico ? 0 : dropi_valor_total
-    stats.dropi_valor_entregado = reset_automatico ? 0 : dropi_valor_entregado
-    stats.dropi_valor_pendiente = reset_automatico ? 0 : dropi_valor_pendiente
-    stats.dropi_valor_devuelto = reset_automatico ? 0 : dropi_valor_devuelto
-    stats.reset_automatico = reset_automatico
-
-    // Paquetes no entregados con días de atraso (corregido: desde fecha_entrega)
+    // Paquetes no entregados con días de atraso
     stats.paquetes_atrasados = packages
       .filter(p => p.estado === 0)
       .map(p => ({
@@ -128,7 +133,7 @@ export async function GET(
       }))
       .sort((a, b) => b.dias_atraso - a.dias_atraso)
 
-    // Agregar días de atraso a todos los paquetes (corregido: desde fecha_entrega)
+    // Agregar días de atraso a todos los paquetes
     const packagesWithDays = packages.map(p => ({
       ...p,
       dias_atraso: p.estado === 0 ? Math.floor((new Date().getTime() - new Date(p.fecha_entrega).getTime()) / (1000 * 60 * 60 * 24)) : 0
@@ -137,7 +142,7 @@ export async function GET(
     return NextResponse.json({ 
       packages: packagesWithDays, 
       stats,
-      conductor: conductor, // Información completa del conductor
+      conductor: conductor,
       paquetes_shein,
       paquetes_dropi
     })
