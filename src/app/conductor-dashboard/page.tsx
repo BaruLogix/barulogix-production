@@ -274,7 +274,7 @@ export default function ConductorDashboard() {
                   height={64}
                   className="mx-auto mb-4"
                 />
-                <h2 className="text-2xl font-bold text-secondary-900 font-montserrat mb-4">
+                <h2 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
                   Bienvenido a BaruLogix
                 </h2>
                 <p className="text-secondary-600 font-segoe">
