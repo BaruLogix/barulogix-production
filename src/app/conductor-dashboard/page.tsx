@@ -1,81 +1,87 @@
 
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+
 interface Conductor {
-  id: string;
-  nombre: string;
-  zona: string;
-  telefono?: string;
-  email?: string;
-  activo: boolean;
-  created_at: string;
+  id: string
+  nombre: string
+  zona: string
+  telefono?: string
+  email?: string
+  activo: boolean
+  created_at: string
 }
 
 interface StatsData {
-  total_paquetes: number;
-  shein_total: number;
-  shein_entregados: number;
-  shein_no_entregados: number;
-  shein_devueltos: number;
-  dropi_total: number;
-  dropi_entregados: number;
-  dropi_no_entregados: number;
-  dropi_devueltos: number;
-  dropi_valor_total: number;
-  dropi_valor_entregado: number;
-  dropi_valor_pendiente: number;
-  dropi_valor_devuelto: number;
-  reset_automatico: boolean;
+  total_paquetes: number
+  shein_total: number
+  shein_entregados: number
+  shein_no_entregados: number
+  shein_devueltos: number
+  dropi_total: number
+  dropi_entregados: number
+  dropi_no_entregados: number
+  dropi_devueltos: number
+  dropi_valor_total: number
+  dropi_valor_entregado: number
+  dropi_valor_pendiente: number
+  dropi_valor_devuelto: number
+  reset_automatico: boolean
   paquetes_atrasados: Array<{
-    id: string;
-    tracking: string;
-    tipo: string;
-    estado: number;
-    fecha_entrega: string;
-    valor?: number;
-    dias_atraso: number;
-  }>;
+    id: string
+    tracking: string
+    tipo: string
+    estado: number
+    fecha_entrega: string
+    valor?: number
+    dias_atraso: number
+  }>
 }
 
 interface PackageData {
-  id: string;
-  tracking: string;
-  tipo: 'Shein/Temu' | 'Dropi';
-  estado: number;
-  fecha_entrega: string;
-  valor?: number;
-  dias_atraso?: number;
-  fecha_entrega_cliente?: string;
+  id: string
+  tracking: string
+  tipo: 'Shein/Temu' | 'Dropi'
+  estado: number
+  fecha_entrega: string
+  valor?: number
+  dias_atraso?: number
+  fecha_entrega_cliente?: string
 }
 
 interface ConductorAnalysisData {
-  conductor: Conductor;
-  stats: StatsData;
-  packages: PackageData[];
-  paquetes_shein: PackageData[];
-  paquetes_dropi: PackageData[];
+  conductor: Conductor
+  stats: StatsData
+  packages: PackageData[]
+  paquetes_shein: PackageData[]
+  paquetes_dropi: PackageData[]
 }
 
 interface FilterState {
-  type: 'all' | 'range' | 'lastDays' | 'month';
-  startDate: string;
-  endDate: string;
-  lastDays: string;
-  month: string;
-  year: string;
+  type: 'all' | 'range' | 'lastDays' | 'month'
+  startDate: string
+  endDate: string
+  lastDays: string
+  month: string
+  year: string
 }
 
 export default function ConductorDashboard() {
-  const router = useRouter();
-  const [conductorId, setConductorId] = useState("");
-  const [conductor, setConductor] = useState<Conductor | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter()
+  const [conductorId, setConductorId] = useState('')
+  const [conductor, setConductor] = useState<Conductor | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   
   // Estados para estadísticas y datos
-  const [analysis, setAnalysis] = useState<ConductorAnalysisData | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [filteredPackages, setFilteredPackages] = useState<PackageData[]>([]);
+  const [analysis, setAnalysis] = useState<ConductorAnalysisData | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [filteredPackages, setFilteredPackages] = useState<PackageData[]>([])
   
   // Estados para filtros
   const [filter, setFilter] = useState<FilterState>({
@@ -85,44 +91,44 @@ export default function ConductorDashboard() {
     lastDays: '7',
     month: (new Date().getMonth() + 1).toString(),
     year: new Date().getFullYear().toString()
-  });
+  })
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     
     if (!conductorId.trim()) {
-      setError("Por favor, ingresa tu ID de conductor");
-      return;
+      setError('Por favor, ingresa tu ID de conductor')
+      return
     }
 
-    setLoading(true);
-    setError("");
+    setLoading(true)
+    setError('')
 
     try {
-      const response = await fetch(`/api/conductor/${conductorId}`);
+      const response = await fetch(`/api/conductor/${conductorId}`)
       
       if (response.ok) {
-        const data = await response.json();
-        setConductor(data.conductor);
-        setIsLoggedIn(true);
+        const data = await response.json()
+        setConductor(data.conductor)
+        setIsLoggedIn(true)
         // Cargar análisis inicial
-        loadAnalysis(data.conductor.id);
+        loadAnalysis(data.conductor.id)
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "ID de conductor no encontrado");
+        const errorData = await response.json()
+        setError(errorData.error || 'ID de conductor no encontrado')
       }
     } catch (error) {
-      console.error("Error al buscar conductor:", error);
-      setError("Error al conectar con el servidor");
+      console.error('Error al buscar conductor:', error)
+      setError('Error al conectar con el servidor')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const loadAnalysis = async (conductorId: string, customFilter?: FilterState) => {
-    setAnalysisLoading(true);
+    setAnalysisLoading(true)
     try {
-      const currentFilter = customFilter || filter;
+      const currentFilter = customFilter || filter
       const params = new URLSearchParams({
         filterType: currentFilter.type,
         ...(currentFilter.type === 'range' && { 
@@ -136,77 +142,77 @@ export default function ConductorDashboard() {
           month: currentFilter.month, 
           year: currentFilter.year 
         })
-      });
+      })
 
       // Usar la API de análisis por conductor que ya devuelve todo
-      const response = await fetch(`/api/packages/by-conductor/${conductorId}?${params}`);
+      const response = await fetch(`/api/packages/by-conductor/${conductorId}?${params}`)
       
       if (response.ok) {
-        const data = await response.json();
-        setAnalysis(data);
+        const data = await response.json()
+        setAnalysis(data)
         // Si hay una categoría seleccionada, filtrar los paquetes inmediatamente
         if (selectedCategory) {
-          filterPackagesByCategory(data.packages, selectedCategory);
+          filterPackagesByCategory(data.packages, selectedCategory)
         }
       } else {
-        console.error("Error loading analysis");
-        setAnalysis(null);
+        console.error('Error loading analysis')
+        setAnalysis(null)
       }
     } catch (error) {
-      console.error("Error loading analysis:", error);
-      setAnalysis(null);
+      console.error('Error loading analysis:', error)
+      setAnalysis(null)
     } finally {
-      setAnalysisLoading(false);
+      setAnalysisLoading(false)
     }
-  };
+  }
 
   const filterPackagesByCategory = (packages: PackageData[], category: string) => {
-    let filtered: PackageData[] = [];
+    let filtered: PackageData[] = []
     switch (category) {
       case 'shein_temu_entregados':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 1);
-        break;
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 1)
+        break
       case 'shein_temu_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado !== 1);
-        break;
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado !== 1)
+        break
       case 'dropi_entregados':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 1);
-        break;
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 1)
+        break
       case 'dropi_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1);
-        break;
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1)
+        break
       case 'valor_pendiente':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1 && pkg.valor && pkg.valor > 0);
-        break;
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1 && pkg.valor && pkg.valor > 0)
+        break
       default:
-        filtered = [];
+        filtered = []
     }
-    setFilteredPackages(filtered);
-  };
+    setFilteredPackages(filtered)
+  }
 
   const handleFilterChange = (newFilter: FilterState) => {
-    setFilter(newFilter);
+    setFilter(newFilter)
     if (conductor) {
-      loadAnalysis(conductor.id, newFilter);
+      loadAnalysis(conductor.id, newFilter)
     }
-  };
+  }
 
   const handleCategoryClick = (category: string) => {
-    setSelectedCategory(category);
+    setSelectedCategory(category)
     if (analysis) {
-      filterPackagesByCategory(analysis.packages, category);
+      filterPackagesByCategory(analysis.packages, category)
     }
-  };
+  }
 
   const handleLogout = () => {
-    setConductor(null);
-    setIsLoggedIn(false);
-    setConductorId("");
-    setError("");
-    setAnalysis(null);
-    setSelectedCategory(null);
-    setFilteredPackages([]);
-  };
+    setConductor(null)
+    setIsLoggedIn(false)
+    setConductorId('')
+    setError('')
+    setAnalysis(null)
+    setSelectedCategory(null)
+    setFilteredPackages([])
+  }
 
   const getCategoryTitle = (category: string) => {
     const titles: { [key: string]: string } = {
@@ -215,25 +221,25 @@ export default function ConductorDashboard() {
       'dropi_entregados': 'Paquetes Dropi Entregados',
       'dropi_pendientes': 'Paquetes Dropi Pendientes',
       'valor_pendiente': 'Entregas con Valor Pendiente'
-    };
-    return titles[category] || category;
-  };
+    }
+    return titles[category] || category
+  }
 
   const getEstadoText = (estado: number) => {
     switch (estado) {
-      case 0: return 'No Entregado';
-      case 1: return 'Entregado';
-      case 2: return 'Devuelto';
-      default: return 'Desconocido';
+      case 0: return 'No Entregado'
+      case 1: return 'Entregado'
+      case 2: return 'Devuelto'
+      default: return 'Desconocido'
     }
-  };
+  }
 
   const getDiasAtrasoColor = (dias: number) => {
-    if (dias > 12) return 'text-red-600 bg-red-100';
-    if (dias > 7) return 'text-orange-600 bg-orange-100';
-    if (dias > 3) return 'text-yellow-600 bg-yellow-100';
-    return 'text-green-600 bg-green-100';
-  };
+    if (dias > 12) return 'text-red-600 bg-red-100'
+    if (dias > 7) return 'text-orange-600 bg-orange-100'
+    if (dias > 3) return 'text-yellow-600 bg-yellow-100'
+    return 'text-green-600 bg-green-100'
+  }
 
   if (!isLoggedIn) {
     return (
@@ -341,7 +347,7 @@ export default function ConductorDashboard() {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -669,4 +675,10 @@ export default function ConductorDashboard() {
             )}
           </div>
         )}
+
+      </div>
+    </div>
+  )
+}
+
 
