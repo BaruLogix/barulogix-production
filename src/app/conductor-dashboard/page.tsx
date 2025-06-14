@@ -1,64 +1,81 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 
 interface Conductor {
-  id: string
-  nombre: string
-  zona: string
-  telefono?: string
-  email?: string
-  activo: boolean
-  created_at: string
+  id: string;
+  nombre: string;
+  zona: string;
+  telefono?: string;
+  email?: string;
+  activo: boolean;
+  created_at: string;
 }
 
-interface Stats {
-  shein_temu_entregados: { count: number; value: number }
-  shein_temu_pendientes: { count: number; value: number }
-  dropi_entregados: { count: number; value: number }
-  dropi_pendientes: { count: number; value: number }
-  valor_pendiente: number
-  dias_atraso_promedio: number
+interface StatsData {
+  total_paquetes: number;
+  shein_total: number;
+  shein_entregados: number;
+  shein_no_entregados: number;
+  shein_devueltos: number;
+  dropi_total: number;
+  dropi_entregados: number;
+  dropi_no_entregados: number;
+  dropi_devueltos: number;
+  dropi_valor_total: number;
+  dropi_valor_entregado: number;
+  dropi_valor_pendiente: number;
+  dropi_valor_devuelto: number;
+  reset_automatico: boolean;
+  paquetes_atrasados: Array<{
+    id: string;
+    tracking: string;
+    tipo: string;
+    estado: number;
+    fecha_entrega: string;
+    valor?: number;
+    dias_atraso: number;
+  }>;
 }
 
-interface Delivery {
-  id: string
-  numero_tracking: string
-  plataforma: string
-  estado: string
-  valor: number
-  fecha_entrega_conductor_formateada: string
-  fecha_entrega_cliente_formateada: string
-  dias_atraso: number
-  valor_formateado: string
-  direccion_entrega: string
+interface PackageData {
+  id: string;
+  tracking: string;
+  tipo: 'Shein/Temu' | 'Dropi';
+  estado: number;
+  fecha_entrega: string;
+  valor?: number;
+  dias_atraso?: number;
+  fecha_entrega_cliente?: string;
+}
+
+interface ConductorAnalysisData {
+  conductor: Conductor;
+  stats: StatsData;
+  packages: PackageData[];
+  paquetes_shein: PackageData[];
+  paquetes_dropi: PackageData[];
 }
 
 interface FilterState {
-  type: 'all' | 'range' | 'lastDays' | 'month'
-  startDate: string
-  endDate: string
-  lastDays: string
-  month: string
-  year: string
+  type: 'all' | 'range' | 'lastDays' | 'month';
+  startDate: string;
+  endDate: string;
+  lastDays: string;
+  month: string;
+  year: string;
 }
 
 export default function ConductorDashboard() {
-  const router = useRouter()
-  const [conductorId, setConductorId] = useState('')
-  const [conductor, setConductor] = useState<Conductor | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const router = useRouter();
+  const [conductorId, setConductorId] = useState("");
+  const [conductor, setConductor] = useState<Conductor | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   // Estados para estadísticas y datos
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [statsLoading, setStatsLoading] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [deliveries, setDeliveries] = useState<Delivery[]>([])
-  const [deliveriesLoading, setDeliveriesLoading] = useState(false)
+  const [analysis, setAnalysis] = useState<ConductorAnalysisData | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filteredPackages, setFilteredPackages] = useState<PackageData[]>([]);
   
   // Estados para filtros
   const [filter, setFilter] = useState<FilterState>({
@@ -68,44 +85,44 @@ export default function ConductorDashboard() {
     lastDays: '7',
     month: (new Date().getMonth() + 1).toString(),
     year: new Date().getFullYear().toString()
-  })
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     
     if (!conductorId.trim()) {
-      setError('Por favor, ingresa tu ID de conductor')
-      return
+      setError("Por favor, ingresa tu ID de conductor");
+      return;
     }
 
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
 
     try {
-      const response = await fetch(`/api/conductor/${conductorId}`)
+      const response = await fetch(`/api/conductor/${conductorId}`);
       
       if (response.ok) {
-        const data = await response.json()
-        setConductor(data.conductor)
-        setIsLoggedIn(true)
-        // Cargar estadísticas iniciales
-        loadStats(data.conductor.id)
+        const data = await response.json();
+        setConductor(data.conductor);
+        setIsLoggedIn(true);
+        // Cargar análisis inicial
+        loadAnalysis(data.conductor.id);
       } else {
-        const errorData = await response.json()
-        setError(errorData.error || 'ID de conductor no encontrado')
+        const errorData = await response.json();
+        setError(errorData.error || "ID de conductor no encontrado");
       }
     } catch (error) {
-      console.error('Error al buscar conductor:', error)
-      setError('Error al conectar con el servidor')
+      console.error("Error al buscar conductor:", error);
+      setError("Error al conectar con el servidor");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const loadStats = async (conductorId: string, customFilter?: FilterState) => {
-    setStatsLoading(true)
+  const loadAnalysis = async (conductorId: string, customFilter?: FilterState) => {
+    setAnalysisLoading(true);
     try {
-      const currentFilter = customFilter || filter
+      const currentFilter = customFilter || filter;
       const params = new URLSearchParams({
         filterType: currentFilter.type,
         ...(currentFilter.type === 'range' && { 
@@ -119,82 +136,77 @@ export default function ConductorDashboard() {
           month: currentFilter.month, 
           year: currentFilter.year 
         })
-      })
+      });
 
-      const response = await fetch(`/api/conductor/${conductorId}/stats?${params}`)
+      // Usar la API de análisis por conductor que ya devuelve todo
+      const response = await fetch(`/api/packages/by-conductor/${conductorId}?${params}`);
       
       if (response.ok) {
-        const data = await response.json()
-        setStats(data.stats)
+        const data = await response.json();
+        setAnalysis(data);
+        // Si hay una categoría seleccionada, filtrar los paquetes inmediatamente
+        if (selectedCategory) {
+          filterPackagesByCategory(data.packages, selectedCategory);
+        }
       } else {
-        console.error('Error loading stats')
+        console.error("Error loading analysis");
+        setAnalysis(null);
       }
     } catch (error) {
-      console.error('Error loading stats:', error)
+      console.error("Error loading analysis:", error);
+      setAnalysis(null);
     } finally {
-      setStatsLoading(false)
+      setAnalysisLoading(false);
     }
-  }
+  };
 
-  const loadDeliveries = async (category: string) => {
-    if (!conductor) return
-    
-    setDeliveriesLoading(true)
-    setSelectedCategory(category)
-    
-    try {
-      const params = new URLSearchParams({
-        filterType: filter.type,
-        ...(filter.type === 'range' && { 
-          startDate: filter.startDate, 
-          endDate: filter.endDate 
-        }),
-        ...(filter.type === 'lastDays' && { 
-          lastDays: filter.lastDays 
-        }),
-        ...(filter.type === 'month' && { 
-          month: filter.month, 
-          year: filter.year 
-        })
-      })
-
-      const response = await fetch(`/api/conductor/${conductor.id}/tracking/${category}?${params}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setDeliveries(data.deliveries)
-      } else {
-        console.error('Error loading deliveries')
-        setDeliveries([])
-      }
-    } catch (error) {
-      console.error('Error loading deliveries:', error)
-      setDeliveries([])
-    } finally {
-      setDeliveriesLoading(false)
+  const filterPackagesByCategory = (packages: PackageData[], category: string) => {
+    let filtered: PackageData[] = [];
+    switch (category) {
+      case 'shein_temu_entregados':
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 1);
+        break;
+      case 'shein_temu_pendientes':
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado !== 1);
+        break;
+      case 'dropi_entregados':
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 1);
+        break;
+      case 'dropi_pendientes':
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1);
+        break;
+      case 'valor_pendiente':
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1 && pkg.valor && pkg.valor > 0);
+        break;
+      default:
+        filtered = [];
     }
-  }
+    setFilteredPackages(filtered);
+  };
 
   const handleFilterChange = (newFilter: FilterState) => {
-    setFilter(newFilter)
+    setFilter(newFilter);
     if (conductor) {
-      loadStats(conductor.id, newFilter)
-      if (selectedCategory) {
-        // Recargar datos de la categoría seleccionada con el nuevo filtro
-        setTimeout(() => loadDeliveries(selectedCategory), 100)
-      }
+      loadAnalysis(conductor.id, newFilter);
     }
-  }
+  };
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategory(category);
+    if (analysis) {
+      filterPackagesByCategory(analysis.packages, category);
+    }
+  };
 
   const handleLogout = () => {
-    setConductor(null)
-    setIsLoggedIn(false)
-    setConductorId('')
-    setError('')
-    setStats(null)
-    setSelectedCategory(null)
-    setDeliveries([])
-  }
+    setConductor(null);
+    setIsLoggedIn(false);
+    setConductorId("");
+    setError("");
+    setAnalysis(null);
+    setSelectedCategory(null);
+    setFilteredPackages([]);
+  };
 
   const getCategoryTitle = (category: string) => {
     const titles: { [key: string]: string } = {
@@ -203,9 +215,25 @@ export default function ConductorDashboard() {
       'dropi_entregados': 'Paquetes Dropi Entregados',
       'dropi_pendientes': 'Paquetes Dropi Pendientes',
       'valor_pendiente': 'Entregas con Valor Pendiente'
+    };
+    return titles[category] || category;
+  };
+
+  const getEstadoText = (estado: number) => {
+    switch (estado) {
+      case 0: return 'No Entregado';
+      case 1: return 'Entregado';
+      case 2: return 'Devuelto';
+      default: return 'Desconocido';
     }
-    return titles[category] || category
-  }
+  };
+
+  const getDiasAtrasoColor = (dias: number) => {
+    if (dias > 12) return 'text-red-600 bg-red-100';
+    if (dias > 7) return 'text-orange-600 bg-orange-100';
+    if (dias > 3) return 'text-yellow-600 bg-yellow-100';
+    return 'text-green-600 bg-green-100';
+  };
 
   if (!isLoggedIn) {
     return (
@@ -313,7 +341,7 @@ export default function ConductorDashboard() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -452,9 +480,9 @@ export default function ConductorDashboard() {
                     onChange={(e) => handleFilterChange({ ...filter, month: e.target.value })}
                     className="input-barulogix-modern"
                   >
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {new Date(2024, i).toLocaleDateString('es-ES', { month: 'long' })}
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                      <option key={m} value={m.toString()}>
+                        {new Date(0, m - 1).toLocaleString('es-ES', { month: 'long' })}
                       </option>
                     ))}
                   </select>
@@ -463,20 +491,14 @@ export default function ConductorDashboard() {
                   <label className="block text-sm font-medium text-secondary-700 mb-2 font-segoe">
                     Año
                   </label>
-                  <select
+                  <input
+                    type="number"
+                    min="2023"
+                    max={new Date().getFullYear()}
                     value={filter.year}
                     onChange={(e) => handleFilterChange({ ...filter, year: e.target.value })}
                     className="input-barulogix-modern"
-                  >
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const year = new Date().getFullYear() - i
-                      return (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      )
-                    })}
-                  </select>
+                  />
                 </div>
               </>
             )}
@@ -484,329 +506,167 @@ export default function ConductorDashboard() {
         </div>
 
         {/* Estadísticas */}
-        {statsLoading ? (
-          <div className="card-barulogix-lg mb-8 text-center py-12">
-            <div className="loading-spinner w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-secondary-600 font-segoe">Cargando estadísticas...</p>
+        {analysisLoading ? (
+          <div className="text-center py-12">
+            <div className="loading-spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-secondary-600 text-lg font-medium font-segoe">Cargando estadísticas...</p>
           </div>
-        ) : stats ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        ) : analysis ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
             {/* Shein/Temu Entregados */}
-            <button
-              onClick={() => loadDeliveries('shein_temu_entregados')}
-              className="card-barulogix hover-lift animate-slide-up text-left transition-all duration-200 hover:shadow-lg"
+            <div 
+              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
+              onClick={() => handleCategoryClick('shein_temu_entregados')}
             >
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-green-100 text-green-600 mx-auto mb-4 w-fit">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Entregados</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{stats.shein_temu_entregados.count}</p>
-                  <p className="text-sm text-green-600 font-segoe">${stats.shein_temu_entregados.value.toLocaleString()}</p>
-                </div>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Entregados</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.shein_entregados}</p>
+                {analysis.stats.shein_entregados > 0 && (
+                  <p className="text-xs text-secondary-500 mt-1">Total: {analysis.stats.shein_total}</p>
+                )}
               </div>
-            </button>
+            </div>
 
             {/* Shein/Temu Pendientes */}
-            <button
-              onClick={() => loadDeliveries('shein_temu_pendientes')}
-              className="card-barulogix hover-lift animate-slide-up text-left transition-all duration-200 hover:shadow-lg"
-              style={{animationDelay: '0.1s'}}
+            <div 
+              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
+              onClick={() => handleCategoryClick('shein_temu_pendientes')}
             >
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-yellow-100 text-yellow-600 mx-auto mb-4 w-fit">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Pendientes</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{stats.shein_temu_pendientes.count}</p>
-                  <p className="text-sm text-yellow-600 font-segoe">${stats.shein_temu_pendientes.value.toLocaleString()}</p>
-                </div>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu Pendientes</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.shein_no_entregados + analysis.stats.shein_devueltos}</p>
+                {analysis.stats.shein_no_entregados + analysis.stats.shein_devueltos > 0 && (
+                  <p className="text-xs text-secondary-500 mt-1">Total: {analysis.stats.shein_total}</p>
+                )}
               </div>
-            </button>
+            </div>
 
             {/* Dropi Entregados */}
-            <button
-              onClick={() => loadDeliveries('dropi_entregados')}
-              className="card-barulogix hover-lift animate-slide-up text-left transition-all duration-200 hover:shadow-lg"
-              style={{animationDelay: '0.2s'}}
+            <div 
+              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
+              onClick={() => handleCategoryClick('dropi_entregados')}
             >
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Entregados</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{stats.dropi_entregados.count}</p>
-                  <p className="text-sm text-blue-600 font-segoe">${stats.dropi_entregados.value.toLocaleString()}</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Dropi Pendientes */}
-            <button
-              onClick={() => loadDeliveries('dropi_pendientes')}
-              className="card-barulogix hover-lift animate-slide-up text-left transition-all duration-200 hover:shadow-lg"
-              style={{animationDelay: '0.3s'}}
-            >
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Pendientes</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{stats.dropi_pendientes.count}</p>
-                  <p className="text-sm text-orange-600 font-segoe">${stats.dropi_pendientes.value.toLocaleString()}</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Valor Pendiente */}
-            <button
-              onClick={() => loadDeliveries('valor_pendiente')}
-              className="card-barulogix hover-lift animate-slide-up text-left transition-all duration-200 hover:shadow-lg"
-              style={{animationDelay: '0.4s'}}
-            >
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-red-100 text-red-600">
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4 w-fit">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">${stats.valor_pendiente.toLocaleString()}</p>
-                </div>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Entregados</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dropi_entregados}</p>
+                {analysis.stats.dropi_entregados > 0 && (
+                  <p className="text-xs text-secondary-500 mt-1">Valor: ${analysis.stats.dropi_valor_entregado.toLocaleString('es-CO')}</p>
+                )}
               </div>
-            </button>
+            </div>
 
-            {/* Días de Atraso Promedio */}
-            <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.5s'}}>
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+            {/* Dropi Pendientes */}
+            <div 
+              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
+              onClick={() => handleCategoryClick('dropi_pendientes')}
+            >
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-red-100 text-red-600 mx-auto mb-4 w-fit">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Días Atraso Promedio</p>
-                  <p className="text-3xl font-bold text-secondary-900 font-montserrat">{stats.dias_atraso_promedio.toFixed(1)}</p>
-                  <p className="text-sm text-purple-600 font-segoe">días</p>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi Pendientes</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.dropi_no_entregados + analysis.stats.dropi_devueltos}</p>
+                {analysis.stats.dropi_no_entregados + analysis.stats.dropi_devueltos > 0 && (
+                  <p className="text-xs text-secondary-500 mt-1">Valor: ${analysis.stats.dropi_valor_pendiente.toLocaleString('es-CO')}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Valor Pendiente Total */}
+            <div 
+              className="card-barulogix hover-lift cursor-pointer animate-slide-up"
+              onClick={() => handleCategoryClick('valor_pendiente')}
+            >
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-purple-100 text-purple-600 mx-auto mb-4 w-fit">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
                 </div>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Valor Pendiente</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">${analysis.stats.dropi_valor_pendiente.toLocaleString('es-CO')}</p>
+                <p className="text-xs text-secondary-500 mt-1">Solo paquetes Dropi</p>
+              </div>
+            </div>
+
+            {/* Días de Atraso Promedio */}
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="text-center">
+                <div className="p-4 rounded-full bg-orange-100 text-orange-600 mx-auto mb-4 w-fit">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-secondary-600 font-segoe">Días Atraso Promedio</p>
+                <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats.paquetes_atrasados.length > 0 ? (analysis.stats.paquetes_atrasados.reduce((sum, p) => sum + p.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length).toFixed(1) : '0.0'}</p>
+                <p className="text-xs text-secondary-500 mt-1">Para paquetes no entregados</p>
               </div>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="card-barulogix-lg text-center py-8">
+            <p className="text-secondary-600 font-segoe">Selecciona un conductor para ver sus estadísticas.</p>
+          </div>
+        )}
 
-        {/* Tabla de Detalles */}
-        {selectedCategory && (
-          <div className="card-barulogix-lg mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
-                {getCategoryTitle(selectedCategory)}
-              </h3>
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className="btn-secondary btn-sm"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            {deliveriesLoading ? (
-              <div className="text-center py-12">
+        {/* Tabla de Entregas */}
+        {selectedCategory && filteredPackages.length > 0 && (
+          <div className="card-barulogix-lg mb-8 animate-fade-in">
+            <h3 className="text-xl font-bold text-secondary-900 font-montserrat mb-4">
+              Detalle: {getCategoryTitle(selectedCategory)}
+            </h3>
+            {analysisLoading ? (
+              <div className="text-center py-8">
                 <div className="loading-spinner w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-secondary-600 font-segoe">Cargando detalles...</p>
               </div>
-            ) : deliveries.length > 0 ? (
+            ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-secondary-200">
-                  <thead className="bg-secondary-50">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Número de Tracking
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Plataforma
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Estado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Valor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Fecha Entrega Conductor
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Fecha Entrega Cliente
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider font-segoe">
-                        Días de Atraso
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plataforma</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Entrega Conductor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Entrega Cliente</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Días Atraso</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-secondary-200">
-                    {deliveries.map((delivery) => (
-                      <tr key={delivery.id} className="hover:bg-secondary-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-secondary-900 font-segoe">
-                          {delivery.numero_tracking}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500 font-segoe">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            delivery.plataforma === 'Shein' || delivery.plataforma === 'Temu' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {delivery.plataforma}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500 font-segoe">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            delivery.estado === 'entregado' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {delivery.estado}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900 font-segoe">
-                          {delivery.valor_formateado}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500 font-segoe">
-                          {delivery.fecha_entrega_conductor_formateada}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-500 font-segoe">
-                          {delivery.fecha_entrega_cliente_formateada}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-segoe">
-                          <span className={`${
-                            delivery.dias_atraso > 0 
-                              ? 'text-red-600 font-medium' 
-                              : 'text-secondary-500'
-                          }`}>
-                            {delivery.dias_atraso > 0 ? `${delivery.dias_atraso} días` : '-'}
-                          </span>
-                        </td>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredPackages.map((pkg) => (
+                      <tr key={pkg.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{pkg.tracking}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.tipo}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getEstadoText(pkg.estado)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '$0'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.fecha_entrega ? new Date(pkg.fecha_entrega).toLocaleDateString() : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.fecha_entrega_cliente ? new Date(pkg.fecha_entrega_cliente).toLocaleDateString() : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{pkg.dias_atraso}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <svg className="mx-auto h-12 w-12 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-secondary-900 font-segoe">No hay datos</h3>
-                <p className="mt-1 text-sm text-secondary-500 font-segoe">
-                  No se encontraron entregas para esta categoría con los filtros aplicados.
-                </p>
-              </div>
             )}
           </div>
         )}
-
-        {/* Información del conductor */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="card-barulogix hover-lift animate-slide-up">
-            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
-              Información Personal
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="text-secondary-700 font-segoe">{conductor?.nombre}</span>
-              </div>
-              <div className="flex items-center">
-                <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-secondary-700 font-segoe">{conductor?.zona}</span>
-              </div>
-              {conductor?.telefono && (
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span className="text-secondary-700 font-segoe">{conductor.telefono}</span>
-                </div>
-              )}
-              {conductor?.email && (
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-secondary-700 font-segoe">{conductor.email}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card-barulogix hover-lift animate-slide-up" style={{animationDelay: '0.1s'}}>
-            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
-              Estado del Conductor
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-secondary-700 font-segoe">Estado:</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  conductor?.activo 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {conductor?.activo ? 'Activo' : 'Inactivo'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-secondary-700 font-segoe">ID Único:</span>
-                <code className="text-xs bg-secondary-100 px-2 py-1 rounded font-mono">
-                  {conductor?.id}
-                </code>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-secondary-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center text-sm text-secondary-500 font-segoe">
-            <p>© 2025 BaruLogix</p>
-            <p className="mt-1">BaruLogix By BaruCourier S.A.S</p>
-            <div className="flex items-center justify-center mt-2">
-              <span>Plataforma creada por:</span>
-              <div className="flex items-center ml-2">
-                <Image
-                  src="/logo-scibaru.png"
-                  alt="ScibaruAI"
-                  width={20}
-                  height={20}
-                  className="mr-1"
-                />
-                <span className="font-medium">ScibaruAI</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-
-// Temporary comment to trigger Vercel deployment
 

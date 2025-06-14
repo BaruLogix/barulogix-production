@@ -51,18 +51,16 @@ export async function GET(
 
     // Construir query base según la categoría
     let baseQuery = supabase
-      .from('deliveries')
+      .from('packages') // Cambiado de 'deliveries' a 'packages'
       .select(`
         id,
-        numero_tracking,
-        plataforma,
+        tracking,
+        tipo,
         estado,
         valor,
-        fecha_entrega_conductor,
+        fecha_entrega,
         fecha_entrega_cliente,
-        fecha_entrega_programada,
-        created_at,
-        direccion_entrega
+        created_at
       `)
       .eq('conductor_id', conductorId)
 
@@ -70,31 +68,33 @@ export async function GET(
     switch (category) {
       case 'shein_temu_entregados':
         baseQuery = baseQuery
-          .in('plataforma', ['Shein', 'Temu'])
-          .eq('estado', 'entregado')
+          .eq('tipo', 'Shein/Temu')
+          .eq('estado', 1) // 1 para entregado
         break
       
       case 'shein_temu_pendientes':
         baseQuery = baseQuery
-          .in('plataforma', ['Shein', 'Temu'])
-          .neq('estado', 'entregado')
+          .eq('tipo', 'Shein/Temu')
+          .neq('estado', 1) // 0 o 2 para no entregado/devuelto
         break
       
       case 'dropi_entregados':
         baseQuery = baseQuery
-          .eq('plataforma', 'Dropi')
-          .eq('estado', 'entregado')
+          .eq('tipo', 'Dropi')
+          .eq('estado', 1)
         break
       
       case 'dropi_pendientes':
         baseQuery = baseQuery
-          .eq('plataforma', 'Dropi')
-          .neq('estado', 'entregado')
+          .eq('tipo', 'Dropi')
+          .neq('estado', 1)
         break
       
       case 'valor_pendiente':
         baseQuery = baseQuery
-          .neq('estado', 'entregado')
+          .eq('tipo', 'Dropi') // Solo Dropi para valor pendiente
+          .neq('estado', 1) // 0 o 2 para no entregado/devuelto
+          .not("valor", "is", null) // Asegurarse de que el valor no sea nulo
         break
       
       default:
@@ -103,13 +103,13 @@ export async function GET(
         }, { status: 400 })
     }
 
-    // Aplicar filtros temporales
+    // Aplicar filtros temporales (usando fecha_entrega en lugar de created_at)
     switch (filterType) {
       case 'range':
         if (startDate && endDate) {
           baseQuery = baseQuery
-            .gte('created_at', startDate)
-            .lte('created_at', endDate)
+            .gte('fecha_entrega', startDate)
+            .lte('fecha_entrega', endDate)
         }
         break
       
@@ -119,7 +119,7 @@ export async function GET(
           if (days > 0 && days <= 30) {
             const startDateCalc = new Date()
             startDateCalc.setDate(startDateCalc.getDate() - days)
-            baseQuery = baseQuery.gte('created_at', startDateCalc.toISOString())
+            baseQuery = baseQuery.gte('fecha_entrega', startDateCalc.toISOString().split('T')[0])
           }
         }
         break
@@ -131,56 +131,62 @@ export async function GET(
           const startOfMonth = new Date(yearNum, monthNum - 1, 1)
           const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59)
           baseQuery = baseQuery
-            .gte('created_at', startOfMonth.toISOString())
-            .lte('created_at', endOfMonth.toISOString())
+            .gte('fecha_entrega', startOfMonth.toISOString().split('T')[0])
+            .lte('fecha_entrega', endOfMonth.toISOString().split('T')[0])
         }
         break
     }
 
     // Ejecutar query
-    const { data: deliveries, error } = await baseQuery
-      .order('created_at', { ascending: false })
+    const { data: packages, error } = await baseQuery
+      .order('fecha_entrega', { ascending: false })
       .limit(100) // Limitar a 100 registros para rendimiento
 
     if (error) {
-      console.error('Error fetching deliveries:', error)
+      console.error('Error fetching packages:', error)
       return NextResponse.json({ 
-        error: 'Error al obtener datos de entregas'
+        error: 'Error al obtener datos de paquetes'
       }, { status: 500 })
     }
 
-    // Calcular días de atraso para cada entrega
-    const enrichedDeliveries = deliveries.map(delivery => {
+    // Calcular días de atraso para cada paquete
+    const enrichedPackages = packages.map(pkg => {
       let diasAtraso = 0
       
-      if (delivery.fecha_entrega_programada && delivery.estado !== 'entregado') {
-        const fechaProgramada = new Date(delivery.fecha_entrega_programada)
+      // Solo calcular días de atraso si el estado es 'No entregado' (0)
+      if (pkg.estado === 0 && pkg.fecha_entrega) {
+        const fechaEntregaProgramada = new Date(pkg.fecha_entrega)
         const hoy = new Date()
-        if (hoy > fechaProgramada) {
-          diasAtraso = Math.floor((hoy.getTime() - fechaProgramada.getTime()) / (1000 * 60 * 60 * 24))
+        if (hoy > fechaEntregaProgramada) {
+          diasAtraso = Math.floor((hoy.getTime() - fechaEntregaProgramada.getTime()) / (1000 * 60 * 60 * 24))
         }
       }
 
       return {
-        ...delivery,
-        dias_atraso: diasAtraso,
-        valor_formateado: delivery.valor ? `$${delivery.valor.toLocaleString()}` : '$0',
-        fecha_entrega_conductor_formateada: delivery.fecha_entrega_conductor 
-          ? new Date(delivery.fecha_entrega_conductor).toLocaleDateString() 
+        id: pkg.id,
+        numero_tracking: pkg.tracking,
+        plataforma: pkg.tipo,
+        estado: pkg.estado === 0 ? 'No Entregado' : (pkg.estado === 1 ? 'Entregado' : 'Devuelto'),
+        valor: pkg.valor || 0,
+        fecha_entrega_conductor_formateada: pkg.fecha_entrega 
+          ? new Date(pkg.fecha_entrega).toLocaleDateString() 
           : 'N/A',
-        fecha_entrega_cliente_formateada: delivery.fecha_entrega_cliente 
-          ? new Date(delivery.fecha_entrega_cliente).toLocaleDateString() 
-          : 'N/A'
+        fecha_entrega_cliente_formateada: pkg.fecha_entrega_cliente 
+          ? new Date(pkg.fecha_entrega_cliente).toLocaleDateString() 
+          : 'N/A',
+        dias_atraso: diasAtraso,
+        valor_formateado: pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '$0',
+        direccion_entrega: 'N/A' // No disponible en la tabla packages, se puede omitir o dejar como N/A
       }
     })
 
-    console.log(`Encontradas ${enrichedDeliveries.length} entregas para categoría ${category}`)
+    console.log(`Encontrados ${enrichedPackages.length} paquetes para categoría ${category}`)
 
     return NextResponse.json({ 
       conductor: conductor,
       category: category,
-      deliveries: enrichedDeliveries,
-      total: enrichedDeliveries.length,
+      deliveries: enrichedPackages,
+      total: enrichedPackages.length,
       filter: {
         type: filterType,
         startDate,
@@ -198,4 +204,5 @@ export async function GET(
     }, { status: 500 })
   }
 }
+
 

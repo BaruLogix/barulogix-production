@@ -55,7 +55,7 @@ export async function GET(
     switch (filterType) {
       case 'range':
         if (startDate && endDate) {
-          dateFilter = 'AND created_at >= $2 AND created_at <= $3'
+          dateFilter = 'AND fecha_entrega >= $2 AND fecha_entrega <= $3'
           dateParams = [startDate, endDate]
         }
         break
@@ -66,8 +66,8 @@ export async function GET(
           if (days > 0 && days <= 30) {
             const startDateCalc = new Date()
             startDateCalc.setDate(startDateCalc.getDate() - days)
-            dateFilter = 'AND created_at >= $2'
-            dateParams = [startDateCalc.toISOString()]
+            dateFilter = 'AND fecha_entrega >= $2'
+            dateParams = [startDateCalc.toISOString().split('T')[0]] // Solo la fecha
           }
         }
         break
@@ -78,8 +78,8 @@ export async function GET(
           const yearNum = parseInt(year)
           const startOfMonth = new Date(yearNum, monthNum - 1, 1)
           const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59)
-          dateFilter = 'AND created_at >= $2 AND created_at <= $3'
-          dateParams = [startOfMonth.toISOString(), endOfMonth.toISOString()]
+          dateFilter = 'AND fecha_entrega >= $2 AND fecha_entrega <= $3'
+          dateParams = [startOfMonth.toISOString().split('T')[0], endOfMonth.toISOString().split('T')[0]] // Solo la fecha
         }
         break
       
@@ -88,56 +88,57 @@ export async function GET(
         break
     }
 
-    // Consultas para estadísticas
+    // Consultas para estadísticas (usando la tabla 'packages')
     const queries = [
       // Paquetes Shein/Temu entregados
       `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
-       AND (plataforma = 'Shein' OR plataforma = 'Temu') 
-       AND estado = 'entregado' 
+       AND tipo = 'Shein/Temu' 
+       AND estado = 1 
        ${dateFilter}`,
       
-      // Paquetes Shein/Temu pendientes
+      // Paquetes Shein/Temu pendientes (estado 0 o 2)
       `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
-       AND (plataforma = 'Shein' OR plataforma = 'Temu') 
-       AND estado != 'entregado' 
+       AND tipo = 'Shein/Temu' 
+       AND estado != 1 
        ${dateFilter}`,
       
       // Paquetes Dropi entregados
       `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
-       AND plataforma = 'Dropi' 
-       AND estado = 'entregado' 
+       AND tipo = 'Dropi' 
+       AND estado = 1 
        ${dateFilter}`,
       
-      // Paquetes Dropi pendientes
+      // Paquetes Dropi pendientes (estado 0 o 2)
       `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
-       AND plataforma = 'Dropi' 
-       AND estado != 'entregado' 
+       AND tipo = 'Dropi' 
+       AND estado != 1 
        ${dateFilter}`,
       
-      // Valor total pendiente
+      // Valor total pendiente (solo Dropi, estado 0 o 2)
       `SELECT COALESCE(SUM(valor), 0) as total_pending 
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
-       AND estado != 'entregado' 
+       AND tipo = 'Dropi' 
+       AND estado != 1 
        ${dateFilter}`,
       
-      // Días de atraso promedio
+      // Días de atraso promedio (solo paquetes 'No entregado' = 0)
       `SELECT AVG(
          CASE 
-           WHEN fecha_entrega_programada < CURRENT_DATE AND estado != 'entregado' 
-           THEN EXTRACT(DAY FROM CURRENT_DATE - fecha_entrega_programada)
+           WHEN fecha_entrega < CURRENT_DATE AND estado = 0 
+           THEN EXTRACT(DAY FROM CURRENT_DATE - fecha_entrega)
            ELSE 0 
          END
        ) as avg_delay_days
-       FROM deliveries 
+       FROM packages 
        WHERE conductor_id = $1 
        ${dateFilter}`
     ]
@@ -201,4 +202,5 @@ export async function GET(
     }, { status: 500 })
   }
 }
+
 
