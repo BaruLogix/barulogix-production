@@ -573,7 +573,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0 COP</p>
+            <p className="text-green-600 font-bold font-segoe">$0 COP</p>
           </button>
 
           {/* Shein/Temu Pendientes */}
@@ -590,7 +590,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_no_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0 COP</p>
+            <p className="text-red-600 font-bold font-segoe">$0 COP</p>
           </button>
 
           {/* Dropi Entregados */}
@@ -607,7 +607,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${(analysis?.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')} COP</p>
+            <p className="text-green-600 font-bold font-segoe">${(analysis?.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Dropi Pendientes */}
@@ -624,7 +624,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_no_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
+            <p className="text-red-600 font-bold font-segoe">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Valor Pendiente */}
