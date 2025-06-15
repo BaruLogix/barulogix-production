@@ -395,32 +395,6 @@ export default function ConductorDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Bienvenida */}
-        <div className="card-barulogix-lg mb-8 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 h-16 w-16">
-                <div className="h-16 w-16 rounded-full bg-primary-100 flex items-center justify-center">
-                  <span className="text-xl font-bold text-primary-600 font-montserrat">
-                    {conductor?.nombre.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              </div>
-              <div className="ml-6">
-                <h2 className="text-2xl font-bold text-secondary-900 font-montserrat">
-                  ¡Bienvenido, {conductor?.nombre}!
-                </h2>
-                <p className="text-secondary-600 font-segoe">
-                  Zona de trabajo: <span className="font-medium">{conductor?.zona}</span>
-                </p>
-                <p className="text-sm text-secondary-500 font-segoe">
-                  Conductor desde: {conductor?.created_at ? new Date(conductor.created_at).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Filtros Temporales */}
         <div className="card-barulogix-lg mb-8">
           <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
@@ -644,8 +618,8 @@ export default function ConductorDashboard() {
           </button>
 
           {/* Días Atraso Promedio */}
-          <div className="card-barulogix-stat animate-fade-in border-l-4 border-purple-400">
-            <div className="flex items-center mb-3">
+          <div className="card-barulogix-stat animate-fade-in border-l-4 border-purple-400 text-center">
+            <div className="flex items-center justify-center mb-3">
               <div className="bg-purple-100 p-2 rounded-full mr-3">
                 <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -740,6 +714,31 @@ export default function ConductorDashboard() {
             )}
           </div>
         )}
+
+        {/* Información Personal y Estado del Conductor */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="card-barulogix-lg animate-fade-in">
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Información Personal
+            </h3>
+            <div className="space-y-2 text-secondary-700 font-segoe">
+              <p><span className="font-medium">Nombre:</span> {conductor?.nombre}</p>
+              <p><span className="font-medium">Zona:</span> {conductor?.zona}</p>
+              <p><span className="font-medium">Teléfono:</span> {conductor?.telefono || 'N/A'}</p>
+              <p><span className="font-medium">Email:</span> {conductor?.email || 'N/A'}</p>
+            </div>
+          </div>
+          <div className="card-barulogix-lg animate-fade-in">
+            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+              Estado del Conductor
+            </h3>
+            <div className="space-y-2 text-secondary-700 font-segoe">
+              <p><span className="font-medium">Estado:</span> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{conductor?.activo ? 'Activo' : 'Inactivo'}</span></p>
+              <p><span className="font-medium">ID Único:</span> {conductor?.id}</p>
+              <p><span className="font-medium">Conductor desde:</span> {conductor?.created_at ? new Date(conductor.created_at).toLocaleDateString() : 'N/A'}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
