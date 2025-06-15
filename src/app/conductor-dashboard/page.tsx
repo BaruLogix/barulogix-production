@@ -561,99 +561,99 @@ export default function ConductorDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Shein/Temu Entregados */}
           <button
-            className="card-barulogix-stat animate-fade-in"
+            className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-green-400"
             onClick={() => handleCategoryClick('shein_temu_entregados')}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Entregados</h4>
-              <div className="bg-green-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center mb-3">
+              <div className="bg-green-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Entregados</h4>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_entregados || 0}</p>
-            <p className="text-green-600 font-bold font-segoe">$0 COP</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_entregados || 0}</p>
+            <p className="text-green-500 font-bold font-segoe">$0 COP</p>
           </button>
 
           {/* Shein/Temu Pendientes */}
           <button
-            className="card-barulogix-stat animate-fade-in"
+            className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-yellow-400"
             onClick={() => handleCategoryClick('shein_temu_pendientes')}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Pendientes</h4>
-              <div className="bg-yellow-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center mb-3">
+              <div className="bg-yellow-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Pendientes</h4>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_no_entregados || 0}</p>
-            <p className="text-red-600 font-bold font-segoe">$0 COP</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_no_entregados || 0}</p>
+            <p className="text-yellow-500 font-bold font-segoe">$0 COP</p>
           </button>
 
           {/* Dropi Entregados */}
           <button
-            className="card-barulogix-stat animate-fade-in"
+            className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-blue-400"
             onClick={() => handleCategoryClick('dropi_entregados')}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Entregados</h4>
-              <div className="bg-blue-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center mb-3">
+              <div className="bg-blue-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Entregados</h4>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
-            <p className="text-green-600 font-bold font-segoe">${(analysis?.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')} COP</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_entregados || 0}</p>
+            <p className="text-blue-500 font-bold font-segoe">${(analysis?.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Dropi Pendientes */}
           <button
-            className="card-barulogix-stat animate-fade-in"
+            className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-orange-400"
             onClick={() => handleCategoryClick('dropi_pendientes')}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
-              <div className="bg-orange-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center mb-3">
+              <div className="bg-orange-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_no_entregados || 0}</p>
-            <p className="text-red-600 font-bold font-segoe">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_no_entregados || 0}</p>
+            <p className="text-orange-500 font-bold font-segoe">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Valor Pendiente */}
           <button
-            className="card-barulogix-stat animate-fade-in"
+            className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-pink-400"
             onClick={() => handleCategoryClick('valor_pendiente')}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Valor Pendiente</h4>
-              <div className="bg-pink-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center mb-3">
+              <div className="bg-pink-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Valor Pendiente</h4>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Días Atraso Promedio */}
-          <div className="card-barulogix-stat animate-fade-in">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Días Atraso Promedio</h4>
-              <div className="bg-purple-100 p-2 rounded-full">
-                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="card-barulogix-stat animate-fade-in border-l-4 border-purple-400">
+            <div className="flex items-center mb-3">
+              <div className="bg-purple-100 p-2 rounded-full mr-3">
+                <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
+              <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Días Atraso Promedio</h4>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.paquetes_atrasados.length > 0 ? (analysis.stats.paquetes_atrasados.reduce((sum, pkg) => sum + pkg.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length).toFixed(1) : '0.0'}</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.paquetes_atrasados.length > 0 ? (analysis.stats.paquetes_atrasados.reduce((sum, pkg) => sum + pkg.dias_atraso, 0) / analysis.stats.paquetes_atrasados.length).toFixed(1) : '0.0'}</p>
             <p className="text-secondary-600 font-segoe">días</p>
           </div>
         </div>
