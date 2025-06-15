@@ -573,7 +573,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0</p>
+            <p className="text-secondary-600 font-segoe">$0 COP</p>
           </button>
 
           {/* Shein/Temu Pendientes */}
@@ -590,7 +590,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.shein_no_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0</p>
+            <p className="text-secondary-600 font-segoe">$0 COP</p>
           </button>
 
           {/* Dropi Entregados */}
@@ -607,7 +607,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
+            <p className="text-secondary-600 font-segoe">${(analysis?.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Dropi Pendientes */}
@@ -624,7 +624,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_no_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_pendiente || 0}</p>
+            <p className="text-secondary-600 font-segoe">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Valor Pendiente */}
@@ -636,11 +636,11 @@ export default function ConductorDashboard() {
               <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Valor Pendiente</h4>
               <div className="bg-pink-100 p-2 rounded-full">
                 <svg className="h-6 w-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
             </div>
-            <p className="text-3xl font-bold text-secondary-900 font-montserrat">${analysis?.stats.dropi_valor_pendiente || 0}</p>
+            <p className="text-3xl font-bold text-secondary-900 font-montserrat">${(analysis?.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')} COP</p>
           </button>
 
           {/* Días Atraso Promedio */}
