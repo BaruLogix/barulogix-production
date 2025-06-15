@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   description: "Plataforma SaaS para gestión logística de bodegas independientes",
   icons: {
     icon: [
-      { url: '/logo.png', sizes: 'any' },
+      { url: '/favicon.ico', sizes: '32x32' },
       { url: '/favicon.ico', sizes: '16x16' }
     ],
     shortcut: '/favicon.ico',
-    apple: '/logo.png',
+    apple: '/favicon.ico',
   },
 };
 
