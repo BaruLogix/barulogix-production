@@ -373,6 +373,24 @@ export default function ConductorDashboard() {
         </header>
 
         <div className="container mx-auto py-8 px-4">
+          {/* Mensaje de Bienvenida */}
+          {conductor && (
+            <div className="card-barulogix-lg mb-8 animate-fade-in">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xl">
+                    {conductor.nombre.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-secondary-900 font-montserrat">¡Bienvenido, {conductor.nombre}!</h3>
+                  <p className="text-secondary-700 font-segoe text-sm">Zona de trabajo: {conductor.zona}</p>
+                  <p className="text-secondary-600 font-segoe text-xs">Conductor desde: {new Date(conductor.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Filtros */}
           <div className="card-barulogix-lg mb-8 animate-fade-in">
             <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">Filtros Temporales</h3>
@@ -675,3 +693,128 @@ export default function ConductorDashboard() {
     )
   }
 }
+
+          {/* Información Personal y Estado del Conductor */}
+          {conductor && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                  Información Personal
+                </h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><span className="font-medium">Nombre:</span> {conductor?.nombre}</p>
+                  <p><span className="font-medium">Zona:</span> {conductor?.zona}</p>
+                  <p><span className="font-medium">Teléfono:</span> {conductor?.telefono || 'N/A'}</p>
+                  <p><span className="font-medium">Email:</span> {conductor?.email || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                  Estado del Conductor
+                </h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><span className="font-medium">Estado:</span> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{conductor?.activo ? 'Activo' : 'Inactivo'}</span></p>
+                  <p><span className="font-medium">ID Único:</span> {conductor?.id}</p>
+                  <p><span className="font-medium">Conductor desde:</span> {new Date(conductor.created_at).toLocaleDateString('es-CO')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+
+
+          {/* Información Personal y Estado del Conductor */}
+          {conductor && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                  Información Personal
+                </h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><span className="font-medium">Nombre:</span> {conductor?.nombre}</p>
+                  <p><span className="font-medium">Zona:</span> {conductor?.zona}</p>
+                  <p><span className="font-medium">Teléfono:</span> {conductor?.telefono || 'N/A'}</p>
+                  <p><span className="font-medium">Email:</span> {conductor?.email || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="card-barulogix-lg animate-fade-in">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                  Estado del Conductor
+                </h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><span className="font-medium">Estado:</span> <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${conductor?.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{conductor?.activo ? 'Activo' : 'Inactivo'}</span></p>
+                  <p><span className="font-medium">ID Único:</span> {conductor?.id}</p>
+                  <p><span className="font-medium">Conductor desde:</span> {new Date(conductor.created_at).toLocaleDateString('es-CO')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+
+
+          {/* Información Personal y Estado del Conductor */}
+          {conductor && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 animate-fade-in">
+              <div className="card-barulogix-lg">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">Información Personal</h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><strong>Nombre:</strong> {conductor.nombre}</p>
+                  <p><strong>Zona:</strong> {conductor.zona}</p>
+                  {conductor.telefono && <p><strong>Teléfono:</strong> {conductor.telefono}</p>}
+                  {conductor.email && <p><strong>Email:</strong> {conductor.email}</p>}
+                </div>
+              </div>
+              <div className="card-barulogix-lg">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">Estado del Conductor</h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><strong>Estado:</strong> <span className={`font-semibold ${conductor.activo ? 'text-green-600' : 'text-red-600'}`}>{conductor.activo ? 'Activo' : 'Inactivo'}</span></p>
+                  <p><strong>ID Único:</strong> {conductor.id}</p>
+                  <p><strong>Conductor desde:</strong> {new Date(conductor.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+}
+
+
+
+          {/* Información Personal y Estado del Conductor */}
+          {conductor && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 animate-fade-in">
+              <div className="card-barulogix-lg">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">Información Personal</h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><strong>Nombre:</strong> {conductor.nombre}</p>
+                  <p><strong>Zona:</strong> {conductor.zona}</p>
+                  {conductor.telefono && <p><strong>Teléfono:</strong> {conductor.telefono}</p>}
+                  {conductor.email && <p><strong>Email:</strong> {conductor.email}</p>}
+                </div>
+              </div>
+              <div className="card-barulogix-lg">
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">Estado del Conductor</h3>
+                <div className="space-y-2 text-secondary-700 font-segoe">
+                  <p><strong>Estado:</strong> <span className={`font-semibold ${conductor.activo ? 'text-green-600' : 'text-red-600'}`}>{conductor.activo ? 'Activo' : 'Inactivo'}</span></p>
+                  <p><strong>ID Único:</strong> {conductor.id}</p>
+                  <p><strong>Conductor desde:</strong> {new Date(conductor.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+}
+
