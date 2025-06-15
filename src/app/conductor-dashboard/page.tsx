@@ -724,5 +724,4 @@ export default function ConductorDashboard() {
       </div>
     )
   }
-}
 
