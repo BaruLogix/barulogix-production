@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -606,7 +607,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0</p>
+            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_entregado || 0}</p>
           </button>
 
           {/* Dropi Pendientes */}
@@ -623,7 +624,7 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis?.stats.dropi_no_entregados || 0}</p>
-            <p className="text-secondary-600 font-segoe">$0</p>
+            <p className="text-secondary-600 font-segoe">${analysis?.stats.dropi_valor_pendiente || 0}</p>
           </button>
 
           {/* Valor Pendiente */}
