@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   description: "Plataforma SaaS para gestión logística de bodegas independientes",
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: '32x32' },
-      { url: '/favicon.ico', sizes: '16x16' }
+      { url: '/emblema-barulogix.png', sizes: '32x32' },
+      { url: '/emblema-barulogix.png', sizes: '16x16' }
     ],
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    shortcut: '/emblema-barulogix.png',
+    apple: '/emblema-barulogix.png',
   },
 };
 
