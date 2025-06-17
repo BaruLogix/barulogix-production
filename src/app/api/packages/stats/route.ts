@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         conductor:conductors!inner(user_id)
       `)
       .eq('conductor.user_id', userId)
-      .limit(10000) // Añadir límite explícito alto para evitar problemas de paginación
+      .limit(20000) // Añadir límite explícito alto para evitar problemas de paginación
 
     console.log('=== DEBUG STATS QUERY ===')
     console.log('Packages found:', packages?.length || 0)
