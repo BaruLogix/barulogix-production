@@ -184,8 +184,16 @@ export default function PackagesPage() {
         return
       }
 
+      // Convertir fecha de dd/mm/aaaa a formato ISO con hora específica para evitar problemas de zona horaria
+      const convertDateToISO = (dateStr: string) => {
+        const [day, month, year] = dateStr.split('/')
+        // Añadir hora específica (12:00 PM) para evitar problemas de zona horaria
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`
+      }
+
       const submitData = {
         ...formData,
+        fecha_entrega: convertDateToISO(formData.fecha_entrega),
         valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
       }
 
@@ -247,10 +255,11 @@ export default function PackagesPage() {
         return
       }
 
-      // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd)
+      // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd) con hora específica para evitar problemas de zona horaria
       const convertDateToISO = (dateStr: string) => {
         const [day, month, year] = dateStr.split('/')
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+        // Añadir hora específica (12:00 PM) para evitar problemas de zona horaria
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`
       }
 
       const fechaISO = convertDateToISO(bulkFechaEntrega)
@@ -333,10 +342,11 @@ export default function PackagesPage() {
 
       const trackings = deliveryData.split('\n').map(line => line.trim()).filter(line => line.length > 0)
 
-      // Convertir fecha de dd/mm/aaaa a formato ISO
+      // Convertir fecha de dd/mm/aaaa a formato ISO con hora específica para evitar problemas de zona horaria
       const convertDateToISO = (dateStr: string) => {
         const [day, month, year] = dateStr.split('/')
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+        // Añadir hora específica (12:00 PM) para evitar problemas de zona horaria
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00.000Z`
       }
 
       const fechaClienteISO = deliveryFechaCliente ? convertDateToISO(deliveryFechaCliente) : null
