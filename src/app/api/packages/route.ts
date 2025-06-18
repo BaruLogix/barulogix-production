@@ -99,14 +99,19 @@ export async function POST(request: NextRequest) {
     console.log('Creando paquete para user ID:', userId)
 
     const body = await request.json()
+    console.log('Body recibido:', body)
+    
     const { tracking, conductor_id, tipo, fecha_entrega, fecha_entrega_cliente, valor } = body
 
     // Validaciones
     if (!tracking || !conductor_id || !tipo || !fecha_entrega) {
+      console.log('ERROR: Faltan campos requeridos')
       return NextResponse.json({ 
         error: 'Faltan campos requeridos: tracking, conductor_id, tipo, fecha_entrega' 
       }, { status: 400 })
     }
+
+    console.log('Validando conductor:', conductor_id, 'para usuario:', userId)
 
     // Verificar que el conductor existe Y pertenece al usuario actual
     const { data: conductor, error: conductorError } = await supabase
@@ -116,7 +121,10 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId) // Solo conductores del usuario actual
       .single()
 
+    console.log('Resultado validación conductor:', conductor, conductorError)
+
     if (conductorError || !conductor) {
+      console.log('ERROR: Conductor no encontrado o no pertenece al usuario')
       return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 400 })
     }
 
@@ -133,6 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     const conductorIds = userConductors.map(c => c.id)
+    console.log('IDs de conductores del usuario:', conductorIds)
 
     // Verificar duplicados solo en conductores del usuario
     const { data: existingPackage, error: checkError } = await supabase
@@ -142,9 +151,23 @@ export async function POST(request: NextRequest) {
       .in('conductor_id', conductorIds)
       .single()
 
+    console.log('Verificación duplicados:', existingPackage, checkError)
+
     if (existingPackage) {
+      console.log('ERROR: Tracking duplicado')
       return NextResponse.json({ error: 'Ya existe un paquete con este tracking en su bodega' }, { status: 400 })
     }
+
+    console.log('Insertando paquete en la base de datos...')
+    console.log('Datos a insertar:', {
+      tracking,
+      conductor_id,
+      tipo,
+      estado: 0,
+      fecha_entrega,
+      fecha_entrega_cliente: fecha_entrega_cliente || null,
+      valor: tipo === 'Dropi' ? valor : null
+    })
 
     // Crear el paquete
     const { data: newPackage, error } = await supabase
@@ -164,16 +187,26 @@ export async function POST(request: NextRequest) {
       `)
       .single()
 
+    console.log('Resultado inserción:', newPackage, error)
+
     if (error) {
-      console.error('Error creating package:', error)
-      return NextResponse.json({ error: 'Error al crear paquete' }, { status: 500 })
+      console.error('ERROR CRÍTICO al crear paquete:', error)
+      console.error('Detalles del error:', JSON.stringify(error, null, 2))
+      return NextResponse.json({ 
+        error: 'Error al crear paquete', 
+        details: error.message,
+        code: error.code 
+      }, { status: 500 })
     }
 
     console.log('Paquete creado exitosamente:', newPackage)
     return NextResponse.json({ package: newPackage }, { status: 201 })
   } catch (error) {
-    console.error('Error in packages POST:', error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    console.error('ERROR CRÍTICO en packages POST:', error)
+    return NextResponse.json({ 
+      error: 'Error interno del servidor',
+      details: error instanceof Error ? error.message : 'Error desconocido'
+    }, { status: 500 })
   }
 }
 
