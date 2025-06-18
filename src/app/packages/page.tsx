@@ -210,6 +210,9 @@ export default function PackagesPage() {
       })
 
       if (response.ok) {
+        // Mostrar mensaje de éxito antes de recargar
+        alert('Paquete guardado exitosamente')
+        
         await loadPackages()
         await loadStats()
         setShowModal(false)

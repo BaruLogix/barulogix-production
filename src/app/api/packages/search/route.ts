@@ -28,11 +28,15 @@ export async function GET(request: NextRequest) {
     const conductor_id = searchParams.get('conductor_id')
     const tipo = searchParams.get('tipo')
     const estado = searchParams.get('estado')
-    const fecha_inicio = searchParams.get('fecha_inicio')
-    const fecha_fin = searchParams.get('fecha_fin')
+    const fecha_desde = searchParams.get('fecha_desde') // Cambiar nombre para coincidir con frontend
+    const fecha_hasta = searchParams.get('fecha_hasta') // Cambiar nombre para coincidir con frontend
     const zona = searchParams.get('zona')
 
-    if (!tracking && !conductor_id && !tipo && !estado && !fecha_inicio && !fecha_fin && !zona) {
+    console.log('=== DEBUG SEARCH PARAMS ===')
+    console.log('fecha_desde:', fecha_desde)
+    console.log('fecha_hasta:', fecha_hasta)
+
+    if (!tracking && !conductor_id && !tipo && !estado && !fecha_desde && !fecha_hasta && !zona) {
       return NextResponse.json({ error: 'Debe proporcionar al menos un criterio de búsqueda' }, { status: 400 })
     }
 
@@ -62,12 +66,18 @@ export async function GET(request: NextRequest) {
       query = query.eq('estado', parseInt(estado))
     }
     
-    if (fecha_inicio) {
-      query = query.gte('fecha_entrega', fecha_inicio)
+    if (fecha_desde) {
+      // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación
+      const fechaDesdeISO = `${fecha_desde}T00:00:00-05:00`
+      console.log('Filtro fecha_desde ISO:', fechaDesdeISO)
+      query = query.gte('fecha_entrega', fechaDesdeISO)
     }
     
-    if (fecha_fin) {
-      query = query.lte('fecha_entrega', fecha_fin)
+    if (fecha_hasta) {
+      // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación (final del día)
+      const fechaHastaISO = `${fecha_hasta}T23:59:59-05:00`
+      console.log('Filtro fecha_hasta ISO:', fechaHastaISO)
+      query = query.lte('fecha_entrega', fechaHastaISO)
     }
 
     // Filtro por zona del conductor

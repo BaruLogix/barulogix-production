@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Obteniendo estadísticas para user ID:', userId)
 
-    // Obtener estadísticas solo de paquetes del usuario actual
+    // Obtener estadísticas solo de paquetes del usuario actual - SIN LÍMITE para obtener todos los paquetes
     const { data: packages, error: packagesError } = await supabase
       .from('packages')
       .select(`
@@ -31,11 +31,12 @@ export async function GET(request: NextRequest) {
         conductor:conductors!inner(user_id)
       `)
       .eq('conductor.user_id', userId)
-      .limit(20000) // Añadir límite explícito alto para evitar problemas de paginación
+      // Removido el límite para obtener TODOS los paquetes del usuario
 
     console.log('=== DEBUG STATS QUERY ===')
     console.log('Packages found:', packages?.length || 0)
     console.log('Query error:', packagesError)
+    console.log('First 3 packages:', packages?.slice(0, 3))
 
     if (packagesError) {
       console.error('Error getting packages for stats:', packagesError)
