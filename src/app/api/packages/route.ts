@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
       .order('created_at', { ascending: false })
+      .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
 
     // Filtros
     if (conductor_id) {

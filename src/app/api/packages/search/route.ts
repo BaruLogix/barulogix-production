@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('conductor.user_id', userId) // Solo paquetes del usuario actual
       .order('created_at', { ascending: false })
+      .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
 
     // Filtros de búsqueda
     if (tracking) {

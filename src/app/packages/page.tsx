@@ -517,12 +517,24 @@ export default function PackagesPage() {
 
   const handleEdit = (pkg: Package) => {
     setEditingPackage(pkg)
+    
+    // Convertir fecha de ISO a formato dd/mm/aaaa para el formulario
+    const formatDateForForm = (isoDate: string) => {
+      const date = new Date(isoDate)
+      // Ajustar por zona horaria de Bogotá (UTC-5)
+      const bogotaDate = new Date(date.getTime() + (5 * 60 * 60 * 1000))
+      const day = bogotaDate.getDate().toString().padStart(2, '0')
+      const month = (bogotaDate.getMonth() + 1).toString().padStart(2, '0')
+      const year = bogotaDate.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+    
     setFormData({
       tracking: pkg.tracking,
       conductor_id: pkg.conductor_id,
       tipo: pkg.tipo,
       estado: pkg.estado,
-      fecha_entrega: pkg.fecha_entrega,
+      fecha_entrega: formatDateForForm(pkg.fecha_entrega),
       valor: pkg.valor?.toString() || ''
     })
     setShowModal(true)
@@ -914,7 +926,17 @@ export default function PackagesPage() {
                         </span>
                       </td>
                       <td className="text-secondary-600 font-segoe text-sm">
-                        {new Date(pkg.fecha_entrega).toLocaleDateString('es-CO')}
+                        {(() => {
+                          // Convertir fecha de ISO a formato dd/mm/aaaa para visualización
+                          const date = new Date(pkg.fecha_entrega)
+                          // Ajustar por zona horaria de Bogotá (UTC-5)
+                          const bogotaDate = new Date(date.getTime() + (5 * 60 * 60 * 1000))
+                          return bogotaDate.toLocaleDateString('es-CO', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          })
+                        })()}
                       </td>
                       <td className="text-secondary-600 font-segoe text-sm">
                         {pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '-'}
