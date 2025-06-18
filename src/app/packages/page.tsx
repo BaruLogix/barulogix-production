@@ -191,21 +191,33 @@ export default function PackagesPage() {
           throw new Error('Fecha inválida')
         }
         
-        const parts = dateStr.split('/')
-        if (parts.length !== 3) {
-          console.error('Formato de fecha incorrecto en handleSubmit:', dateStr)
-          throw new Error('Formato de fecha debe ser dd/mm/aaaa')
+        // Detectar si la fecha viene en formato YYYY-MM-DD (del input HTML) o dd/mm/aaaa
+        if (dateStr.includes('-') && dateStr.length === 10) {
+          // Formato YYYY-MM-DD (del input HTML)
+          console.log('Fecha en formato YYYY-MM-DD detectada:', dateStr)
+          return `${dateStr}T12:00:00-05:00`
+        } else if (dateStr.includes('/')) {
+          // Formato dd/mm/aaaa
+          console.log('Fecha en formato dd/mm/aaaa detectada:', dateStr)
+          const parts = dateStr.split('/')
+          if (parts.length !== 3) {
+            console.error('Formato de fecha incorrecto en handleSubmit:', dateStr)
+            throw new Error('Formato de fecha debe ser dd/mm/aaaa o YYYY-MM-DD')
+          }
+          
+          const [day, month, year] = parts
+          
+          if (!day || !month || !year) {
+            console.error('Partes de fecha faltantes en handleSubmit:', { day, month, year })
+            throw new Error('Fecha incompleta')
+          }
+          
+          // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
+        } else {
+          console.error('Formato de fecha no reconocido en handleSubmit:', dateStr)
+          throw new Error('Formato de fecha debe ser dd/mm/aaaa o YYYY-MM-DD')
         }
-        
-        const [day, month, year] = parts
-        
-        if (!day || !month || !year) {
-          console.error('Partes de fecha faltantes en handleSubmit:', { day, month, year })
-          throw new Error('Fecha incompleta')
-        }
-        
-        // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
       }
 
       const submitData = {
@@ -287,21 +299,33 @@ export default function PackagesPage() {
           throw new Error('Fecha inválida')
         }
         
-        const parts = dateStr.split('/')
-        if (parts.length !== 3) {
-          console.error('Formato de fecha incorrecto en handleBulkSubmit:', dateStr)
-          throw new Error('Formato de fecha debe ser dd/mm/aaaa')
+        // Detectar si la fecha viene en formato YYYY-MM-DD (del input HTML) o dd/mm/aaaa
+        if (dateStr.includes('-') && dateStr.length === 10) {
+          // Formato YYYY-MM-DD (del input HTML)
+          console.log('Fecha en formato YYYY-MM-DD detectada en bulk:', dateStr)
+          return `${dateStr}T12:00:00-05:00`
+        } else if (dateStr.includes('/')) {
+          // Formato dd/mm/aaaa
+          console.log('Fecha en formato dd/mm/aaaa detectada en bulk:', dateStr)
+          const parts = dateStr.split('/')
+          if (parts.length !== 3) {
+            console.error('Formato de fecha incorrecto en handleBulkSubmit:', dateStr)
+            throw new Error('Formato de fecha debe ser dd/mm/aaaa o YYYY-MM-DD')
+          }
+          
+          const [day, month, year] = parts
+          
+          if (!day || !month || !year) {
+            console.error('Partes de fecha faltantes en handleBulkSubmit:', { day, month, year })
+            throw new Error('Fecha incompleta')
+          }
+          
+          // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
+        } else {
+          console.error('Formato de fecha no reconocido en handleBulkSubmit:', dateStr)
+          throw new Error('Formato de fecha debe ser dd/mm/aaaa o YYYY-MM-DD')
         }
-        
-        const [day, month, year] = parts
-        
-        if (!day || !month || !year) {
-          console.error('Partes de fecha faltantes en handleBulkSubmit:', { day, month, year })
-          throw new Error('Fecha incompleta')
-        }
-        
-        // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
       }
 
       const fechaISO = convertDateToISO(bulkFechaEntrega)
