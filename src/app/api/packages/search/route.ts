@@ -40,74 +40,90 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Debe proporcionar al menos un criterio de búsqueda' }, { status: 400 })
     }
 
-    let query = supabase
-      .from('packages')
-      .select(`
-        *,
-        conductor:conductors!inner(id, nombre, zona, user_id)
-      `)
-      .eq('conductor.user_id', userId) // Solo paquetes del usuario actual
-      .order('created_at', { ascending: false })
-      .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
+    // Función para obtener TODOS los paquetes con paginación automática
+    const getAllPackages = async (userId: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    // Filtros de búsqueda
+      while (hasMore) {
+        console.log(`Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await supabase
+          .from('packages')
+          .select(`
+            *,
+            conductor:conductors!inner(id, nombre, zona, user_id)
+          `)
+          .eq('conductor.user_id', userId)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        if (error) {
+          console.error('Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
+    }
+
+    // Obtener TODOS los paquetes usando paginación
+    let packages = await getAllPackages(userId)
+
+    // Aplicar filtros de búsqueda en memoria
     if (tracking) {
-      query = query.ilike('tracking', `%${tracking}%`)
+      packages = packages.filter(p => p.tracking.toLowerCase().includes(tracking.toLowerCase()))
     }
     
     if (conductor_id) {
-      query = query.eq('conductor_id', conductor_id)
+      packages = packages.filter(p => p.conductor_id === conductor_id)
     }
     
     if (tipo) {
-      query = query.eq('tipo', tipo)
+      packages = packages.filter(p => p.tipo === tipo)
     }
     
     if (estado !== null && estado !== undefined && estado !== '') {
-      query = query.eq('estado', parseInt(estado))
+      packages = packages.filter(p => p.estado === parseInt(estado))
     }
     
     if (fecha_desde) {
       // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación
       const fechaDesdeISO = `${fecha_desde}T00:00:00-05:00`
       console.log('Filtro fecha_desde ISO:', fechaDesdeISO)
-      query = query.gte('fecha_entrega', fechaDesdeISO)
+      packages = packages.filter(p => p.fecha_entrega >= fechaDesdeISO)
     }
     
     if (fecha_hasta) {
       // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación (final del día)
       const fechaHastaISO = `${fecha_hasta}T23:59:59-05:00`
       console.log('Filtro fecha_hasta ISO:', fechaHastaISO)
-      query = query.lte('fecha_entrega', fechaHastaISO)
+      packages = packages.filter(p => p.fecha_entrega <= fechaHastaISO)
     }
 
     // Filtro por zona del conductor
     if (zona) {
-      const { data: conductorsInZone, error: conductorsError } = await supabase
-        .from('conductors')
-        .select('id')
-        .eq('user_id', userId) // Solo conductores del usuario actual
-        .ilike('zona', `%${zona}%`)
-
-      if (conductorsError) {
-        return NextResponse.json({ error: 'Error al buscar conductores por zona' }, { status: 500 })
-      }
-
-      const conductorIds = conductorsInZone.map(c => c.id)
-      if (conductorIds.length > 0) {
-        query = query.in('conductor_id', conductorIds)
-      } else {
-        // No hay conductores en esa zona para este usuario, retornar array vacío
-        return NextResponse.json({ packages: [] })
-      }
+      packages = packages.filter(p => p.conductor.zona.toLowerCase().includes(zona.toLowerCase()))
     }
 
-    const { data: packages, error } = await query
-
-    if (error) {
-      console.error('Error searching packages:', error)
-      return NextResponse.json({ error: 'Error al buscar paquetes' }, { status: 500 })
-    }
+    console.log('Paquetes encontrados después de filtros de búsqueda:', packages?.length || 0)
 
     // Calcular estadísticas de la búsqueda
     const stats = {

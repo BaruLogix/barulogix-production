@@ -50,34 +50,64 @@ export async function GET(request: NextRequest) {
 
     // Exportar paquetes
     if (dataType === 'packages' || dataType === 'both') {
-      let query = supabase
-        .from('packages')
-        .select(`
-          *,
-          conductor:conductors!inner(id, nombre, zona, user_id)
-        `)
-        .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
-        .order('fecha_entrega', { ascending: false })
-        .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
+      // Función para obtener TODOS los paquetes con paginación automática
+      const getAllPackages = async (userId: string) => {
+        let allPackages: any[] = []
+        let from = 0
+        const pageSize = 1000
+        let hasMore = true
 
-      // Filtros opcionales
+        while (hasMore) {
+          console.log(`Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+          
+          const { data: packages, error } = await supabase
+            .from('packages')
+            .select(`
+              *,
+              conductor:conductors!inner(id, nombre, zona, user_id)
+            `)
+            .eq('conductor.user_id', userId)
+            .order('fecha_entrega', { ascending: false })
+            .range(from, from + pageSize - 1)
+
+          if (error) {
+            console.error('Error en paginación de paquetes:', error)
+            throw error
+          }
+
+          if (packages && packages.length > 0) {
+            allPackages = allPackages.concat(packages)
+            console.log(`Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+            
+            // Si obtuvimos menos de pageSize, ya no hay más páginas
+            if (packages.length < pageSize) {
+              hasMore = false
+            } else {
+              from += pageSize
+            }
+          } else {
+            hasMore = false
+          }
+        }
+
+        console.log(`TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+        return allPackages
+      }
+
+      // Obtener TODOS los paquetes usando paginación
+      let packages = await getAllPackages(userId)
+
+      // Aplicar filtros opcionales en memoria
       if (conductor_id) {
-        query = query.eq('conductor_id', conductor_id)
+        packages = packages.filter(p => p.conductor_id === conductor_id)
       }
       
       if (fecha_desde) {
-        query = query.gte('fecha_entrega', fecha_desde)
+        packages = packages.filter(p => p.fecha_entrega >= fecha_desde)
       }
       
       if (fecha_hasta) {
-        query = query.lte('fecha_entrega', fecha_hasta)
-      }
-
-      const { data: packages, error: packagesError } = await query
-
-      if (packagesError) {
-        console.error('Error fetching packages:', packagesError)
-        return NextResponse.json({ error: 'Error al obtener paquetes' }, { status: 500 })
+        packages = packages.filter(p => p.fecha_entrega <= fecha_hasta)
       }
 
       exportData.packages = packages

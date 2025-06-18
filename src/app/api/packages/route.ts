@@ -31,49 +31,79 @@ export async function GET(request: NextRequest) {
     const fecha_fin = searchParams.get('fecha_fin')
     const search = searchParams.get('search')
 
-    let query = supabase
-      .from('packages')
-      .select(`
-        *,
-        conductor:conductors!inner(id, nombre, zona, user_id)
-      `)
-      .eq('conductor.user_id', userId) // Solo paquetes de conductores del usuario
-      .order('created_at', { ascending: false })
-      .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
+    // Función para obtener TODOS los paquetes con paginación automática
+    const getAllPackages = async (userId: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    // Filtros
+      while (hasMore) {
+        console.log(`Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await supabase
+          .from('packages')
+          .select(`
+            *,
+            conductor:conductors!inner(id, nombre, zona, user_id)
+          `)
+          .eq('conductor.user_id', userId)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        if (error) {
+          console.error('Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
+    }
+
+    // Obtener TODOS los paquetes usando paginación
+    let packages = await getAllPackages(userId)
+
+    // Aplicar filtros en memoria después de obtener todos los paquetes
     if (conductor_id) {
-      query = query.eq('conductor_id', conductor_id)
+      packages = packages.filter(p => p.conductor_id === conductor_id)
     }
     
     if (tipo) {
-      query = query.eq('tipo', tipo)
+      packages = packages.filter(p => p.tipo === tipo)
     }
     
     if (estado !== null && estado !== undefined) {
-      query = query.eq('estado', parseInt(estado))
+      packages = packages.filter(p => p.estado === parseInt(estado))
     }
     
     if (fecha_inicio) {
-      query = query.gte('fecha_entrega', fecha_inicio)
+      packages = packages.filter(p => p.fecha_entrega >= fecha_inicio)
     }
     
     if (fecha_fin) {
-      query = query.lte('fecha_entrega', fecha_fin)
+      packages = packages.filter(p => p.fecha_entrega <= fecha_fin)
     }
     
     if (search) {
-      query = query.ilike('tracking', `%${search}%`)
+      packages = packages.filter(p => p.tracking.toLowerCase().includes(search.toLowerCase()))
     }
 
-    const { data: packages, error } = await query
-
-    if (error) {
-      console.error('Error fetching packages:', error)
-      return NextResponse.json({ error: 'Error al obtener paquetes' }, { status: 500 })
-    }
-
-    console.log('Paquetes encontrados:', packages?.length || 0)
+    console.log('Paquetes encontrados después de filtros:', packages?.length || 0)
 
     return NextResponse.json({ packages })
   } catch (error) {
@@ -87,7 +117,7 @@ export async function POST(request: NextRequest) {
     // SOLUCIÓN DEFINITIVA: Usar ID real del usuario
     const userId = request.headers.get('x-user-id')
     
-    console.log('=== DEBUG PACKAGES POST ===')
+    console.log('=== DEBUG PACKAGES POST (INDIVIDUAL) ===')
     console.log('User ID recibido:', userId)
     
     if (!userId) {
@@ -97,14 +127,14 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    console.log('Creando paquete para user ID:', userId)
+    console.log('Creando paquete individual para user ID:', userId)
 
     const body = await request.json()
     console.log('Body recibido:', body)
     
-    const { tracking, conductor_id, tipo, fecha_entrega, fecha_entrega_cliente, valor } = body
+    const { tracking, conductor_id, tipo, fecha_entrega, valor } = body
 
-    // Validaciones
+    // Validaciones básicas
     if (!tracking || !conductor_id || !tipo || !fecha_entrega) {
       console.log('ERROR: Faltan campos requeridos')
       return NextResponse.json({ 
@@ -114,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Validando conductor:', conductor_id, 'para usuario:', userId)
 
-    // Verificar que el conductor existe Y pertenece al usuario actual
+    // Verificar que el conductor existe Y pertenece al usuario actual (IGUAL QUE BULK)
     const { data: conductor, error: conductorError } = await supabase
       .from('conductors')
       .select('id, user_id')
@@ -129,8 +159,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conductor no encontrado o no pertenece a su bodega' }, { status: 400 })
     }
 
-    // Verificar que el tracking no existe para conductores de este usuario
-    // Primero obtener todos los conductores del usuario
+    // Obtener todos los conductores del usuario para verificar duplicados (IGUAL QUE BULK)
     const { data: userConductors, error: userConductorsError } = await supabase
       .from('conductors')
       .select('id')
@@ -144,7 +173,7 @@ export async function POST(request: NextRequest) {
     const conductorIds = userConductors.map(c => c.id)
     console.log('IDs de conductores del usuario:', conductorIds)
 
-    // Verificar duplicados solo en conductores del usuario
+    // Verificar duplicados solo en conductores del usuario (IGUAL QUE BULK)
     const { data: existingPackage, error: checkError } = await supabase
       .from('packages')
       .select('tracking')
@@ -159,29 +188,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ya existe un paquete con este tracking en su bodega' }, { status: 400 })
     }
 
-    console.log('Insertando paquete en la base de datos...')
-    console.log('Datos a insertar:', {
-      tracking,
-      conductor_id,
-      tipo,
-      estado: 0,
-      fecha_entrega,
-      fecha_entrega_cliente: fecha_entrega_cliente || null,
+    console.log('Insertando paquete individual en la base de datos...')
+    
+    // Preparar datos para insertar (IGUAL QUE BULK)
+    const packageData = {
+      tracking: tracking,
+      conductor_id: conductor_id,
+      tipo: tipo,
+      estado: 0, // No entregado por defecto
+      fecha_entrega: fecha_entrega,
       valor: tipo === 'Dropi' ? valor : null
-    })
+    }
+    
+    console.log('Datos a insertar:', packageData)
 
-    // Crear el paquete
+    // Crear el paquete usando la misma lógica que bulk
     const { data: newPackage, error } = await supabase
       .from('packages')
-      .insert([{
-        tracking,
-        conductor_id,
-        tipo,
-        estado: 0, // No entregado por defecto
-        fecha_entrega,
-        fecha_entrega_cliente: fecha_entrega_cliente || null,
-        valor: tipo === 'Dropi' ? valor : null
-      }])
+      .insert([packageData])
       .select(`
         *,
         conductor:conductors(id, nombre, zona)
@@ -201,7 +225,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Paquete creado exitosamente:', newPackage)
-    return NextResponse.json({ package: newPackage }, { status: 201 })
+    return NextResponse.json({ 
+      package: newPackage,
+      message: 'Paquete creado exitosamente'
+    }, { status: 201 })
   } catch (error) {
     console.error('ERROR CRÍTICO en packages POST:', error)
     return NextResponse.json({ 

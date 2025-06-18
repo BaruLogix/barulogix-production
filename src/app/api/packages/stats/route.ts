@@ -23,27 +23,51 @@ export async function GET(request: NextRequest) {
 
     console.log('Obteniendo estadísticas para user ID:', userId)
 
-    // Obtener estadísticas solo de paquetes del usuario actual - AUMENTAR LÍMITE A 10000 para obtener todos los paquetes
-    const { data: packages, error: packagesError } = await supabase
-      .from('packages')
-      .select(`
-        tipo, estado, valor,
-        conductor:conductors!inner(user_id)
-      `)
-      .eq('conductor.user_id', userId)
-      .limit(10000) // Aumentar límite a 10000 para obtener todos los paquetes
+    // Función para obtener TODOS los paquetes con paginación automática
+    const getAllPackages = async (userId: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    console.log('=== DEBUG STATS QUERY ===')
-    console.log('Packages found:', packages?.length || 0)
-    console.log('Query error:', packagesError)
-    console.log('First 3 packages:', packages?.slice(0, 3))
+      while (hasMore) {
+        console.log(`Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await supabase
+          .from('packages')
+          .select(`
+            tipo, estado, valor,
+            conductor:conductors!inner(user_id)
+          `)
+          .eq('conductor.user_id', userId)
+          .range(from, from + pageSize - 1)
 
-    if (packagesError) {
-      console.error('Error getting packages for stats:', packagesError)
-      return NextResponse.json({ error: 'Error al obtener estadísticas' }, { status: 500 })
+        if (error) {
+          console.error('Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
     }
 
-    console.log('Paquetes encontrados para estadísticas:', packages?.length || 0)
+    // Obtener TODOS los paquetes usando paginación
+    const packages = await getAllPackages(userId)
 
     const stats = {
       total_packages: packages.length,
