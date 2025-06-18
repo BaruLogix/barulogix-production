@@ -186,8 +186,25 @@ export default function PackagesPage() {
 
       // Convertir fecha de dd/mm/aaaa a formato ISO con hora específica para zona horaria de Bogotá (UTC-5)
       const convertDateToISO = (dateStr: string) => {
-        const [day, month, year] = dateStr.split('/')
-        // Añadir hora específica (12:00 PM) en zona horaria de Bogotá (UTC-5)
+        if (!dateStr || typeof dateStr !== 'string') {
+          console.error('Fecha inválida recibida en handleSubmit:', dateStr)
+          throw new Error('Fecha inválida')
+        }
+        
+        const parts = dateStr.split('/')
+        if (parts.length !== 3) {
+          console.error('Formato de fecha incorrecto en handleSubmit:', dateStr)
+          throw new Error('Formato de fecha debe ser dd/mm/aaaa')
+        }
+        
+        const [day, month, year] = parts
+        
+        if (!day || !month || !year) {
+          console.error('Partes de fecha faltantes en handleSubmit:', { day, month, year })
+          throw new Error('Fecha incompleta')
+        }
+        
+        // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
       }
 
@@ -217,6 +234,11 @@ export default function PackagesPage() {
         await loadStats()
         setShowModal(false)
         setEditingPackage(null)
+        
+        // Definir todayFormatted localmente para evitar el ReferenceError
+        const today = new Date()
+        const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+        
         setFormData({
           tracking: '',
           conductor_id: '',
@@ -260,8 +282,25 @@ export default function PackagesPage() {
 
       // Convertir fecha de dd/mm/aaaa a formato ISO (aaaa-mm-dd) con hora específica para zona horaria de Bogotá (UTC-5)
       const convertDateToISO = (dateStr: string) => {
-        const [day, month, year] = dateStr.split('/')
-        // Añadir hora específica (12:00 PM) en zona horaria de Bogotá (UTC-5)
+        if (!dateStr || typeof dateStr !== 'string') {
+          console.error('Fecha inválida recibida en handleBulkSubmit:', dateStr)
+          throw new Error('Fecha inválida')
+        }
+        
+        const parts = dateStr.split('/')
+        if (parts.length !== 3) {
+          console.error('Formato de fecha incorrecto en handleBulkSubmit:', dateStr)
+          throw new Error('Formato de fecha debe ser dd/mm/aaaa')
+        }
+        
+        const [day, month, year] = parts
+        
+        if (!day || !month || !year) {
+          console.error('Partes de fecha faltantes en handleBulkSubmit:', { day, month, year })
+          throw new Error('Fecha incompleta')
+        }
+        
+        // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
       }
 
