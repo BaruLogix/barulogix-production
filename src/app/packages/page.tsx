@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
@@ -603,14 +603,104 @@ export default function PackagesPage() {
     }
   }
 
-  const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = pkg.tracking.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.conductor.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesConductor = !filterConductor || pkg.conductor_id === filterConductor
-    const matchesTipo = !filterTipo || pkg.tipo === filterTipo
-    const matchesEstado = !filterEstado || pkg.estado.toString() === filterEstado
-    return matchesSearch && matchesConductor && matchesTipo && matchesEstado
-  })
+  // Optimización: Memoizar el filtrado de paquetes para evitar re-cálculos innecesarios
+  const filteredPackages = useMemo(() => {
+    return packages.filter(pkg => {
+      const matchesSearch = pkg.tracking.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                           pkg.conductor.nombre.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      const matchesConductor = !filterConductor || pkg.conductor_id === filterConductor
+      const matchesTipo = !filterTipo || pkg.tipo === filterTipo
+      const matchesEstado = !filterEstado || pkg.estado.toString() === filterEstado
+      return matchesSearch && matchesConductor && matchesTipo && matchesEstado
+    })
+  }, [packages, debouncedSearchTerm, filterConductor, filterTipo, filterEstado])
+
+  // Optimización: Memoizar componentes de fila para evitar re-renderizados
+  const PackageRow = useMemo(() => {
+    return ({ pkg, index }: { pkg: Package; index: number }) => (
+      <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${Math.min(index * 0.05, 1)}s`}}>
+        <td>
+          <div className="flex items-center">
+            <div className={`w-3 h-3 rounded-full mr-3 ${
+              pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+            }`}></div>
+            <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
+          </div>
+        </td>
+        <td>
+          <div>
+            <p className="font-medium text-secondary-900 font-segoe">{pkg.conductor.nombre}</p>
+            <p className="text-xs text-secondary-500">{pkg.conductor.zona}</p>
+          </div>
+        </td>
+        <td>
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+            pkg.tipo === 'Dropi' 
+              ? 'bg-blue-100 text-blue-800' 
+              : 'bg-purple-100 text-purple-800'
+          }`}>
+            {pkg.tipo}
+          </span>
+        </td>
+        <td>
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pkg.estado)}`}>
+            {getEstadoText(pkg.estado)}
+          </span>
+        </td>
+        <td className="text-secondary-600 font-segoe text-sm">
+          {(() => {
+            const date = new Date(pkg.fecha_entrega)
+            // Ajustar por zona horaria UTC-5 (Bogotá)
+            date.setHours(date.getHours() - 5)
+            return date.toLocaleDateString('es-CO')
+          })()}
+        </td>
+        {pkg.tipo === 'Dropi' && (
+          <td className="text-secondary-600 font-segoe text-sm">
+            ${pkg.valor?.toLocaleString('es-CO') || '0'}
+          </td>
+        )}
+        <td>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleEdit(pkg)}
+              className="btn-icon-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+              title="Editar paquete"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => handleDelete(pkg.id)}
+              className="btn-icon-sm text-red-600 hover:text-red-800 hover:bg-red-50"
+              title="Eliminar paquete"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    )
+  }, [])
+
+  // Optimización: Debounce para búsqueda
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm)
+  
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
+
+  // Optimización: Virtualización simple - mostrar solo los primeros 100 elementos
+  const visiblePackages = useMemo(() => {
+    return filteredPackages.slice(0, 100)
+  }, [filteredPackages])
 
   if (loading && packages.length === 0) {
     return (
@@ -894,6 +984,11 @@ export default function PackagesPage() {
         <div className="card-barulogix-lg animate-fade-in">
           <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
             Lista de Paquetes ({filteredPackages.length})
+            {filteredPackages.length > 100 && (
+              <span className="ml-2 text-sm text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
+                Mostrando primeros 100 de {filteredPackages.length}
+              </span>
+            )}
           </h2>
 
           {filteredPackages.length === 0 ? (
@@ -919,75 +1014,8 @@ export default function PackagesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPackages.map((pkg, index) => (
-                    <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
-                      <td>
-                        <div className="flex items-center">
-                          <div className={`w-3 h-3 rounded-full mr-3 ${
-                            pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
-                          }`}></div>
-                          <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div>
-                          <p className="font-medium text-secondary-900 font-segoe">{pkg.conductor.nombre}</p>
-                          <p className="text-xs text-secondary-500">{pkg.conductor.zona}</p>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          pkg.tipo === 'Dropi' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {pkg.tipo}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pkg.estado)}`}>
-                          {getEstadoText(pkg.estado)}
-                        </span>
-                      </td>
-                      <td className="text-secondary-600 font-segoe text-sm">
-                        {(() => {
-                          // Convertir fecha de ISO a formato dd/mm/aaaa para visualización
-                          const date = new Date(pkg.fecha_entrega)
-                          // Ajustar por zona horaria de Bogotá (UTC-5)
-                          const bogotaDate = new Date(date.getTime() + (5 * 60 * 60 * 1000))
-                          return bogotaDate.toLocaleDateString('es-CO', {
-                            day: '2-digit',
-                            month: '2-digit', 
-                            year: 'numeric'
-                          })
-                        })()}
-                      </td>
-                      <td className="text-secondary-600 font-segoe text-sm">
-                        {pkg.valor ? `$${pkg.valor.toLocaleString('es-CO')}` : '-'}
-                      </td>
-                      <td>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEdit(pkg)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                            title="Editar"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(pkg.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                            title="Eliminar"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                  {visiblePackages.map((pkg, index) => (
+                    <PackageRow key={pkg.id} pkg={pkg} index={index} />
                   ))}
                 </tbody>
               </table>
