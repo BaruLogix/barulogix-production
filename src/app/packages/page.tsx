@@ -585,23 +585,34 @@ export default function PackagesPage() {
     }
   }, [loadPackages, loadStats])
 
-  const getEstadoText = (estado: number) => {
+  const getEstadoText = useCallback((estado: number) => {
     switch (estado) {
       case 0: return 'No Entregado'
       case 1: return 'Entregado'
       case 2: return 'Devuelto'
       default: return 'Desconocido'
     }
-  }
+  }, [])
 
-  const getEstadoBadge = (estado: number) => {
+  const getEstadoBadge = useCallback((estado: number) => {
     switch (estado) {
       case 0: return 'badge-warning'
       case 1: return 'badge-success'
       case 2: return 'badge-danger'
       default: return 'badge-neutral'
     }
-  }
+  }, [])
+
+  // Optimización: Debounce para búsqueda
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm)
+  
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
 
   // Optimización: Memoizar el filtrado de paquetes para evitar re-cálculos innecesarios
   const filteredPackages = useMemo(() => {
@@ -683,17 +694,6 @@ export default function PackagesPage() {
       </td>
     </tr>
   ), [getEstadoBadge, getEstadoText, handleEdit, handleDelete])
-
-  // Optimización: Debounce para búsqueda
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm)
-  
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm)
-    }, 300)
-    
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm])
 
   // Optimización: Virtualización simple - mostrar solo los primeros 100 elementos
   const visiblePackages = useMemo(() => {
