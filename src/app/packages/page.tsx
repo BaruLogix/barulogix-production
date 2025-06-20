@@ -92,7 +92,7 @@ export default function PackagesPage() {
     }
   }
 
-  const loadPackages = async () => {
+  const loadPackages = useCallback(async () => {
     try {
       // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
@@ -115,7 +115,7 @@ export default function PackagesPage() {
     } catch (error) {
       console.error('Error loading packages:', error)
     }
-  }
+  }, [])
 
   const loadConductors = async () => {
     try {
@@ -142,7 +142,7 @@ export default function PackagesPage() {
     }
   }
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       // Obtener el ID del usuario logueado
       const userData = localStorage.getItem('user')
@@ -167,7 +167,7 @@ export default function PackagesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -539,7 +539,7 @@ export default function PackagesPage() {
     }
   }
 
-  const handleEdit = (pkg: Package) => {
+  const handleEdit = useCallback((pkg: Package) => {
     setEditingPackage(pkg)
     
     // Convertir fecha de ISO a formato dd/mm/aaaa para el formulario
@@ -562,9 +562,9 @@ export default function PackagesPage() {
       valor: pkg.valor?.toString() || ''
     })
     setShowModal(true)
-  }
+  }, [])
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('¿Está seguro de eliminar este paquete?')) return
 
     try {
@@ -583,7 +583,7 @@ export default function PackagesPage() {
       console.error('Error deleting package:', error)
       alert('Error al eliminar paquete')
     }
-  }
+  }, [loadPackages, loadStats])
 
   const getEstadoText = (estado: number) => {
     switch (estado) {
@@ -616,75 +616,73 @@ export default function PackagesPage() {
   }, [packages, debouncedSearchTerm, filterConductor, filterTipo, filterEstado])
 
   // Optimización: Memoizar componentes de fila para evitar re-renderizados
-  const PackageRow = useMemo(() => {
-    return ({ pkg, index }: { pkg: Package; index: number }) => (
-      <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${Math.min(index * 0.05, 1)}s`}}>
-        <td>
-          <div className="flex items-center">
-            <div className={`w-3 h-3 rounded-full mr-3 ${
-              pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
-            }`}></div>
-            <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
-          </div>
-        </td>
-        <td>
-          <div>
-            <p className="font-medium text-secondary-900 font-segoe">{pkg.conductor.nombre}</p>
-            <p className="text-xs text-secondary-500">{pkg.conductor.zona}</p>
-          </div>
-        </td>
-        <td>
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-            pkg.tipo === 'Dropi' 
-              ? 'bg-blue-100 text-blue-800' 
-              : 'bg-purple-100 text-purple-800'
-          }`}>
-            {pkg.tipo}
-          </span>
-        </td>
-        <td>
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pkg.estado)}`}>
-            {getEstadoText(pkg.estado)}
-          </span>
-        </td>
+  const PackageRow = useCallback(({ pkg, index }: { pkg: Package; index: number }) => (
+    <tr key={pkg.id} className="animate-slide-up" style={{animationDelay: `${Math.min(index * 0.05, 1)}s`}}>
+      <td>
+        <div className="flex items-center">
+          <div className={`w-3 h-3 rounded-full mr-3 ${
+            pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+          }`}></div>
+          <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
+        </div>
+      </td>
+      <td>
+        <div>
+          <p className="font-medium text-secondary-900 font-segoe">{pkg.conductor.nombre}</p>
+          <p className="text-xs text-secondary-500">{pkg.conductor.zona}</p>
+        </div>
+      </td>
+      <td>
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+          pkg.tipo === 'Dropi' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-purple-100 text-purple-800'
+        }`}>
+          {pkg.tipo}
+        </span>
+      </td>
+      <td>
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getEstadoBadge(pkg.estado)}`}>
+          {getEstadoText(pkg.estado)}
+        </span>
+      </td>
+      <td className="text-secondary-600 font-segoe text-sm">
+        {(() => {
+          const date = new Date(pkg.fecha_entrega)
+          // Ajustar por zona horaria UTC-5 (Bogotá)
+          date.setHours(date.getHours() - 5)
+          return date.toLocaleDateString('es-CO')
+        })()}
+      </td>
+      {pkg.tipo === 'Dropi' && (
         <td className="text-secondary-600 font-segoe text-sm">
-          {(() => {
-            const date = new Date(pkg.fecha_entrega)
-            // Ajustar por zona horaria UTC-5 (Bogotá)
-            date.setHours(date.getHours() - 5)
-            return date.toLocaleDateString('es-CO')
-          })()}
+          ${pkg.valor?.toLocaleString('es-CO') || '0'}
         </td>
-        {pkg.tipo === 'Dropi' && (
-          <td className="text-secondary-600 font-segoe text-sm">
-            ${pkg.valor?.toLocaleString('es-CO') || '0'}
-          </td>
-        )}
-        <td>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => handleEdit(pkg)}
-              className="btn-icon-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-              title="Editar paquete"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => handleDelete(pkg.id)}
-              className="btn-icon-sm text-red-600 hover:text-red-800 hover:bg-red-50"
-              title="Eliminar paquete"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    )
-  }, [])
+      )}
+      <td>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => handleEdit(pkg)}
+            className="btn-icon-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+            title="Editar paquete"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleDelete(pkg.id)}
+            className="btn-icon-sm text-red-600 hover:text-red-800 hover:bg-red-50"
+            title="Eliminar paquete"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  ), [getEstadoBadge, getEstadoText, handleEdit, handleDelete])
 
   // Optimización: Debounce para búsqueda
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm)
