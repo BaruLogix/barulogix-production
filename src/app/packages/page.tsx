@@ -73,10 +73,11 @@ export default function PackagesPage() {
     loadPackages()
     loadConductors()
     loadStats()
-        // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa
+    // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa
     const today = new Date()
-    const todayFormatted = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
-    const todayISO = today.toISOString().split('T')[0]
+    // Ajustar por zona horaria de Bogotá (UTC-5) para obtener la fecha correcta
+    const bogotaDate = new Date(today.getTime() - (5 * 60 * 60 * 1000))
+    const todayFormatted = `${bogotaDate.getDate().toString().padStart(2, '0')}/${(bogotaDate.getMonth() + 1).toString().padStart(2, '0')}/${bogotaDate.getFullYear()}`
     setFormData(prev => ({ ...prev, fecha_entrega: todayFormatted }))
     setBulkFechaEntrega(todayFormatted)
     setDeliveryFechaCliente(todayFormatted)
@@ -550,8 +551,8 @@ export default function PackagesPage() {
     // Convertir fecha de ISO a formato dd/mm/aaaa para el formulario
     const formatDateForForm = (isoDate: string) => {
       const date = new Date(isoDate)
-      // Ajustar por zona horaria de Bogotá (UTC-5)
-      const bogotaDate = new Date(date.getTime() + (5 * 60 * 60 * 1000))
+      // Convertir correctamente a zona horaria de Bogotá (UTC-5)
+      const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
       const day = bogotaDate.getDate().toString().padStart(2, '0')
       const month = (bogotaDate.getMonth() + 1).toString().padStart(2, '0')
       const year = bogotaDate.getFullYear()
@@ -665,9 +666,8 @@ export default function PackagesPage() {
       <td className="text-secondary-600 font-segoe text-sm">
         {(() => {
           const date = new Date(pkg.fecha_entrega)
-          // Ajustar por zona horaria UTC-5 (Bogotá) - Corregir visualización
-          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
-          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+          // Convertir correctamente a zona horaria de Bogotá (UTC-5)
+          const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
           return bogotaDate.toLocaleDateString('es-CO')
         })()}
       </td>

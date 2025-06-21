@@ -395,8 +395,8 @@ export default function ConductorDashboard() {
                   <p className="text-secondary-700 font-segoe text-sm">Zona de trabajo: {conductor.zona}</p>
                   <p className="text-secondary-600 font-segoe text-xs">Conductor desde: {(() => {
                     const date = new Date(conductor.created_at)
-                    const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
-                    const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                    // Convertir correctamente a zona horaria de Bogotá (UTC-5)
+                    const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
                     return bogotaDate.toLocaleDateString('es-CO')
                   })()}</p>
                 </div>
@@ -720,14 +720,14 @@ export default function ConductorDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{(() => {
                           const date = new Date(pkg.fecha_entrega)
-                          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
-                          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                          // Convertir correctamente a zona horaria de Bogotá (UTC-5)
+                          const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
                           return bogotaDate.toLocaleDateString('es-CO')
                         })()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.fecha_entrega_cliente ? (() => {
                           const date = new Date(pkg.fecha_entrega_cliente)
-                          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
-                          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                          // Convertir correctamente a zona horaria de Bogotá (UTC-5)
+                          const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
                           return bogotaDate.toLocaleDateString('es-CO')
                         })() : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.valor ? pkg.valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) : 'N/A'}</td>
