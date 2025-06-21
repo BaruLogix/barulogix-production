@@ -173,16 +173,22 @@ export default function ConductorDashboard() {
         filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 1)
         break
       case 'shein_temu_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado !== 1)
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 0)
+        break
+      case 'shein_temu_devueltos':
+        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 2)
         break
       case 'dropi_entregados':
         filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 1)
         break
       case 'dropi_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1)
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 0)
+        break
+      case 'dropi_devueltos':
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 2)
         break
       case 'valor_pendiente':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado !== 1 && pkg.valor && pkg.valor > 0)
+        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 0 && pkg.valor && pkg.valor > 0)
         break
       default:
         filtered = []
@@ -218,8 +224,10 @@ export default function ConductorDashboard() {
     const titles: { [key: string]: string } = {
       'shein_temu_entregados': 'Paquetes Shein/Temu Entregados',
       'shein_temu_pendientes': 'Paquetes Shein/Temu Pendientes',
+      'shein_temu_devueltos': 'Paquetes Shein/Temu Devueltos',
       'dropi_entregados': 'Paquetes Dropi Entregados',
       'dropi_pendientes': 'Paquetes Dropi Pendientes',
+      'dropi_devueltos': 'Paquetes Dropi Devueltos',
       'valor_pendiente': 'Entregas con Valor Pendiente'
     }
     return titles[category] || category
@@ -385,7 +393,12 @@ export default function ConductorDashboard() {
                 <div>
                   <h3 className="text-xl font-bold text-secondary-900 font-montserrat">¡Bienvenido, {conductor.nombre}!</h3>
                   <p className="text-secondary-700 font-segoe text-sm">Zona de trabajo: {conductor.zona}</p>
-                  <p className="text-secondary-600 font-segoe text-xs">Conductor desde: {new Date(conductor.created_at).toLocaleDateString()}</p>
+                  <p className="text-secondary-600 font-segoe text-xs">Conductor desde: {(() => {
+                    const date = new Date(conductor.created_at)
+                    const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
+                    const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                    return bogotaDate.toLocaleDateString('es-CO')
+                  })()}</p>
                 </div>
               </div>
             </div>
@@ -564,7 +577,7 @@ export default function ConductorDashboard() {
                 </div>
                 <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Pendientes</h4>
               </div>
-              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_total - analysis?.stats.shein_entregados || 0}</p>
+              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_total - analysis?.stats.shein_entregados - analysis?.stats.shein_devueltos || 0}</p>
               <p className="text-red-500 font-bold text-sm">$0 COP</p>
             </button>
 
@@ -598,8 +611,42 @@ export default function ConductorDashboard() {
                 </div>
                 <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
               </div>
-              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_total - analysis?.stats.dropi_entregados || 0}</p>
+              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_no_entregados || 0}</p>
               <p className="text-red-500 font-bold text-sm">{analysis?.stats.dropi_valor_pendiente?.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) || '$0 COP'}</p>
+            </button>
+
+            {/* Shein/Temu Devueltos */}
+            <button
+              className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-red-400"
+              onClick={() => handleCategoryClick("shein_temu_devueltos")}
+            >
+              <div className="flex items-center mb-3">
+                <div className="bg-red-100 p-2 rounded-full mr-3">
+                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Devueltos</h4>
+              </div>
+              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_devueltos || 0}</p>
+              <p className="text-red-500 font-bold text-sm">$0 COP</p>
+            </button>
+
+            {/* Dropi Devueltos */}
+            <button
+              className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-red-500"
+              onClick={() => handleCategoryClick("dropi_devueltos")}
+            >
+              <div className="flex items-center mb-3">
+                <div className="bg-red-100 p-2 rounded-full mr-3">
+                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Devueltos</h4>
+              </div>
+              <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_devueltos || 0}</p>
+              <p className="text-red-500 font-bold text-sm">{analysis?.stats.dropi_valor_devuelto?.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) || '$0 COP'}</p>
             </button>
 
             {/* Valor Pendiente */}
@@ -671,8 +718,18 @@ export default function ConductorDashboard() {
                             {getEstadoText(pkg.estado)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.fecha_entrega}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.fecha_entrega_cliente || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{(() => {
+                          const date = new Date(pkg.fecha_entrega)
+                          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
+                          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                          return bogotaDate.toLocaleDateString('es-CO')
+                        })()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.fecha_entrega_cliente ? (() => {
+                          const date = new Date(pkg.fecha_entrega_cliente)
+                          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
+                          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+                          return bogotaDate.toLocaleDateString('es-CO')
+                        })() : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.valor ? pkg.valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getDiasAtrasoColor(pkg.dias_atraso || 0)}`}>

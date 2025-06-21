@@ -660,9 +660,10 @@ export default function PackagesPage() {
       <td className="text-secondary-600 font-segoe text-sm">
         {(() => {
           const date = new Date(pkg.fecha_entrega)
-          // Ajustar por zona horaria UTC-5 (Bogotá)
-          date.setHours(date.getHours() - 5)
-          return date.toLocaleDateString('es-CO')
+          // Ajustar por zona horaria UTC-5 (Bogotá) - Corregir visualización
+          const utcDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
+          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+          return bogotaDate.toLocaleDateString('es-CO')
         })()}
       </td>
       {pkg.tipo === 'Dropi' && (
