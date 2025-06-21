@@ -73,14 +73,16 @@ export default function PackagesPage() {
     loadPackages()
     loadConductors()
     loadStats()
-    // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa usando zona horaria de Bogotá
+    // Establecer fecha por defecto (hoy) en formato dd/mm/aaaa usando Intl.DateTimeFormat
     const today = new Date()
-    const todayFormatted = today.toLocaleDateString('es-CO', {
+    const formatter = new Intl.DateTimeFormat('es-CO', { 
+      timeZone: 'America/Bogota',
       day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric',
-      timeZone: 'America/Bogota'
+      month: '2-digit',
+      year: 'numeric'
     })
+    const todayFormatted = formatter.format(today)
+    console.log('Fecha por defecto establecida:', todayFormatted)
     setFormData(prev => ({ ...prev, fecha_entrega: todayFormatted }))
     setBulkFechaEntrega(todayFormatted)
     setDeliveryFechaCliente(todayFormatted)
@@ -554,13 +556,16 @@ export default function PackagesPage() {
     // Convertir fecha de ISO a formato dd/mm/aaaa para el formulario
     const formatDateForForm = (isoDate: string) => {
       const date = new Date(isoDate)
-      // Usar toLocaleDateString con zona horaria de Bogotá para consistencia
-      return date.toLocaleDateString('es-CO', {
+      // Usar Intl.DateTimeFormat con zona horaria de Bogotá para consistencia
+      const formatter = new Intl.DateTimeFormat('es-CO', { 
+        timeZone: 'America/Bogota',
         day: '2-digit',
-        month: '2-digit', 
-        year: 'numeric',
-        timeZone: 'America/Bogota'
+        month: '2-digit',
+        year: 'numeric'
       })
+      const result = formatter.format(date)
+      console.log('Fecha convertida para formulario:', isoDate, '->', result)
+      return result
     }
     
     setFormData({
@@ -670,13 +675,16 @@ export default function PackagesPage() {
       <td className="text-secondary-600 font-segoe text-sm">
         {(() => {
           const date = new Date(pkg.fecha_entrega)
-          // Usar toLocaleDateString con zona horaria de Bogotá para consistencia
-          return date.toLocaleDateString('es-CO', {
+          // Usar Intl.DateTimeFormat con zona horaria de Bogotá para consistencia
+          const formatter = new Intl.DateTimeFormat('es-CO', { 
+            timeZone: 'America/Bogota',
             day: '2-digit',
-            month: '2-digit', 
-            year: 'numeric',
-            timeZone: 'America/Bogota'
+            month: '2-digit',
+            year: 'numeric'
           })
+          const result = formatter.format(date)
+          console.log('Fecha mostrada en tabla:', pkg.fecha_entrega, '->', result)
+          return result
         })()}
       </td>
       {pkg.tipo === 'Dropi' && (
