@@ -669,17 +669,7 @@ export default function PackagesPage() {
         </span>
       </td>
       <td className="text-secondary-600 font-segoe text-sm">
-        {(() => {
-          const date = new Date(pkg.fecha_entrega)
-          // MÉTODO SIMPLE Y DIRECTO para visualización
-          date.setHours(date.getHours() - 5) // Ajustar a UTC-5 (Bogotá)
-          const day = date.getDate().toString().padStart(2, '0')
-          const month = (date.getMonth() + 1).toString().padStart(2, '0')
-          const year = date.getFullYear()
-          const result = `${day}/${month}/${year}`
-          console.log('Fecha mostrada en tabla:', pkg.fecha_entrega, '->', result)
-          return result
-        })()}
+        {pkg.fecha_entrega}
       </td>
       {pkg.tipo === 'Dropi' && (
         <td className="text-secondary-600 font-segoe text-sm">
