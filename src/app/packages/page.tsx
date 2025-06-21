@@ -195,7 +195,11 @@ export default function PackagesPage() {
         if (dateStr.includes('-') && dateStr.length === 10) {
           // Formato YYYY-MM-DD (del input HTML)
           console.log('Fecha en formato YYYY-MM-DD detectada:', dateStr)
-          return `${dateStr}T12:00:00-05:00`
+          // Crear fecha en zona horaria local y convertir a UTC-5
+          const localDate = new Date(dateStr + 'T12:00:00')
+          const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000))
+          const bogotaDate = new Date(utcDate.getTime() - (5 * 60 * 60 * 1000))
+          return bogotaDate.toISOString().slice(0, 19) + '-05:00'
         } else if (dateStr.includes('/')) {
           // Formato dd/mm/aaaa
           console.log('Fecha en formato dd/mm/aaaa detectada:', dateStr)
@@ -212,7 +216,7 @@ export default function PackagesPage() {
             throw new Error('Fecha incompleta')
           }
           
-          // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
+          // Crear fecha directamente en formato ISO con zona horaria de Bogotá
           return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
         } else {
           console.error('Formato de fecha no reconocido en handleSubmit:', dateStr)
@@ -303,6 +307,7 @@ export default function PackagesPage() {
         if (dateStr.includes('-') && dateStr.length === 10) {
           // Formato YYYY-MM-DD (del input HTML)
           console.log('Fecha en formato YYYY-MM-DD detectada en bulk:', dateStr)
+          // Crear fecha directamente sin conversiones adicionales
           return `${dateStr}T12:00:00-05:00`
         } else if (dateStr.includes('/')) {
           // Formato dd/mm/aaaa
@@ -320,7 +325,7 @@ export default function PackagesPage() {
             throw new Error('Fecha incompleta')
           }
           
-          // Añadir hora específica (12:00 PM) con zona horaria de Bogotá (UTC-5)
+          // Crear fecha directamente en formato ISO con zona horaria de Bogotá
           return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00-05:00`
         } else {
           console.error('Formato de fecha no reconocido en handleBulkSubmit:', dateStr)
