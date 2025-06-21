@@ -395,9 +395,13 @@ export default function ConductorDashboard() {
                   <p className="text-secondary-700 font-segoe text-sm">Zona de trabajo: {conductor.zona}</p>
                   <p className="text-secondary-600 font-segoe text-xs">Conductor desde: {(() => {
                     const date = new Date(conductor.created_at)
-                    // Convertir correctamente a zona horaria de Bogotá (UTC-5)
-                    const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
-                    return bogotaDate.toLocaleDateString('es-CO')
+                    // Usar toLocaleDateString con zona horaria de Bogotá para consistencia
+                    return date.toLocaleDateString('es-CO', {
+                      day: '2-digit',
+                      month: '2-digit', 
+                      year: 'numeric',
+                      timeZone: 'America/Bogota'
+                    })
                   })()}</p>
                 </div>
               </div>
@@ -720,15 +724,23 @@ export default function ConductorDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{(() => {
                           const date = new Date(pkg.fecha_entrega)
-                          // Convertir correctamente a zona horaria de Bogotá (UTC-5)
-                          const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
-                          return bogotaDate.toLocaleDateString('es-CO')
+                          // Usar toLocaleDateString con zona horaria de Bogotá para consistencia
+                          return date.toLocaleDateString('es-CO', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric',
+                            timeZone: 'America/Bogota'
+                          })
                         })()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.fecha_entrega_cliente ? (() => {
                           const date = new Date(pkg.fecha_entrega_cliente)
-                          // Convertir correctamente a zona horaria de Bogotá (UTC-5)
-                          const bogotaDate = new Date(date.getTime() - (5 * 60 * 60 * 1000))
-                          return bogotaDate.toLocaleDateString('es-CO')
+                          // Usar toLocaleDateString con zona horaria de Bogotá para consistencia
+                          return date.toLocaleDateString('es-CO', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric',
+                            timeZone: 'America/Bogota'
+                          })
                         })() : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">{pkg.valor ? pkg.valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">
