@@ -137,17 +137,46 @@ export async function GET(
         break
     }
 
-    // Ejecutar query
-    const { data: packages, error } = await baseQuery
-      .order('fecha_entrega', { ascending: false })
-      .limit(100) // Limitar a 100 registros para rendimiento
+    // Función para obtener TODOS los paquetes con paginación automática
+    const getAllPackages = async (baseQuery: any) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    if (error) {
-      console.error('Error fetching packages:', error)
-      return NextResponse.json({ 
-        error: 'Error al obtener datos de paquetes'
-      }, { status: 500 })
+      while (hasMore) {
+        console.log(`Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await baseQuery
+          .order('fecha_entrega', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        if (error) {
+          console.error('Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
     }
+
+    // Ejecutar query con paginación automática
+    const packages = await getAllPackages(baseQuery)
 
     // Calcular días de atraso para cada paquete
     const enrichedPackages = packages.map(pkg => {
