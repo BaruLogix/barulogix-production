@@ -48,15 +48,57 @@ export async function GET(
       }, { status: 404 })
     }
 
-    // Construir filtro de fecha
-    let dateFilter = ''
-    let dateParams: any[] = []
+    // Función para obtener TODOS los paquetes con paginación automática (COPIADA DEL DASHBOARD)
+    const getAllPackages = async (conductorId: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
+      while (hasMore) {
+        console.log(`[CONDUCTOR STATS] Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await supabase
+          .from('packages')
+          .select('*')
+          .eq('conductor_id', conductorId)
+          .order('fecha_entrega', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        if (error) {
+          console.error('[CONDUCTOR STATS] Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`[CONDUCTOR STATS] Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`[CONDUCTOR STATS] TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
+    }
+
+    // Obtener TODOS los paquetes usando paginación automática
+    let allPackages = await getAllPackages(conductorId)
+
+    // Aplicar filtros temporales en memoria
     switch (filterType) {
       case 'range':
         if (startDate && endDate) {
-          dateFilter = 'AND fecha_entrega >= $2 AND fecha_entrega <= $3'
-          dateParams = [startDate, endDate]
+          allPackages = allPackages.filter(p => 
+            p.fecha_entrega >= startDate && p.fecha_entrega <= endDate
+          )
         }
         break
       
@@ -66,8 +108,8 @@ export async function GET(
           if (days > 0 && days <= 30) {
             const startDateCalc = new Date()
             startDateCalc.setDate(startDateCalc.getDate() - days)
-            dateFilter = 'AND fecha_entrega >= $2'
-            dateParams = [startDateCalc.toISOString().split('T')[0]] // Solo la fecha
+            const startDateStr = startDateCalc.toISOString().split('T')[0]
+            allPackages = allPackages.filter(p => p.fecha_entrega >= startDateStr)
           }
         }
         break
@@ -78,8 +120,11 @@ export async function GET(
           const yearNum = parseInt(year)
           const startOfMonth = new Date(yearNum, monthNum - 1, 1)
           const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59)
-          dateFilter = 'AND fecha_entrega >= $2 AND fecha_entrega <= $3'
-          dateParams = [startOfMonth.toISOString().split('T')[0], endOfMonth.toISOString().split('T')[0]] // Solo la fecha
+          const startDateStr = startOfMonth.toISOString().split('T')[0]
+          const endDateStr = endOfMonth.toISOString().split('T')[0]
+          allPackages = allPackages.filter(p => 
+            p.fecha_entrega >= startDateStr && p.fecha_entrega <= endDateStr
+          )
         }
         break
       
@@ -88,96 +133,54 @@ export async function GET(
         break
     }
 
-    // Consultas para estadísticas (usando la tabla 'packages')
-    const queries = [
-      // Paquetes Shein/Temu entregados
-      `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM packages 
-       WHERE conductor_id = $1 
-       AND tipo = 'Shein/Temu' 
-       AND estado = 1 
-       ${dateFilter}`,
-      
-      // Paquetes Shein/Temu pendientes (estado 0 o 2)
-      `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM packages 
-       WHERE conductor_id = $1 
-       AND tipo = 'Shein/Temu' 
-       AND estado != 1 
-       ${dateFilter}`,
-      
-      // Paquetes Dropi entregados
-      `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM packages 
-       WHERE conductor_id = $1 
-       AND tipo = 'Dropi' 
-       AND estado = 1 
-       ${dateFilter}`,
-      
-      // Paquetes Dropi pendientes (estado 0 o 2)
-      `SELECT COUNT(*) as count, COALESCE(SUM(valor), 0) as total_value 
-       FROM packages 
-       WHERE conductor_id = $1 
-       AND tipo = 'Dropi' 
-       AND estado != 1 
-       ${dateFilter}`,
-      
-      // Valor total pendiente (solo Dropi, estado 0 o 2)
-      `SELECT COALESCE(SUM(valor), 0) as total_pending 
-       FROM packages 
-       WHERE conductor_id = $1 
-       AND tipo = 'Dropi' 
-       AND estado != 1 
-       ${dateFilter}`,
-      
-      // Días de atraso promedio (solo paquetes 'No entregado' = 0)
-      `SELECT AVG(
-         CASE 
-           WHEN fecha_entrega < CURRENT_DATE AND estado = 0 
-           THEN EXTRACT(DAY FROM CURRENT_DATE - fecha_entrega)
-           ELSE 0 
-         END
-       ) as avg_delay_days
-       FROM packages 
-       WHERE conductor_id = $1 
-       ${dateFilter}`
-    ]
-
-    const results = []
-    
-    for (const query of queries) {
-      const { data, error } = await supabase.rpc('execute_sql', {
-        query: query,
-        params: [conductorId, ...dateParams]
-      })
-      
-      if (error) {
-        console.error('Error executing query:', error)
-        results.push({ count: 0, total_value: 0, total_pending: 0, avg_delay_days: 0 })
-      } else {
-        results.push(data[0] || { count: 0, total_value: 0, total_pending: 0, avg_delay_days: 0 })
-      }
-    }
-
+    // Calcular estadísticas usando TODOS los paquetes en memoria
     const stats = {
       shein_temu_entregados: {
-        count: parseInt(results[0]?.count || 0),
-        value: parseFloat(results[0]?.total_value || 0)
+        count: allPackages.filter(p => p.tipo === 'Shein/Temu' && p.estado === 1).length,
+        value: allPackages
+          .filter(p => p.tipo === 'Shein/Temu' && p.estado === 1)
+          .reduce((sum, p) => sum + (p.valor || 0), 0)
       },
       shein_temu_pendientes: {
-        count: parseInt(results[1]?.count || 0),
-        value: parseFloat(results[1]?.total_value || 0)
+        count: allPackages.filter(p => p.tipo === 'Shein/Temu' && p.estado !== 1).length,
+        value: allPackages
+          .filter(p => p.tipo === 'Shein/Temu' && p.estado !== 1)
+          .reduce((sum, p) => sum + (p.valor || 0), 0)
       },
       dropi_entregados: {
-        count: parseInt(results[2]?.count || 0),
-        value: parseFloat(results[2]?.total_value || 0)
+        count: allPackages.filter(p => p.tipo === 'Dropi' && p.estado === 1).length,
+        value: allPackages
+          .filter(p => p.tipo === 'Dropi' && p.estado === 1)
+          .reduce((sum, p) => sum + (p.valor || 0), 0)
       },
       dropi_pendientes: {
-        count: parseInt(results[3]?.count || 0),
-        value: parseFloat(results[3]?.total_value || 0)
+        count: allPackages.filter(p => p.tipo === 'Dropi' && p.estado !== 1).length,
+        value: allPackages
+          .filter(p => p.tipo === 'Dropi' && p.estado !== 1)
+          .reduce((sum, p) => sum + (p.valor || 0), 0)
       },
-      valor_pendiente: parseFloat(results[4]?.total_pending || 0),
-      dias_atraso_promedio: parseFloat(results[5]?.avg_delay_days || 0)
+      valor_pendiente: allPackages
+        .filter(p => p.tipo === 'Dropi' && p.estado !== 1)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      dias_atraso_promedio: (() => {
+        const atrasados = allPackages.filter(p => {
+          if (p.estado !== 0) return false
+          const fechaEntrega = new Date(p.fecha_entrega)
+          const hoy = new Date()
+          return hoy > fechaEntrega
+        })
+        
+        if (atrasados.length === 0) return 0
+        
+        const totalDias = atrasados.reduce((sum, p) => {
+          const fechaEntrega = new Date(p.fecha_entrega)
+          const hoy = new Date()
+          const dias = Math.floor((hoy.getTime() - fechaEntrega.getTime()) / (1000 * 60 * 60 * 24))
+          return sum + dias
+        }, 0)
+        
+        return totalDias / atrasados.length
+      })()
     }
 
     console.log('Estadísticas calculadas:', stats)
@@ -202,5 +205,4 @@ export async function GET(
     }, { status: 500 })
   }
 }
-
 

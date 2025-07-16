@@ -40,41 +40,73 @@ export async function POST(request: NextRequest) {
 
     const conductorIds = userConductors.map(c => c.id)
 
-    // Construir query base para paquetes
-    let packagesQuery = supabase
-      .from('packages')
-      .select(`
-        id,
-        tracking,
-        tipo,
-        estado,
-        fecha_entrega,
-        valor,
-        created_at,
-        conductor:conductors(id, nombre, zona)
-      `)
-      .in('conductor_id', conductorIds)
+    // Función para obtener TODOS los paquetes con paginación automática (COPIADA DEL DASHBOARD)
+    const getAllPackages = async (userId: string, conductor_id: string | null, fecha_desde: string | null, fecha_hasta: string | null) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    // Aplicar filtros de fecha si se proporcionan
-    if (fecha_desde) {
-      packagesQuery = packagesQuery.gte('fecha_entrega', fecha_desde)
-    }
-    if (fecha_hasta) {
-      packagesQuery = packagesQuery.lte('fecha_entrega', fecha_hasta)
+      while (hasMore) {
+        console.log(`[PDF] Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        // Construir query base
+        let packagesQuery = supabase
+          .from('packages')
+          .select(`
+            id,
+            tracking,
+            tipo,
+            estado,
+            fecha_entrega,
+            valor,
+            created_at,
+            conductor:conductors!inner(id, nombre, zona, user_id)
+          `)
+          .eq('conductor.user_id', userId)
+          .range(from, from + pageSize - 1)
+
+        // Aplicar filtros de fecha si se proporcionan
+        if (fecha_desde) {
+          packagesQuery = packagesQuery.gte('fecha_entrega', fecha_desde)
+        }
+        if (fecha_hasta) {
+          packagesQuery = packagesQuery.lte('fecha_entrega', fecha_hasta)
+        }
+
+        // Aplicar filtro de conductor específico si se proporciona
+        if (conductor_id) {
+          packagesQuery = packagesQuery.eq('conductor_id', conductor_id)
+        }
+
+        const { data: packages, error } = await packagesQuery
+
+        if (error) {
+          console.error('[PDF] Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`[PDF] Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`[PDF] TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
     }
 
-    // Aplicar filtro de conductor específico si se proporciona
-    if (type === 'specific' && conductor_id) {
-      packagesQuery = packagesQuery.eq('conductor_id', conductor_id)
-    }
-
-    const { data: packages, error: packagesError } = await packagesQuery
-
-    if (packagesError) {
-      return NextResponse.json({ 
-        error: 'Error obteniendo paquetes' 
-      }, { status: 500 })
-    }
+    // Obtener TODOS los paquetes usando paginación automática
+    const packages = await getAllPackages(userId, type === 'specific' ? conductor_id : null, fecha_desde, fecha_hasta)
 
     // Calcular estadísticas generales
     const totalPackages = packages.length
