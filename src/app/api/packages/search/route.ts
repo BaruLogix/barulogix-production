@@ -121,53 +121,36 @@ export async function GET(request: NextRequest) {
 
     // Aplicar filtros temporales
     if (filterType !== 'all') {
-      let startDate: Date | null = null
-      let endDate: Date | null = null
+      console.log(`[SEARCH] Aplicando filtro temporal: ${filterType}`)
 
       if (filterType === 'lastDays') {
         const days = parseInt(lastDays)
-        const today = new Date()
-        today.setHours(today.getHours() - 5) // UTC-5 Bogotá
-        endDate = new Date(today)
-        startDate = new Date(today)
-        startDate.setDate(startDate.getDate() - days)
-        console.log(`[SEARCH] Filtro últimos ${days} días: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+        if (days > 0 && days <= 30) {
+          const startDateCalc = new Date()
+          startDateCalc.setDate(startDateCalc.getDate() - days)
+          const startDateStr = startDateCalc.toISOString().split('T')[0]
+          console.log(`[SEARCH] Filtro últimos ${days} días: desde ${startDateStr}`)
+          packages = packages.filter(p => p.fecha_entrega >= startDateStr)
+        }
       } else if (filterType === 'month') {
         const monthNum = parseInt(month)
         const yearNum = parseInt(year)
-        startDate = new Date(yearNum, monthNum - 1, 1)
-        startDate.setHours(startDate.getHours() - 5) // UTC-5 Bogotá
-        endDate = new Date(yearNum, monthNum, 0, 23, 59, 59)
-        endDate.setHours(endDate.getHours() - 5) // UTC-5 Bogotá
-        console.log(`[SEARCH] Filtro mes ${monthNum}/${yearNum}: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+        const startOfMonth = new Date(yearNum, monthNum - 1, 1)
+        const endOfMonth = new Date(yearNum, monthNum, 0, 23, 59, 59)
+        const startDateStr = startOfMonth.toISOString().split('T')[0]
+        const endDateStr = endOfMonth.toISOString().split('T')[0]
+        console.log(`[SEARCH] Filtro mes ${monthNum}/${yearNum}: ${startDateStr} - ${endDateStr}`)
+        packages = packages.filter(p => 
+          p.fecha_entrega >= startDateStr && p.fecha_entrega <= endDateStr
+        )
       } else if (filterType === 'range' && fecha_desde && fecha_hasta) {
-        startDate = new Date(`${fecha_desde}T00:00:00-05:00`)
-        endDate = new Date(`${fecha_hasta}T23:59:59-05:00`)
-        console.log(`[SEARCH] Filtro rango: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+        console.log(`[SEARCH] Filtro rango: ${fecha_desde} - ${fecha_hasta}`)
+        packages = packages.filter(p => 
+          p.fecha_entrega >= fecha_desde && p.fecha_entrega <= fecha_hasta
+        )
       }
 
-      if (startDate && endDate) {
-        packages = packages.filter(p => {
-          const packageDate = new Date(p.fecha_entrega)
-          return packageDate >= startDate! && packageDate <= endDate!
-        })
-        console.log(`[SEARCH] Paquetes después de filtro temporal: ${packages.length}`)
-      }
-    }
-    
-    // Aplicar filtros de fecha manual (solo si filterType es 'range' o si se especifican fechas directamente)
-    if (filterType === 'all' || filterType === 'range') {
-      if (fecha_desde && !endDate) {
-        const fechaDesdeISO = `${fecha_desde}T00:00:00-05:00`
-        console.log('Filtro fecha_desde ISO:', fechaDesdeISO)
-        packages = packages.filter(p => p.fecha_entrega >= fechaDesdeISO)
-      }
-      
-      if (fecha_hasta && !startDate) {
-        const fechaHastaISO = `${fecha_hasta}T23:59:59-05:00`
-        console.log('Filtro fecha_hasta ISO:', fechaHastaISO)
-        packages = packages.filter(p => p.fecha_entrega <= fechaHastaISO)
-      }
+      console.log(`[SEARCH] Paquetes después de filtro temporal: ${packages.length}`)
     }
 
     console.log('Paquetes encontrados después de filtros de búsqueda:', packages?.length || 0)
