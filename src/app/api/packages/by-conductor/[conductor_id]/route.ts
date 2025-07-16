@@ -37,49 +37,89 @@ export async function GET(
 
     console.log('Conductor encontrado:', conductor.nombre)
 
-    // Construir query base
-    let query = supabase
-      .from('packages')
-      .select('*')
-      .eq('conductor_id', params.conductor_id)
-      .order('fecha_entrega', { ascending: false })
+    // Función para obtener TODOS los paquetes con paginación automática (COPIADA DEL DASHBOARD)
+    const getAllPackages = async (conductorId: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
 
-    // Aplicar filtros temporales
+      while (hasMore) {
+        console.log(`[CONDUCTOR ANALYSIS] Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        const { data: packages, error } = await supabase
+          .from('packages')
+          .select('*')
+          .eq('conductor_id', conductorId)
+          .order('fecha_entrega', { ascending: false })
+          .range(from, from + pageSize - 1)
+
+        if (error) {
+          console.error('[CONDUCTOR ANALYSIS] Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`[CONDUCTOR ANALYSIS] Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`[CONDUCTOR ANALYSIS] TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      return allPackages
+    }
+
+    // Obtener TODOS los paquetes usando paginación automática
+    let packages = await getAllPackages(params.conductor_id)
+
+    // Aplicar filtros temporales en memoria
     const now = new Date()
-    let dateFilter = null
 
     switch (filterType) {
       case 'range':
-        if (startDate) query = query.gte('fecha_entrega', startDate)
-        if (endDate) query = query.lte('fecha_entrega', endDate)
+        if (startDate && endDate) {
+          packages = packages.filter(p => 
+            p.fecha_entrega >= startDate && p.fecha_entrega <= endDate
+          )
+        }
         break
       
       case 'lastDays':
-        const daysAgo = new Date()
-        daysAgo.setDate(now.getDate() - parseInt(lastDays || '7'))
-        query = query.gte('fecha_entrega', daysAgo.toISOString().split('T')[0])
+        if (lastDays) {
+          const daysAgo = new Date()
+          daysAgo.setDate(now.getDate() - parseInt(lastDays))
+          const dateStr = daysAgo.toISOString().split('T')[0]
+          packages = packages.filter(p => p.fecha_entrega >= dateStr)
+        }
         break
       
       case 'month':
-        const targetYear = parseInt(year || now.getFullYear().toString())
-        const targetMonth = parseInt(month || (now.getMonth() + 1).toString())
-        const monthStart = new Date(targetYear, targetMonth - 1, 1)
-        const monthEnd = new Date(targetYear, targetMonth, 0)
-        query = query.gte('fecha_entrega', monthStart.toISOString().split('T')[0])
-        query = query.lte('fecha_entrega', monthEnd.toISOString().split('T')[0])
+        if (month && year) {
+          const targetYear = parseInt(year)
+          const targetMonth = parseInt(month)
+          const monthStart = new Date(targetYear, targetMonth - 1, 1)
+          const monthEnd = new Date(targetYear, targetMonth, 0)
+          const startStr = monthStart.toISOString().split('T')[0]
+          const endStr = monthEnd.toISOString().split('T')[0]
+          packages = packages.filter(p => 
+            p.fecha_entrega >= startStr && p.fecha_entrega <= endStr
+          )
+        }
         break
       
       case 'all':
       default:
         // Sin filtro de fecha
         break
-    }
-
-    const { data: packages, error } = await query
-
-    if (error) {
-      console.error('Error getting packages by conductor:', error)
-      return NextResponse.json({ error: 'Error al obtener paquetes del conductor' }, { status: 500 })
     }
 
     console.log('Paquetes encontrados:', packages?.length || 0)

@@ -47,6 +47,15 @@ export default function ConductorAnalysisPage() {
   const [analysis, setAnalysis] = useState<ConductorAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
   const [filterEstado, setFilterEstado] = useState('')
+  
+  // Estados para filtros temporales
+  const [filterType, setFilterType] = useState('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [lastDays, setLastDays] = useState('7')
+  const [month, setMonth] = useState((new Date().getMonth() + 1).toString())
+  const [year, setYear] = useState(new Date().getFullYear().toString())
+  
   const router = useRouter()
 
   useEffect(() => {
@@ -108,7 +117,20 @@ export default function ConductorAnalysisPage() {
         'x-user-id': userId
       }
 
-      const response = await fetch(`/api/packages/by-conductor/${conductorId}`, { headers })
+      // Construir URL con parámetros de filtro
+      let url = `/api/packages/by-conductor/${conductorId}?filterType=${filterType}`
+      
+      if (filterType === 'range' && startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`
+      } else if (filterType === 'lastDays') {
+        url += `&lastDays=${lastDays}`
+      } else if (filterType === 'month') {
+        url += `&month=${month}&year=${year}`
+      }
+
+      console.log('Cargando análisis con URL:', url)
+
+      const response = await fetch(url, { headers })
       if (response.ok) {
         const data = await response.json()
         setAnalysis(data)
@@ -211,30 +233,140 @@ export default function ConductorAnalysisPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Selector de Conductor */}
+        {/* Selector de Conductor y Filtros Temporales */}
         <div className="card-barulogix-lg mb-8 animate-fade-in">
           <h2 className="text-2xl font-bold text-secondary-900 mb-6 font-montserrat">
             <svg className="w-8 h-8 inline-block mr-3 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            Seleccionar Conductor
+            Seleccionar Conductor y Filtros
           </h2>
 
-          <div className="max-w-md">
-            <label className="label-barulogix">Conductor a Analizar</label>
-            <select
-              value={selectedConductor}
-              onChange={(e) => handleConductorChange(e.target.value)}
-              className="input-barulogix-modern focus-ring"
-            >
-              <option value="">Seleccionar conductor...</option>
-              {conductors.filter(c => c.activo).map(conductor => (
-                <option key={conductor.id} value={conductor.id}>
-                  {conductor.nombre} - {conductor.zona}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Selector de Conductor */}
+            <div>
+              <label className="label-barulogix">Conductor a Analizar</label>
+              <select
+                value={selectedConductor}
+                onChange={(e) => handleConductorChange(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              >
+                <option value="">Seleccionar conductor...</option>
+                {conductors.filter(c => c.activo).map(conductor => (
+                  <option key={conductor.id} value={conductor.id}>
+                    {conductor.nombre} - {conductor.zona}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtros Temporales */}
+            <div>
+              <label className="label-barulogix">Filtro Temporal</label>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="input-barulogix-modern focus-ring"
+              >
+                <option value="all">Todos los paquetes</option>
+                <option value="lastDays">Últimos días</option>
+                <option value="range">Rango de fechas</option>
+                <option value="month">Mes específico</option>
+              </select>
+            </div>
           </div>
+
+          {/* Filtros Adicionales */}
+          {filterType === 'lastDays' && (
+            <div className="mt-4">
+              <label className="label-barulogix">Últimos días</label>
+              <select
+                value={lastDays}
+                onChange={(e) => setLastDays(e.target.value)}
+                className="input-barulogix-modern focus-ring max-w-xs"
+              >
+                <option value="7">Últimos 7 días</option>
+                <option value="15">Últimos 15 días</option>
+                <option value="30">Últimos 30 días</option>
+              </select>
+            </div>
+          )}
+
+          {filterType === 'range' && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label-barulogix">Fecha desde</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                />
+              </div>
+              <div>
+                <label className="label-barulogix">Fecha hasta</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                />
+              </div>
+            </div>
+          )}
+
+          {filterType === 'month' && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label-barulogix">Mes</label>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="1">Enero</option>
+                  <option value="2">Febrero</option>
+                  <option value="3">Marzo</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Mayo</option>
+                  <option value="6">Junio</option>
+                  <option value="7">Julio</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Septiembre</option>
+                  <option value="10">Octubre</option>
+                  <option value="11">Noviembre</option>
+                  <option value="12">Diciembre</option>
+                </select>
+              </div>
+              <div>
+                <label className="label-barulogix">Año</label>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  className="input-barulogix-modern focus-ring"
+                >
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Botón Aplicar Filtros */}
+          {selectedConductor && filterType !== 'all' && (
+            <div className="mt-6">
+              <button
+                onClick={() => loadAnalysis(selectedConductor)}
+                className="btn-primary"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Aplicar Filtros
+              </button>
+            </div>
+          )}
         </div>
 
         {loading && (
