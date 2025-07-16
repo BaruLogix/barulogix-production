@@ -54,6 +54,13 @@ export default function SearchPage() {
     fecha_desde: '',
     fecha_hasta: ''
   })
+  
+  // Estados para filtros temporales
+  const [filterType, setFilterType] = useState('all')
+  const [lastDays, setLastDays] = useState('7')
+  const [month, setMonth] = useState((new Date().getMonth() + 1).toString())
+  const [year, setYear] = useState(new Date().getFullYear().toString())
+  
   const router = useRouter()
 
   useEffect(() => {
@@ -112,9 +119,24 @@ export default function SearchPage() {
       }
 
       const queryParams = new URLSearchParams()
+      
+      // Parámetros de búsqueda existentes
       Object.entries(searchParams).forEach(([key, value]) => {
         if (value) queryParams.append(key, value)
       })
+
+      // Añadir filtros temporales
+      queryParams.append('filterType', filterType)
+      
+      if (filterType === 'lastDays') {
+        queryParams.append('lastDays', lastDays)
+      } else if (filterType === 'month') {
+        queryParams.append('month', month)
+        queryParams.append('year', year)
+      }
+      // Para 'range' ya se usan fecha_desde y fecha_hasta del searchParams
+
+      console.log('Búsqueda con filtros temporales:', queryParams.toString())
 
       const headers = {
         'x-user-id': userId
@@ -154,6 +176,10 @@ export default function SearchPage() {
       fecha_desde: '',
       fecha_hasta: ''
     })
+    setFilterType('all')
+    setLastDays('7')
+    setMonth((new Date().getMonth() + 1).toString())
+    setYear(new Date().getFullYear().toString())
     setResults([])
     setStats({
       total_results: 0,
@@ -305,25 +331,113 @@ export default function SearchPage() {
                   <option value="2">Devuelto</option>
                 </select>
               </div>
+            </div>
 
-              <div>
-                <label className="label-barulogix">Fecha Desde</label>
-                <input
-                  type="date"
-                  value={searchParams.fecha_desde}
-                  onChange={(e) => setSearchParams({ ...searchParams, fecha_desde: e.target.value })}
-                  className="input-barulogix-modern focus-ring"
-                />
-              </div>
+            {/* Filtros Temporales */}
+            <div className="border-t border-secondary-200 pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-secondary-900 mb-4 font-montserrat">
+                <svg className="w-5 h-5 inline-block mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Filtros Temporales
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="label-barulogix">Período de Tiempo</label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => {
+                      setFilterType(e.target.value)
+                      // Limpiar fechas manuales cuando se cambia el tipo de filtro
+                      if (e.target.value !== 'range') {
+                        setSearchParams({ ...searchParams, fecha_desde: '', fecha_hasta: '' })
+                      }
+                    }}
+                    className="input-barulogix-modern focus-ring"
+                  >
+                    <option value="all">Todos los paquetes</option>
+                    <option value="lastDays">Últimos días</option>
+                    <option value="range">Rango de fechas</option>
+                    <option value="month">Mes específico</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="label-barulogix">Fecha Hasta</label>
-                <input
-                  type="date"
-                  value={searchParams.fecha_hasta}
-                  onChange={(e) => setSearchParams({ ...searchParams, fecha_hasta: e.target.value })}
-                  className="input-barulogix-modern focus-ring"
-                />
+                {filterType === 'lastDays' && (
+                  <div>
+                    <label className="label-barulogix">Últimos Días</label>
+                    <select
+                      value={lastDays}
+                      onChange={(e) => setLastDays(e.target.value)}
+                      className="input-barulogix-modern focus-ring"
+                    >
+                      <option value="7">Últimos 7 días</option>
+                      <option value="15">Últimos 15 días</option>
+                      <option value="30">Últimos 30 días</option>
+                    </select>
+                  </div>
+                )}
+
+                {filterType === 'range' && (
+                  <>
+                    <div>
+                      <label className="label-barulogix">Fecha Desde</label>
+                      <input
+                        type="date"
+                        value={searchParams.fecha_desde}
+                        onChange={(e) => setSearchParams({ ...searchParams, fecha_desde: e.target.value })}
+                        className="input-barulogix-modern focus-ring"
+                      />
+                    </div>
+                    <div>
+                      <label className="label-barulogix">Fecha Hasta</label>
+                      <input
+                        type="date"
+                        value={searchParams.fecha_hasta}
+                        onChange={(e) => setSearchParams({ ...searchParams, fecha_hasta: e.target.value })}
+                        className="input-barulogix-modern focus-ring"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {filterType === 'month' && (
+                  <>
+                    <div>
+                      <label className="label-barulogix">Mes</label>
+                      <select
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="input-barulogix-modern focus-ring"
+                      >
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label-barulogix">Año</label>
+                      <select
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        className="input-barulogix-modern focus-ring"
+                      >
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

@@ -28,15 +28,25 @@ export async function GET(request: NextRequest) {
     const conductor_id = searchParams.get('conductor_id')
     const tipo = searchParams.get('tipo')
     const estado = searchParams.get('estado')
-    const fecha_desde = searchParams.get('fecha_desde') // Cambiar nombre para coincidir con frontend
-    const fecha_hasta = searchParams.get('fecha_hasta') // Cambiar nombre para coincidir con frontend
+    const fecha_desde = searchParams.get('fecha_desde')
+    const fecha_hasta = searchParams.get('fecha_hasta')
     const zona = searchParams.get('zona')
+    
+    // Nuevos filtros temporales
+    const filterType = searchParams.get('filterType') || 'all'
+    const lastDays = searchParams.get('lastDays') || '7'
+    const month = searchParams.get('month') || (new Date().getMonth() + 1).toString()
+    const year = searchParams.get('year') || new Date().getFullYear().toString()
 
     console.log('=== DEBUG SEARCH PARAMS ===')
+    console.log('filterType:', filterType)
+    console.log('lastDays:', lastDays)
+    console.log('month:', month)
+    console.log('year:', year)
     console.log('fecha_desde:', fecha_desde)
     console.log('fecha_hasta:', fecha_hasta)
 
-    if (!tracking && !conductor_id && !tipo && !estado && !fecha_desde && !fecha_hasta && !zona) {
+    if (!tracking && !conductor_id && !tipo && !estado && !fecha_desde && !fecha_hasta && !zona && filterType === 'all') {
       return NextResponse.json({ error: 'Debe proporcionar al menos un criterio de búsqueda' }, { status: 400 })
     }
 
@@ -103,24 +113,61 @@ export async function GET(request: NextRequest) {
     if (estado !== null && estado !== undefined && estado !== '') {
       packages = packages.filter(p => p.estado === parseInt(estado))
     }
-    
-    if (fecha_desde) {
-      // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación
-      const fechaDesdeISO = `${fecha_desde}T00:00:00-05:00`
-      console.log('Filtro fecha_desde ISO:', fechaDesdeISO)
-      packages = packages.filter(p => p.fecha_entrega >= fechaDesdeISO)
-    }
-    
-    if (fecha_hasta) {
-      // Convertir fecha YYYY-MM-DD a formato con zona horaria UTC-5 para comparación (final del día)
-      const fechaHastaISO = `${fecha_hasta}T23:59:59-05:00`
-      console.log('Filtro fecha_hasta ISO:', fechaHastaISO)
-      packages = packages.filter(p => p.fecha_entrega <= fechaHastaISO)
-    }
 
     // Filtro por zona del conductor
     if (zona) {
       packages = packages.filter(p => p.conductor.zona.toLowerCase().includes(zona.toLowerCase()))
+    }
+
+    // Aplicar filtros temporales
+    if (filterType !== 'all') {
+      let startDate: Date | null = null
+      let endDate: Date | null = null
+
+      if (filterType === 'lastDays') {
+        const days = parseInt(lastDays)
+        const today = new Date()
+        today.setHours(today.getHours() - 5) // UTC-5 Bogotá
+        endDate = new Date(today)
+        startDate = new Date(today)
+        startDate.setDate(startDate.getDate() - days)
+        console.log(`[SEARCH] Filtro últimos ${days} días: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+      } else if (filterType === 'month') {
+        const monthNum = parseInt(month)
+        const yearNum = parseInt(year)
+        startDate = new Date(yearNum, monthNum - 1, 1)
+        startDate.setHours(startDate.getHours() - 5) // UTC-5 Bogotá
+        endDate = new Date(yearNum, monthNum, 0, 23, 59, 59)
+        endDate.setHours(endDate.getHours() - 5) // UTC-5 Bogotá
+        console.log(`[SEARCH] Filtro mes ${monthNum}/${yearNum}: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+      } else if (filterType === 'range' && fecha_desde && fecha_hasta) {
+        startDate = new Date(`${fecha_desde}T00:00:00-05:00`)
+        endDate = new Date(`${fecha_hasta}T23:59:59-05:00`)
+        console.log(`[SEARCH] Filtro rango: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+      }
+
+      if (startDate && endDate) {
+        packages = packages.filter(p => {
+          const packageDate = new Date(p.fecha_entrega)
+          return packageDate >= startDate! && packageDate <= endDate!
+        })
+        console.log(`[SEARCH] Paquetes después de filtro temporal: ${packages.length}`)
+      }
+    }
+    
+    // Aplicar filtros de fecha manual (solo si filterType es 'range' o si se especifican fechas directamente)
+    if (filterType === 'all' || filterType === 'range') {
+      if (fecha_desde && !endDate) {
+        const fechaDesdeISO = `${fecha_desde}T00:00:00-05:00`
+        console.log('Filtro fecha_desde ISO:', fechaDesdeISO)
+        packages = packages.filter(p => p.fecha_entrega >= fechaDesdeISO)
+      }
+      
+      if (fecha_hasta && !startDate) {
+        const fechaHastaISO = `${fecha_hasta}T23:59:59-05:00`
+        console.log('Filtro fecha_hasta ISO:', fechaHastaISO)
+        packages = packages.filter(p => p.fecha_entrega <= fechaHastaISO)
+      }
     }
 
     console.log('Paquetes encontrados después de filtros de búsqueda:', packages?.length || 0)
