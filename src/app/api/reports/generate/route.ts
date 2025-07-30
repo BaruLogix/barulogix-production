@@ -44,16 +44,59 @@ export async function POST(request: NextRequest) {
 
     console.log('Conductores encontrados:', conductors?.length || 0)
 
-    // Obtener paquetes en el rango de fechas (usar created_at en lugar de fecha_entrega)
-    let packagesQuery = supabase
-      .from('packages')
-      .select(`
-        *,
-        conductor:conductors!inner(id, nombre, zona, user_id)
-      `)
-      .eq('conductor.user_id', userId)
-      .gte('created_at', fecha_inicio)
-      .lte('created_at', fecha_fin + 'T23:59:59.999Z') // Incluir todo el día final
+    // Función para obtener TODOS los paquetes con paginación automática
+    const getAllPackages = async (userId: string, fecha_inicio: string, fecha_fin: string, conductor_id?: string) => {
+      let allPackages: any[] = []
+      let from = 0
+      const pageSize = 1000
+      let hasMore = true
+
+      console.log('🔄 Iniciando obtención de TODOS los paquetes para reportes...')
+
+      while (hasMore) {
+        console.log(`📦 Obteniendo paquetes desde ${from} hasta ${from + pageSize - 1}`)
+        
+        let packagesQuery = supabase
+          .from('packages')
+          .select(`
+            *,
+            conductor:conductors!inner(id, nombre, zona, user_id)
+          `)
+          .eq('conductor.user_id', userId)
+          .gte('created_at', fecha_inicio)
+          .lte('created_at', fecha_fin + 'T23:59:59.999Z')
+          .range(from, from + pageSize - 1)
+
+        // Si es reporte específico, filtrar por conductor
+        if (conductor_id) {
+          packagesQuery = packagesQuery.eq('conductor_id', conductor_id)
+        }
+
+        const { data: packages, error } = await packagesQuery
+
+        if (error) {
+          console.error('❌ Error en paginación de paquetes:', error)
+          throw error
+        }
+
+        if (packages && packages.length > 0) {
+          allPackages = allPackages.concat(packages)
+          console.log(`✅ Página obtenida: ${packages.length} paquetes. Total acumulado: ${allPackages.length}`)
+          
+          // Si obtuvimos menos de pageSize, ya no hay más páginas
+          if (packages.length < pageSize) {
+            hasMore = false
+          } else {
+            from += pageSize
+          }
+        } else {
+          hasMore = false
+        }
+      }
+
+      console.log(`🎯 TOTAL FINAL de paquetes obtenidos para reportes: ${allPackages.length}`)
+      return allPackages
+    }
 
     console.log('Query de paquetes:', {
       userId,
@@ -63,17 +106,8 @@ export async function POST(request: NextRequest) {
       conductor_id
     })
 
-    // Si es reporte específico, filtrar por conductor
-    if (tipo_reporte === 'especifico' && conductor_id) {
-      packagesQuery = packagesQuery.eq('conductor_id', conductor_id)
-    }
-
-    const { data: packages, error: packagesError } = await packagesQuery
-
-    if (packagesError) {
-      console.error('Error obteniendo paquetes:', packagesError)
-      return NextResponse.json({ error: 'Error al obtener paquetes' }, { status: 500 })
-    }
+    // Obtener TODOS los paquetes usando paginación automática
+    const packages = await getAllPackages(userId, fecha_inicio, fecha_fin, tipo_reporte === 'especifico' ? conductor_id : undefined)
 
     console.log('Paquetes encontrados:', packages?.length || 0)
 
