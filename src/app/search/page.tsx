@@ -544,7 +544,7 @@ export default function SearchPage() {
                 <div className="ml-3">
                   <p className="text-xs font-medium text-secondary-600 font-segoe">Valor COD</p>
                   <p className="text-lg font-bold text-secondary-900 font-montserrat">
-                    ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                    ${stats.valor_no_entregado_cod?.toLocaleString('es-CO') || '0'}
                   </p>
                 </div>
               </div>

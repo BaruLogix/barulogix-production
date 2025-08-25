@@ -56,7 +56,7 @@ export default function PackagesPage() {
     entregados: 0,
     no_entregados: 0,
     devueltos: 0,
-    valor_total_dropi: 0
+    valor_no_entregado_cod: 0
   })
   const [formData, setFormData] = useState({
     tracking: '',
@@ -828,7 +828,7 @@ export default function PackagesPage() {
               <div className="ml-3">
                 <p className="text-xs font-medium text-secondary-600 font-segoe">Valor COD</p>
                 <p className="text-lg font-bold text-secondary-900 font-montserrat">
-                  ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
+                  ${stats.valor_no_entregado_cod?.toLocaleString('es-CO') || '0'}
                 </p>
               </div>
             </div>

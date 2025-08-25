@@ -161,13 +161,13 @@ export async function GET(request: NextRequest) {
       no_entregados: packages.filter(p => p.estado === 0).length,
       entregados: packages.filter(p => p.estado === 1).length,
       devueltos: packages.filter(p => p.estado === 2).length,
-      shein_temu: packages.filter(p => p.tipo === 'Shein/Temu').length,
-      dropi: packages.filter(p => p.tipo === 'Dropi').length,
-      valor_total_dropi: packages
-        .filter(p => p.tipo === 'Dropi' && p.valor)
+      paquetes_pagos: packages.filter(p => p.tipo === 'Paquetes Pagos').length,
+      paquetes_cod: packages.filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)').length,
+      valor_total_cod: packages
+        .filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.valor)
         .reduce((sum, p) => sum + (p.valor || 0), 0),
-      valor_no_entregado_dropi: packages
-        .filter(p => p.tipo === 'Dropi' && p.estado === 0 && p.valor)
+      valor_no_entregado_cod: packages
+        .filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado === 0 && p.valor)
         .reduce((sum, p) => sum + (p.valor || 0), 0)
     }
 
