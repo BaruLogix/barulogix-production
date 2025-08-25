@@ -13,7 +13,7 @@ interface Package {
     nombre: string
     zona: string
   }
-  tipo: 'Shein/Temu' | 'Dropi'
+  tipo: 'Paquetes Pagos' | 'Paquetes Pago Contra Entrega (COD)'
   estado: number
   fecha_entrega: string
   fecha_entrega_cliente?: string
@@ -42,7 +42,7 @@ export default function PackagesPage() {
   const [filterTipo, setFilterTipo] = useState('')
   const [filterEstado, setFilterEstado] = useState('')
   const [bulkData, setBulkData] = useState('')
-  const [bulkType, setBulkType] = useState<'shein_temu' | 'dropi'>('shein_temu')
+  const [bulkType, setBulkType] = useState<'paquetes_pagos' | 'paquetes_cod'>('paquetes_pagos')
   const [bulkConductor, setBulkConductor] = useState('')
   const [bulkFechaEntrega, setBulkFechaEntrega] = useState('')
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -61,7 +61,7 @@ export default function PackagesPage() {
   const [formData, setFormData] = useState({
     tracking: '',
     conductor_id: '',
-    tipo: 'Shein/Temu' as 'Shein/Temu' | 'Dropi',
+    tipo: 'Paquetes Pagos' as 'Paquetes Pagos' | 'Paquetes Pago Contra Entrega (COD)',
     estado: 0,
     fecha_entrega: '',
     valor: ''
@@ -231,7 +231,7 @@ export default function PackagesPage() {
       const submitData = {
         ...formData,
         fecha_entrega: convertDateToISO(formData.fecha_entrega),
-        valor: formData.tipo === 'Dropi' && formData.valor ? parseFloat(formData.valor) : null
+        valor: formData.tipo === 'Paquetes Pago Contra Entrega (COD)' && formData.valor ? parseFloat(formData.valor) : null
       }
 
       const url = editingPackage ? `/api/packages/${editingPackage.id}` : '/api/packages'
@@ -262,7 +262,7 @@ export default function PackagesPage() {
         setFormData({
           tracking: '',
           conductor_id: '',
-          tipo: 'Shein/Temu',
+          tipo: 'Paquetes Pagos',
           estado: 0,
           fecha_entrega: todayFormatted,
           valor: ''
@@ -643,7 +643,7 @@ export default function PackagesPage() {
       <td>
         <div className="flex items-center">
           <div className={`w-3 h-3 rounded-full mr-3 ${
-            pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+            pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' ? 'bg-blue-500' : 'bg-purple-500'
           }`}></div>
           <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
         </div>
@@ -656,7 +656,7 @@ export default function PackagesPage() {
       </td>
       <td>
         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-          pkg.tipo === 'Dropi' 
+          pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' 
             ? 'bg-blue-100 text-blue-800' 
             : 'bg-purple-100 text-purple-800'
         }`}>
@@ -671,7 +671,7 @@ export default function PackagesPage() {
       <td className="text-secondary-600 font-segoe text-sm">
         {pkg.fecha_entrega}
       </td>
-      {pkg.tipo === 'Dropi' && (
+      {pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' && (
         <td className="text-secondary-600 font-segoe text-sm">
           ${pkg.valor?.toLocaleString('es-CO') || '0'}
         </td>
@@ -732,7 +732,7 @@ export default function PackagesPage() {
             />
             <div>
               <h1 className="text-2xl font-bold text-secondary-800 font-montserrat">BaruLogix - Paquetes</h1>
-              <p className="text-sm text-secondary-600 font-segoe">Gestión de paquetes Shein/Temu y Dropi</p>
+              <p className="text-sm text-secondary-600 font-segoe">Gestión de Paquetes Pagos y Paquetes Pago Contra Entrega (COD)</p>
             </div>
           </div>
           <div className="flex space-x-4">
@@ -826,7 +826,7 @@ export default function PackagesPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-xs font-medium text-secondary-600 font-segoe">Valor Dropi</p>
+                <p className="text-xs font-medium text-secondary-600 font-segoe">Valor COD</p>
                 <p className="text-lg font-bold text-secondary-900 font-montserrat">
                   ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
                 </p>
@@ -896,8 +896,8 @@ export default function PackagesPage() {
                   className="filter-input"
                 >
                   <option value="">Todos los tipos</option>
-                  <option value="Shein/Temu">Shein/Temu</option>
-                  <option value="Dropi">Dropi</option>
+                  <option value="Paquetes Pagos">Paquetes Pagos</option>
+                  <option value="Paquetes Pago Contra Entrega (COD)">Paquetes Pago Contra Entrega (COD)</option>
                 </select>
               </div>
               
@@ -928,7 +928,7 @@ export default function PackagesPage() {
                   setFormData({
                     tracking: '',
                     conductor_id: '',
-                    tipo: 'Shein/Temu',
+                    tipo: 'Paquetes Pagos',
                     estado: 0,
                     fecha_entrega: new Date().toISOString().split('T')[0],
                     valor: ''
@@ -1081,11 +1081,11 @@ export default function PackagesPage() {
                   <label className="label-barulogix">Tipo</label>
                   <select
                     value={formData.tipo}
-                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value as 'Shein/Temu' | 'Dropi' })}
+                    onChange={(e) => setFormData({ ...formData, tipo: e.target.value as 'Paquetes Pagos' | 'Paquetes Pago Contra Entrega (COD)' })}
                     className="input-barulogix-modern focus-ring"
                   >
-                    <option value="Shein/Temu">Shein/Temu</option>
-                    <option value="Dropi">Dropi</option>
+                    <option value="Paquetes Pagos">Paquetes Pagos</option>
+                    <option value="Paquetes Pago Contra Entrega (COD)">Paquetes Pago Contra Entrega (COD)</option>
                   </select>
                 </div>
 
@@ -1117,7 +1117,7 @@ export default function PackagesPage() {
                 </p>
               </div>
 
-              {formData.tipo === 'Dropi' && (
+              {formData.tipo === 'Paquetes Pago Contra Entrega (COD)' && (
                 <div>
                   <label className="label-barulogix">Valor (COP)</label>
                   <input
@@ -1176,11 +1176,11 @@ export default function PackagesPage() {
                 <label className="label-barulogix">Tipo de Paquetes</label>
                 <select
                   value={bulkType}
-                  onChange={(e) => setBulkType(e.target.value as 'shein_temu' | 'dropi')}
+                  onChange={(e) => setBulkType(e.target.value as 'paquetes_pagos' | 'paquetes_cod')}
                   className="input-barulogix-modern focus-ring"
                 >
-                  <option value="shein_temu">Shein/Temu</option>
-                  <option value="dropi">Dropi</option>
+                  <option value="paquetes_pagos">Paquetes Pagos</option>
+                  <option value="paquetes_cod">Paquetes Pago Contra Entrega (COD)</option>
                 </select>
               </div>
 

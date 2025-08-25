@@ -13,20 +13,20 @@ interface ConductorAnalysis {
   }
   stats: {
     total_packages: number
-    shein_temu_count: number
-    dropi_count: number
+    paquetes_pagos_count: number
+    paquetes_cod_count: number
     entregados: number
     no_entregados: number
     devueltos: number
-    valor_total_dropi: number
-    valor_entregado_dropi: number
-    valor_pendiente_dropi: number
+    valor_total_cod: number
+    valor_entregado_cod: number
+    valor_pendiente_cod: number
     dias_promedio_atraso: number
   }
   packages: Array<{
     id: string
     tracking: string
-    tipo: 'Shein/Temu' | 'Dropi'
+    tipo: 'Paquetes Pagos' | 'Paquetes Pago Contra Entrega (COD)'
     estado: number
     fecha_entrega: string
     valor?: number
@@ -415,7 +415,7 @@ export default function ConductorAnalysisPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Shein/Temu</p>
+                  <p className="text-sm font-medium text-secondary-600 font-segoe">Paquetes Pagos</p>
                   <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.shein_total || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
                     {getPercentage(analysis.stats?.shein_total || 0, analysis.stats?.total_paquetes || 0)}% del total
@@ -430,7 +430,7 @@ export default function ConductorAnalysisPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-secondary-600 font-segoe">Dropi</p>
+                  <p className="text-sm font-medium text-secondary-600 font-segoe">Paquetes COD</p>
                   <p className="text-3xl font-bold text-secondary-900 font-montserrat">{analysis.stats?.dropi_total || 0}</p>
                   <p className="text-xs text-secondary-500 mt-1">
                     {getPercentage(analysis.stats?.dropi_total || 0, analysis.stats?.total_paquetes || 0)}% del total
@@ -482,10 +482,10 @@ export default function ConductorAnalysisPage() {
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">💰 Valor Entregado</p>
                   <p className="text-2xl font-bold text-green-600 font-montserrat">
-                    ${(analysis.stats.dropi_valor_entregado || 0).toLocaleString('es-CO')}
+                    ${(analysis.stats.cod_valor_entregado || 0).toLocaleString('es-CO')}
                   </p>
                   <p className="text-xs text-secondary-500 font-segoe">
-                    {analysis.stats.dropi_entregados || 0} paquetes Dropi
+                    {analysis.stats.cod_entregados || 0} paquetes COD
                   </p>
                 </div>
               </div>
@@ -499,17 +499,17 @@ export default function ConductorAnalysisPage() {
                   </div>
                   <p className="text-sm font-medium text-secondary-600 font-segoe">⏳ Valor Pendiente</p>
                   <p className="text-2xl font-bold text-yellow-600 font-montserrat">
-                    ${(analysis.stats.dropi_valor_pendiente || 0).toLocaleString('es-CO')}
+                    ${(analysis.stats.cod_valor_pendiente || 0).toLocaleString('es-CO')}
                   </p>
                   <p className="text-xs text-secondary-500 font-segoe">
-                    {analysis.stats.dropi_pendientes || 0} paquetes Dropi
+                    {analysis.stats.cod_pendientes || 0} paquetes COD
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Reset automático banner */}
-            {analysis.stats.dropi_count > 0 && analysis.stats.reset_automatico && (
+            {analysis.stats.cod_count > 0 && analysis.stats.reset_automatico && (
               <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-8">
                 <div className="flex items-center">
                   <svg className="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -517,7 +517,7 @@ export default function ConductorAnalysisPage() {
                   </svg>
                   <div>
                     <h4 className="text-green-800 font-semibold font-montserrat">✅ Conductor al Día</h4>
-                    <p className="text-green-700 text-sm font-segoe">Todos los paquetes Dropi han sido entregados</p>
+                    <p className="text-green-700 text-sm font-segoe">Todos los paquetes COD han sido entregados</p>
                   </div>
                 </div>
               </div>
@@ -570,14 +570,14 @@ export default function ConductorAnalysisPage() {
                           <td>
                             <div className="flex items-center">
                               <div className={`w-3 h-3 rounded-full mr-3 ${
-                                pkg.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+                                pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' ? 'bg-blue-500' : 'bg-purple-500'
                               }`}></div>
                               <span className="font-medium text-secondary-900 font-mono text-sm">{pkg.tracking}</span>
                             </div>
                           </td>
                           <td>
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                              pkg.tipo === 'Dropi' 
+                              pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' 
                                 ? 'bg-blue-100 text-blue-800' 
                                 : 'bg-purple-100 text-purple-800'
                             }`}>

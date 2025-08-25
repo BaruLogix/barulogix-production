@@ -12,7 +12,7 @@ interface SearchResult {
     nombre: string
     zona: string
   }
-  tipo: 'Shein/Temu' | 'Dropi'
+  tipo: 'Paquetes Pagos' | 'Paquetes Pago Contra Entrega (COD)'
   estado: number
   fecha_entrega: string
   valor?: number
@@ -313,8 +313,8 @@ export default function SearchPage() {
                   className="input-barulogix-modern focus-ring"
                 >
                   <option value="">Todos los tipos</option>
-                  <option value="Shein/Temu">Shein/Temu</option>
-                  <option value="Dropi">Dropi</option>
+                  <option value="Paquetes Pagos">Paquetes Pagos</option>
+                  <option value="Paquetes Pago Contra Entrega (COD)">Paquetes Pago Contra Entrega (COD)</option>
                 </select>
               </div>
 
@@ -542,7 +542,7 @@ export default function SearchPage() {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-xs font-medium text-secondary-600 font-segoe">Valor Dropi</p>
+                  <p className="text-xs font-medium text-secondary-600 font-segoe">Valor COD</p>
                   <p className="text-lg font-bold text-secondary-900 font-montserrat">
                     ${stats.valor_total_dropi?.toLocaleString('es-CO') || '0'}
                   </p>
@@ -595,7 +595,7 @@ export default function SearchPage() {
                       <td>
                         <div className="flex items-center">
                           <div className={`w-3 h-3 rounded-full mr-3 ${
-                            result.tipo === 'Dropi' ? 'bg-blue-500' : 'bg-purple-500'
+                            result.tipo === 'Paquetes Pago Contra Entrega (COD)' ? 'bg-blue-500' : 'bg-purple-500'
                           }`}></div>
                           <span className="font-medium text-secondary-900 font-mono text-sm">{result.tracking}</span>
                         </div>
@@ -614,7 +614,7 @@ export default function SearchPage() {
                       </td>
                       <td>
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                          result.tipo === 'Dropi' 
+                          result.tipo === 'Paquetes Pago Contra Entrega (COD)' 
                             ? 'bg-blue-100 text-blue-800' 
                             : 'bg-purple-100 text-purple-800'
                         }`}>
