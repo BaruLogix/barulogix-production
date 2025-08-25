@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       tipo: tipo,
       estado: 0, // No entregado por defecto
       fecha_entrega: fecha_entrega,
-      valor: tipo === 'Dropi' ? valor : null
+      valor: tipo === 'Paquetes Pago Contra Entrega (COD)' ? valor : null
     }
     
     console.log('Datos a insertar:', packageData)

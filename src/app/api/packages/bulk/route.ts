@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
     let packagesToInsert = []
     let errors = []
 
-    if (tipo === 'shein_temu') {
-      console.log('Procesando datos Shein/Temu...')
-      // Procesar datos de Shein/Temu (solo trackings)
+    if (tipo === 'paquetes_pagos') {
+      console.log('Procesando datos Paquetes Pagos...')
+      // Procesar datos de Paquetes Pagos (solo trackings)
       const trackings = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
       console.log('Trackings encontrados:', trackings.length)
       
@@ -97,17 +97,17 @@ export async function POST(request: NextRequest) {
         packagesToInsert.push({
           tracking: tracking,
           conductor_id: conductor_id,
-          tipo: 'Shein/Temu',
+          tipo: 'Paquetes Pagos',
           estado: 0, // No entregado
           fecha_entrega: fecha_entrega, // Usar fecha proporcionada
           valor: null
         })
       }
-    } else if (tipo === 'dropi') {
-      console.log('Procesando datos Dropi...')
-      // Procesar datos de Dropi (tracking + valor)
+    } else if (tipo === 'paquetes_cod') {
+      console.log('Procesando datos Paquetes COD...')
+      // Procesar datos de Paquetes COD (tracking + valor)
       const lines = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
-      console.log('Líneas Dropi encontradas:', lines.length)
+      console.log('Líneas COD encontradas:', lines.length)
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         packagesToInsert.push({
           tracking: tracking,
           conductor_id: conductor_id,
-          tipo: 'Dropi',
+          tipo: 'Paquetes Pago Contra Entrega (COD)',
           estado: 0, // No entregado
           fecha_entrega: fecha_entrega, // Usar fecha proporcionada
           valor: valor
