@@ -53,92 +53,95 @@ export async function GET(
       .from('notifications')
       .select(`
         id,
-        tipo,
-        titulo,
-        mensaje,
+        type,
+        message,
         package_id,
-        leida,
+        is_read,
         created_at,
-        updated_at,
-        package:packages(tracking, tipo, valor)
+        package:packages(tracking, type, valor)
       `)
       .eq('conductor_id', conductorId)
       .order('created_at', { ascending: false })
 
     // Aplicar filtro de no leídas si se solicita
     if (unread_only) {
-      query = query.eq('leida', false)
+      query = query.eq("is_read", false);
     }
 
     // Aplicar paginación
-    query = query.range(offset, offset + limit - 1)
+    query = query.range(offset, offset + limit - 1);
 
-    const { data: notifications, error: notificationsError } = await query
+    const { data: notifications, error: notificationsError } = await query;
 
     if (notificationsError) {
-      console.error('Error obteniendo notificaciones:', notificationsError)
+      console.error("Error obteniendo notificaciones:", notificationsError);
+      console.error("Detalles del error:", notificationsError.details);
+      console.error("Sugerencia del error:", notificationsError.hint);
       return NextResponse.json({ 
-        error: 'Error al obtener notificaciones',
+        error: "Error al obtener notificaciones",
         details: notificationsError.message
-      }, { status: 500 })
+      }, { status: 500 });
     }
 
     // Obtener conteo total de notificaciones
     let totalQuery = supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('conductor_id', conductorId)
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("conductor_id", conductorId);
 
     if (unread_only) {
-      totalQuery = totalQuery.eq('leida', false)
+      totalQuery = totalQuery.eq("is_read", false);
     }
 
-    const { count: totalCount, error: countError } = await totalQuery
+    const { count: totalCount, error: countError } = await totalQuery;
 
     if (countError) {
-      console.error('Error obteniendo conteo:', countError)
+      console.error("Error obteniendo conteo:", countError);
     }
 
     // Obtener conteo de no leídas (siempre)
     const { count: unreadCount, error: unreadError } = await supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('conductor_id', conductorId)
-      .eq('leida', false)
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("conductor_id", conductorId)
+      .eq("is_read", false);
 
     if (unreadError) {
-      console.error('Error obteniendo conteo de no leídas:', unreadError)
+      console.error("Error obteniendo conteo de no leídas:", unreadError);
     }
 
     // Formatear notificaciones con información adicional
     const formattedNotifications = (notifications || []).map(notification => {
-      const createdAt = new Date(notification.created_at)
-      const now = new Date()
-      const diffHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60))
+      const createdAt = new Date(notification.created_at);
+      const now = new Date();
+      const diffHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
       
-      let timeAgo = ''
+      let timeAgo = "";
       if (diffHours < 1) {
-        const diffMinutes = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60))
-        timeAgo = diffMinutes <= 1 ? 'Hace un momento' : `Hace ${diffMinutes} minutos`
+        const diffMinutes = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60));
+        timeAgo = diffMinutes <= 1 ? "Hace un momento" : `Hace ${diffMinutes} minutos`;
       } else if (diffHours < 24) {
-        timeAgo = diffHours === 1 ? 'Hace 1 hora' : `Hace ${diffHours} horas`
+        timeAgo = diffHours === 1 ? "Hace 1 hora" : `Hace ${diffHours} horas`;
       } else {
-        const diffDays = Math.floor(diffHours / 24)
-        timeAgo = diffDays === 1 ? 'Hace 1 día' : `Hace ${diffDays} días`
+        const diffDays = Math.floor(diffHours / 24);
+        timeAgo = diffDays === 1 ? "Hace 1 día" : `Hace ${diffDays} días`;
       }
 
       return {
-        ...notification,
+        ...notification,        type,: notification.type, // Mapear 'type' a 'tipo' para compatibilidad con el frontend
+        titulo: notification.type === 'alerta_atraso' ? 'Alerta de Paquete Atrasado' : 'Mensaje Personalizado', // Definir título basado en el tipo
+        mensaje: notification.message, // Mapear 'message' a 'mensaje'
+        leida: notification.is_read, // Mapear 'is_read' a 'leida'
         time_ago: timeAgo,
-        formatted_date: createdAt.toLocaleDateString('es-CO', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
+        formatted_date: createdAt.toLocaleDateString("es-CO", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
         })
-      }
-    })
+      };
+    });
 
     console.log(`✅ Obtenidas ${formattedNotifications.length} notificaciones para conductor ${conductor.nombre}`)
 

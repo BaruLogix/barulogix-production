@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
     const userId = request.headers.get('x-user-id')
     
     console.log('=== DEBUG SEND CUSTOM MESSAGE API ===')
-    console.log('User ID recibido:', userId)
+    console.log("User ID recibido:", userId);
+    console.log("Tipo de dato de User ID:", typeof userId);
     
     if (!userId) {
       return NextResponse.json({ 
@@ -101,8 +102,8 @@ export async function POST(request: NextRequest) {
     const titulo = 'Mensaje de Bodega'
     const notifications = targetConductors.map(conductor => ({
       conductor_id: conductor.id,
-      user_id: userId,
-      tipo: 'mensaje_personalizado',
+      user_id: userId as string,
+      type: 'mensaje_personalizado',
       message: mensaje.trim(),
       is_read: false
     }))
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Insertar todas las notificaciones
     const { data: insertedNotifications, error: insertError } = await supabase
-      .from("notifications")
+      .from('notifications')
       .insert(notifications)
       .select()
 

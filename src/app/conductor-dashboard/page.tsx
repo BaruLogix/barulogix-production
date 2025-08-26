@@ -8,11 +8,10 @@ import Image from 'next/image'
 // Interfaces para notificaciones
 interface Notification {
   id: string
-  tipo: 'alerta_atraso' | 'mensaje_personalizado'
-  titulo: string
-  mensaje: string
+  type: 'alerta_atraso' | 'mensaje_personalizado'
+  message: string
   package_id?: string
-  leida: boolean
+  is_read: boolean
   created_at: string
   time_ago: string
   formatted_date: string
