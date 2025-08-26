@@ -128,7 +128,7 @@ export async function GET(
       }
 
       return {
-        ...notification,        type,: notification.type, // Mapear 'type' a 'tipo' para compatibilidad con el frontend
+        ...notification,        type: notification.type, // Mapear 'type' a 'tipo' para compatibilidad con el frontend
         titulo: notification.type === 'alerta_atraso' ? 'Alerta de Paquete Atrasado' : 'Mensaje Personalizado', // Definir título basado en el tipo
         mensaje: notification.message, // Mapear 'message' a 'mensaje'
         leida: notification.is_read, // Mapear 'is_read' a 'leida'
