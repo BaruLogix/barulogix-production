@@ -303,7 +303,7 @@ export default function ConductorDashboard() {
         setNotifications(prev => 
           prev.map(notif => 
             notif.id === notificationId 
-              ? { ...notif, leida: true }
+              ? { ...notif, is_read: true }
               : notif
           )
         )
@@ -332,7 +332,7 @@ export default function ConductorDashboard() {
       if (response.ok) {
         // Actualizar el estado local
         setNotifications(prev => 
-          prev.map(notif => ({ ...notif, leida: true }))
+          prev.map(notif => ({ ...notif, is_read: true }))
         )
         setUnreadCount(0)
       }

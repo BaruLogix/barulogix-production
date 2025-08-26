@@ -24,7 +24,7 @@ export async function PUT(request: NextRequest) {
     let updateQuery = supabase
       .from('notifications')
       .update({ 
-        leida: true,
+        is_read: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', notification_id)
@@ -95,11 +95,11 @@ export async function POST(request: NextRequest) {
     let updateQuery = supabase
       .from('notifications')
       .update({ 
-        leida: true,
+        is_read: true,
         updated_at: new Date().toISOString()
       })
       .eq('conductor_id', conductor_id)
-      .eq('leida', false) // Solo marcar las que no están leídas
+      .eq('is_read', false) // Solo marcar las que no están leídas
 
     if (mark_all) {
       // Marcar todas las notificaciones no leídas del conductor
