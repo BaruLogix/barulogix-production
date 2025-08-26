@@ -7,6 +7,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function PUT(request: NextRequest) {
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
   try {
     const body = await request.json()
     const { notification_id, conductor_id } = body
@@ -21,7 +22,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Construir query base
-    let updateQuery = supabase
+    let updateQuery = supabaseAdmin
       .from('notifications')
       .update({ 
         is_read: true,
@@ -75,6 +76,7 @@ export async function PUT(request: NextRequest) {
 
 // También permitir marcar múltiples notificaciones como leídas
 export async function POST(request: NextRequest) {
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
   try {
     const body = await request.json()
     const { notification_ids, conductor_id, mark_all } = body
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    let updateQuery = supabase
+    let updateQuery = supabaseAdmin
       .from('notifications')
       .update({ 
         is_read: true,
