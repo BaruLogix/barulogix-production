@@ -103,10 +103,8 @@ export async function POST(request: NextRequest) {
       conductor_id: conductor.id,
       user_id: userId,
       tipo: 'mensaje_personalizado',
-      titulo: titulo,
-      mensaje: mensaje.trim(),
-      package_id: null, // Los mensajes personalizados no están asociados a paquetes
-      leida: false
+      message: mensaje.trim(),
+      is_read: false
     }))
 
     console.log(`Insertando ${notifications.length} notificaciones personalizadas`)

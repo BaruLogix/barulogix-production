@@ -8,13 +8,17 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
+    const userId = request.headers.get("x-user-id");
+
+    // Calcular fecha límite (3 días atrás)
+    const fechaLimite = new Date();
+    fechaLimite.setDate(fechaLimite.getDate() - 3);
+    const fechaLimiteStr = fechaLimite.toISOString().split("T")[0];
     
     console.log("=== DEBUG DELAYED PACKAGES API ===");
     console.log("User ID recibido:", userId);
     console.log("Fecha límite calculada:", fechaLimiteStr);
     console.log("Consulta a Supabase para paquetes atrasados...");
-
     // Función para obtener TODOS los paquetes atrasados con paginación
     const getAllDelayedPackages = async (userId: string) => {
       let allPackages: any[] = []
