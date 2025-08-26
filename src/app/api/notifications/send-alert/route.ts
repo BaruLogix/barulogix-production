@@ -73,25 +73,26 @@ export async function POST(request: NextRequest) {
 
     // Insertar la notificación en la base de datos
     const { data: notification, error: notificationError } = await supabase
-      .from('notifications')
+      .from("notifications")
       .insert({
         conductor_id: conductor_id,
         user_id: userId,
-        tipo: 'alerta_atraso',
-        titulo: titulo,
-        mensaje: mensaje,
+        type: "alerta_atraso",
+        message: mensaje,
         package_id: package_id,
-        leida: false
+        is_read: false
       })
       .select()
       .single()
 
     if (notificationError) {
-      console.error('Error creando notificación:', notificationError)
+      console.error("Error creando notificación:", notificationError);
+      console.error("Detalles del error:", notificationError.details);
+      console.error("Sugerencia del error:", notificationError.hint);
       return NextResponse.json({ 
-        error: 'Error al crear la notificación',
+        error: "Error al crear la notificación",
         details: notificationError.message
-      }, { status: 500 })
+      }, { status: 500 });
     }
 
     console.log('✅ Notificación creada exitosamente:', notification.id)

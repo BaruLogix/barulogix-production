@@ -117,11 +117,13 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (insertError) {
-      console.error('Error insertando notificaciones personalizadas:', insertError)
+      console.error("Error insertando notificaciones personalizadas:", insertError);
+      console.error("Detalles del error:", insertError.details);
+      console.error("Sugerencia del error:", insertError.hint);
       return NextResponse.json({ 
-        error: 'Error al crear las notificaciones',
+        error: "Error al crear las notificaciones",
         details: insertError.message
-      }, { status: 500 })
+      }, { status: 500 });
     }
 
     console.log('✅ Mensajes personalizados enviados exitosamente')

@@ -80,28 +80,30 @@ export async function POST(request: NextRequest) {
       notifications.push({
         conductor_id: pkg.conductor.id,
         user_id: userId,
-        tipo: 'alerta_atraso',
-        titulo: titulo,
-        mensaje: mensaje,
+        type: "alerta_atraso",
+        message: mensaje,
         package_id: pkg.id,
-        leida: false
+        is_read: false
       })
     }
 
-    console.log(`Insertando ${notifications.length} notificaciones`)
+    console.log(`Insertando ${notifications.length} notificaciones`);
+    console.log("Objeto de notificaciones a insertar:", JSON.stringify(notifications, null, 2));
 
     // Insertar todas las notificaciones de una vez
     const { data: insertedNotifications, error: insertError } = await supabase
-      .from('notifications')
+      .from("notifications")
       .insert(notifications)
       .select()
 
     if (insertError) {
-      console.error('Error insertando notificaciones:', insertError)
+      console.error("Error insertando notificaciones:", insertError);
+      console.error("Detalles del error:", insertError.details);
+      console.error("Sugerencia del error:", insertError.hint);
       return NextResponse.json({ 
-        error: 'Error al crear las notificaciones',
+        error: "Error al crear las notificaciones",
         details: insertError.message
-      }, { status: 500 })
+      }, { status: 500 });
     }
 
     console.log('✅ Notificaciones masivas creadas exitosamente')
