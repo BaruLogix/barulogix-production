@@ -480,7 +480,10 @@ export default function ConductorDashboard() {
               {/* Botón de Notificaciones */}
               <div className="relative">
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    setUnreadCount(0); // Set unread count to 0 immediately on click
+                  }}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     unreadCount > 0 
                       ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300' 
