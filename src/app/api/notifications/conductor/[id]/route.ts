@@ -58,7 +58,7 @@ export async function GET(
         package_id,
         is_read,
         created_at,
-        package:packages(tracking, type, valor)
+        package:packages(tracking, tipo, valor)
       `)
       .eq('conductor_id', conductorId)
       .order('created_at', { ascending: false })
