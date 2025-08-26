@@ -278,6 +278,25 @@ export default function DashboardPage() {
                 </div>
               </button>
 
+              {/* Nuevo botón de Generar Alertas */}
+              <button
+                onClick={() => navigateTo('/alerts')}
+                className="w-full p-4 border border-orange-200 rounded-xl hover:bg-orange-50 transition-all duration-200 text-left hover-lift"
+              >
+                <div className="flex items-center">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="font-semibold text-secondary-900 font-montserrat">Generar Alertas</p>
+                    <p className="text-sm text-secondary-600 font-segoe">Notificar conductores sobre paquetes atrasados</p>
+                  </div>
+                </div>
+              </button>
+
               {/* Botones administrativos movidos aquí */}
               <button
                 onClick={() => navigateTo('/admin')}

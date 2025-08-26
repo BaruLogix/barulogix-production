@@ -5,6 +5,40 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
+// Interfaces para notificaciones
+interface Notification {
+  id: string
+  tipo: 'alerta_atraso' | 'mensaje_personalizado'
+  titulo: string
+  mensaje: string
+  package_id?: string
+  leida: boolean
+  created_at: string
+  time_ago: string
+  formatted_date: string
+  package?: {
+    tracking: string
+    tipo: string
+    valor?: number
+  }
+}
+
+interface NotificationsResponse {
+  conductor: {
+    id: string
+    nombre: string
+    zona: string
+  }
+  notifications: Notification[]
+  pagination: {
+    total: number
+    unread: number
+    limit: number
+    offset: number
+    has_more: boolean
+  }
+}
+
 interface Conductor {
   id: string
   nombre: string
@@ -93,6 +127,12 @@ export default function ConductorDashboard() {
     year: new Date().getFullYear().toString()
   })
 
+  // Estados para notificaciones
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -113,6 +153,8 @@ export default function ConductorDashboard() {
         setIsLoggedIn(true)
         // Cargar análisis inicial
         loadAnalysis(data.conductor.id)
+        // Cargar notificaciones
+        loadNotifications(data.conductor.id)
       } else {
         const errorData = await response.json()
         setError(errorData.error || 'ID de conductor no encontrado')
@@ -218,6 +260,86 @@ export default function ConductorDashboard() {
     setAnalysis(null)
     setSelectedCategory(null)
     setFilteredPackages([])
+    setNotifications([])
+    setUnreadCount(0)
+    setShowNotifications(false)
+  }
+
+  // Funciones para notificaciones
+  const loadNotifications = async (conductorId: string) => {
+    try {
+      setNotificationsLoading(true)
+      const response = await fetch(`/api/notifications/conductor/${conductorId}?limit=20&offset=0`)
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar notificaciones')
+      }
+
+      const data: NotificationsResponse = await response.json()
+      setNotifications(data.notifications)
+      setUnreadCount(data.pagination.unread)
+      console.log('Notificaciones cargadas:', data)
+    } catch (error) {
+      console.error('Error cargando notificaciones:', error)
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          notification_id: notificationId,
+          conductor_id: conductor?.id
+        })
+      })
+
+      if (response.ok) {
+        // Actualizar el estado local
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === notificationId 
+              ? { ...notif, leida: true }
+              : notif
+          )
+        )
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error('Error marcando notificación como leída:', error)
+    }
+  }
+
+  const markAllAsRead = async () => {
+    if (!conductor) return
+
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          conductor_id: conductor.id,
+          mark_all: true
+        })
+      })
+
+      if (response.ok) {
+        // Actualizar el estado local
+        setNotifications(prev => 
+          prev.map(notif => ({ ...notif, leida: true }))
+        )
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      console.error('Error marcando todas las notificaciones como leídas:', error)
+    }
   }
 
   const getCategoryTitle = (category: string) => {
@@ -366,6 +488,131 @@ export default function ConductorDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Componente de Notificaciones */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-secondary-600 hover:text-secondary-800 hover:bg-secondary-100 rounded-lg transition-colors duration-200"
+                  title="Notificaciones"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-12h5v12z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Dropdown de Notificaciones */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
+                          Notificaciones
+                        </h3>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={markAllAsRead}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Marcar todas como leídas
+                          </button>
+                        )}
+                      </div>
+                      {unreadCount > 0 && (
+                        <p className="text-sm text-secondary-600 mt-1">
+                          {unreadCount} notificación{unreadCount !== 1 ? 'es' : ''} sin leer
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto">
+                      {notificationsLoading ? (
+                        <div className="p-4 text-center">
+                          <svg className="animate-spin h-6 w-6 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <p className="text-sm text-secondary-600 mt-2">Cargando notificaciones...</p>
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="p-4 text-center">
+                          <svg className="h-12 w-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                          <p className="text-sm text-secondary-600">No tienes notificaciones</p>
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                              !notification.leida ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                            }`}
+                            onClick={() => !notification.leida && markNotificationAsRead(notification.id)}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                notification.tipo === 'alerta_atraso' 
+                                  ? 'bg-red-100 text-red-600' 
+                                  : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                {notification.tipo === 'alerta_atraso' ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium ${
+                                  !notification.leida ? 'text-secondary-900' : 'text-secondary-700'
+                                }`}>
+                                  {notification.titulo}
+                                </p>
+                                <p className={`text-sm mt-1 ${
+                                  !notification.leida ? 'text-secondary-800' : 'text-secondary-600'
+                                }`}>
+                                  {notification.mensaje}
+                                </p>
+                                {notification.package && (
+                                  <div className="mt-2 text-xs text-secondary-500">
+                                    <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                                      {notification.package.tracking}
+                                    </span>
+                                    {notification.package.valor && (
+                                      <span className="ml-2">
+                                        Valor: ${notification.package.valor.toLocaleString('es-CO')}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <p className="text-xs text-secondary-500 mt-2">
+                                  {notification.time_ago} • {notification.formatted_date}
+                                </p>
+                              </div>
+                              {!notification.leida && (
+                                <div className="flex-shrink-0">
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="text-right">
                 <p className="text-secondary-800 font-montserrat font-semibold">{conductor?.nombre}</p>
                 <p className="text-sm text-secondary-600 font-segoe">ID: {conductor?.id}</p>
