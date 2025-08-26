@@ -299,15 +299,8 @@ export default function ConductorDashboard() {
       })
 
       if (response.ok) {
-        // Actualizar el estado local
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === notificationId 
-              ? { ...notif, is_read: true }
-              : notif
-          )
-        )
-        setUnreadCount(prev => Math.max(0, prev - 1))
+        // Vuelve a cargar las notificaciones para reflejar los cambios del servidor
+        loadNotifications(conductor.id);
       }
     } catch (error) {
       console.error('Error marcando notificación como leída:', error)
@@ -330,11 +323,8 @@ export default function ConductorDashboard() {
       })
 
       if (response.ok) {
-        // Actualizar el estado local
-        setNotifications(prev => 
-          prev.map(notif => ({ ...notif, is_read: true }))
-        )
-        setUnreadCount(0)
+        // Vuelve a cargar las notificaciones para reflejar los cambios del servidor
+        loadNotifications(conductor.id);
       }
     } catch (error) {
       console.error('Error marcando todas las notificaciones como leídas:', error)
