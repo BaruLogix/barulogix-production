@@ -107,11 +107,12 @@ export async function POST(request: NextRequest) {
       is_read: false
     }))
 
-    console.log(`Insertando ${notifications.length} notificaciones personalizadas`)
+    console.log(`Insertando ${notifications.length} notificaciones personalizadas`);
+    console.log("Objeto de notificaciones a insertar:", JSON.stringify(notifications, null, 2));
 
     // Insertar todas las notificaciones
     const { data: insertedNotifications, error: insertError } = await supabase
-      .from('notifications')
+      .from("notifications")
       .insert(notifications)
       .select()
 

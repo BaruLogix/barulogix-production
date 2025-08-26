@@ -73,6 +73,18 @@ export async function GET(request: NextRequest) {
     const delayedPackages = await getAllDelayedPackages(userId);
     console.log(`🎯 Total de paquetes atrasados obtenidos de la base de datos: ${delayedPackages.length}`);
 
+    // Calcular días de atraso para cada paquete
+    const packagesWithDelay = delayedPackages.map(pkg => {
+      const fechaEntrega = new Date(pkg.fecha_entrega);
+      const hoy = new Date();
+      const diasAtraso = Math.floor((hoy.getTime() - fechaEntrega.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        ...pkg,
+        dias_atraso: diasAtraso
+      };
+    });
+
     // Agrupar por conductor para estadísticas
     const conductorStats = packagesWithDelay.reduce((acc, pkg) => {
       const conductorId = pkg.conductor.id
