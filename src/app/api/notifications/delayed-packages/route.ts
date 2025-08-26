@@ -10,22 +10,10 @@ export async function GET(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id')
     
-    console.log('=== DEBUG DELAYED PACKAGES API ===')
-    console.log('User ID recibido:', userId)
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        error: 'ID de usuario no proporcionado',
-        details: 'Debe estar logueado para ver paquetes atrasados'
-      }, { status: 401 })
-    }
-
-    // Calcular fecha límite (3 días atrás)
-    const fechaLimite = new Date()
-    fechaLimite.setDate(fechaLimite.getDate() - 3)
-    const fechaLimiteStr = fechaLimite.toISOString().split('T')[0]
-
-    console.log('Buscando paquetes atrasados desde:', fechaLimiteStr)
+    console.log("=== DEBUG DELAYED PACKAGES API ===");
+    console.log("User ID recibido:", userId);
+    console.log("Fecha límite calculada:", fechaLimiteStr);
+    console.log("Consulta a Supabase para paquetes atrasados...");
 
     // Función para obtener TODOS los paquetes atrasados con paginación
     const getAllDelayedPackages = async (userId: string) => {
@@ -56,42 +44,30 @@ export async function GET(request: NextRequest) {
           .range(from, from + pageSize - 1)
 
         if (error) {
-          console.error('❌ Error obteniendo paquetes atrasados:', error)
-          throw error
+          console.error("❌ Error obteniendo paquetes atrasados de Supabase:", error);
+          throw error;
         }
 
         if (packages && packages.length > 0) {
-          allPackages = allPackages.concat(packages)
-          console.log(`✅ Página obtenida: ${packages.length} paquetes atrasados. Total: ${allPackages.length}`)
+          allPackages = allPackages.concat(packages);
+          console.log(`✅ Página obtenida: ${packages.length} paquetes atrasados. Total: ${allPackages.length}`);
           
           if (packages.length < pageSize) {
-            hasMore = false
+            hasMore = false;
           } else {
-            from += pageSize
+            from += pageSize;
           }
         } else {
-          hasMore = false
+          console.log("No más paquetes en esta página o no hay paquetes.");
+          hasMore = false;
         }
       }
 
-      return allPackages
-    }
+      return allPackages;
+    };
 
-    const delayedPackages = await getAllDelayedPackages(userId)
-
-    // Calcular días de atraso para cada paquete
-    const packagesWithDelay = delayedPackages.map(pkg => {
-      const fechaEntrega = new Date(pkg.fecha_entrega)
-      const hoy = new Date()
-      const diasAtraso = Math.floor((hoy.getTime() - fechaEntrega.getTime()) / (1000 * 60 * 60 * 24))
-      
-      return {
-        ...pkg,
-        dias_atraso: diasAtraso
-      }
-    })
-
-    console.log(`🎯 Total de paquetes atrasados encontrados: ${packagesWithDelay.length}`)
+    const delayedPackages = await getAllDelayedPackages(userId);
+    console.log(`🎯 Total de paquetes atrasados obtenidos de la base de datos: ${delayedPackages.length}`);
 
     // Agrupar por conductor para estadísticas
     const conductorStats = packagesWithDelay.reduce((acc, pkg) => {

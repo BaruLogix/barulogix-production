@@ -54,7 +54,7 @@ export default function AlertsPage() {
   const fetchDelayedPackages = async () => {
     setLoading(true)
     try {
-      const userId = localStorage.getItem('user_id')
+      const userId = localStorage.getItem('user_id') || (localStorage.getItem('session') ? JSON.parse(localStorage.getItem('session') || '{}').user.id : null)
       if (!userId) {
         router.push('/')
         return
@@ -84,7 +84,7 @@ export default function AlertsPage() {
   // Obtener conductores para mensajes personalizados
   const fetchConductors = async () => {
     try {
-      const userId = localStorage.getItem('user_id')
+      const userId = localStorage.getItem('user_id') || (localStorage.getItem('session') ? JSON.parse(localStorage.getItem('session') || '{}').user.id : null)
       if (!userId) return
 
       const response = await fetch('/api/conductors', {
@@ -109,7 +109,7 @@ export default function AlertsPage() {
   const sendIndividualAlert = async (packageData: DelayedPackage) => {
     setSendingAlert(packageData.id)
     try {
-      const userId = localStorage.getItem('user_id')
+      const userId = localStorage.getItem('user_id') || (localStorage.getItem('session') ? JSON.parse(localStorage.getItem('session') || '{}').user.id : null)
       if (!userId) return
 
       const response = await fetch('/api/notifications/send-alert', {
@@ -145,7 +145,7 @@ export default function AlertsPage() {
 
     setSendingBulk(true)
     try {
-      const userId = localStorage.getItem('user_id')
+      const userId = localStorage.getItem('user_id') || (localStorage.getItem('session') ? JSON.parse(localStorage.getItem('session') || '{}').user.id : null)
       if (!userId) return
 
       const packageIds = delayedData.packages.map(pkg => pkg.id)
@@ -189,7 +189,7 @@ export default function AlertsPage() {
 
     setSendingCustom(true)
     try {
-      const userId = localStorage.getItem('user_id')
+      const userId = localStorage.getItem('user_id') || (localStorage.getItem('session') ? JSON.parse(localStorage.getItem('session') || '{}').user.id : null)
       if (!userId) return
 
       const response = await fetch('/api/notifications/send-custom', {

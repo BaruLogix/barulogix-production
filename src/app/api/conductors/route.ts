@@ -11,17 +11,10 @@ export async function GET(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id')
     
-    console.log('=== DEBUG CONDUCTORS GET ===')
-    console.log('User ID recibido:', userId)
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        error: 'ID de usuario no proporcionado',
-        details: 'Debe estar logueado para ver conductores'
-      }, { status: 401 })
-    }
-
-    console.log('Buscando conductores para user ID:', userId)
+    console.log("=== DEBUG CONDUCTORS GET ===");
+    console.log("User ID recibido:", userId);
+    console.log("Buscando conductores para user ID:", userId);
+    console.log("Consulta a Supabase para conductores...");
 
     // Obtener conductores del usuario actual
     const { data: conductors, error } = await supabase
