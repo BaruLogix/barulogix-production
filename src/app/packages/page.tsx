@@ -39,7 +39,11 @@ export default function PackagesPage() {
   const [editingPackage, setEditingPackage] = useState<Package | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterConductor, setFilterConductor] = useState('')
-  const [filterTipo, setFilterTipo] = useState('')
+  const [filterTipo, setFilterTipo] = useState<
+    | ''
+    | 'Paquetes Pagos'
+    | 'Paquetes Pago Contra Entrega (COD)'
+  >('')
   const [filterEstado, setFilterEstado] = useState('')
   const [bulkData, setBulkData] = useState('')
   const [bulkType, setBulkType] = useState<'paquetes_pagos' | 'paquetes_cod'>('paquetes_pagos')
