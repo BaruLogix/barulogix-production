@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     let packagesToInsert = []
     let errors = []
 
-    if (tipo === 'paquetes_pagos') {
+    if (tipo === 'paquetes_pagos' || tipo === 'shein_temu') {
       console.log('Procesando datos Paquetes Pagos...')
       // Procesar datos de Paquetes Pagos (solo trackings)
       const trackings = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
           valor: null
         })
       }
-    } else if (tipo === 'paquetes_cod') {
+    } else if (tipo === 'paquetes_cod' || tipo === 'dropi') {
       console.log('Procesando datos Paquetes COD...')
       // Procesar datos de Paquetes COD (tracking + valor)
       const lines = data.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0)
