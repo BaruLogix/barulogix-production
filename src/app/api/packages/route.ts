@@ -142,6 +142,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Validar el tipo de paquete
+    const validTypes = ["Paquetes Pagos", "Paquetes Pago Contra Entrega (COD)"]
+    if (!validTypes.includes(tipo)) {
+      console.log("ERROR: Tipo de paquete inválido:", tipo)
+      return NextResponse.json({ error: "Tipo de paquete inválido" }, { status: 400 })
+    }
+
     console.log('Validando conductor:', conductor_id, 'para usuario:', userId)
 
     // Verificar que el conductor existe Y pertenece al usuario actual (IGUAL QUE BULK)
