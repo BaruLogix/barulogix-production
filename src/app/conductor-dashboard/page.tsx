@@ -210,26 +210,27 @@ export default function ConductorDashboard() {
   const filterPackagesByCategory = (packages: PackageData[], category: string) => {
     let filtered: PackageData[] = []
     switch (category) {
-      case 'shein_temu_entregados':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 1)
+      case 'pagos_entregados':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pagos' && pkg.estado === 1)
         break
-      case 'shein_temu_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 0)
+      case 'pagos_pendientes':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pagos' && pkg.estado === 0)
         break
-      case 'shein_temu_devueltos':
-        filtered = packages.filter(pkg => pkg.tipo === 'Shein/Temu' && pkg.estado === 2)
+      case 'pagos_devueltos':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pagos' && pkg.estado === 2)
         break
-      case 'dropi_entregados':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 1)
+      case 'cod_entregados':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' && pkg.estado === 1)
         break
-      case 'dropi_pendientes':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 0)
+      case 'cod_pendientes':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' && pkg.estado === 0)
         break
-      case 'dropi_devueltos':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 2)
+      case 'cod_devueltos':
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' && pkg.estado === 2)
         break
       case 'valor_pendiente':
-        filtered = packages.filter(pkg => pkg.tipo === 'Dropi' && pkg.estado === 0 && pkg.valor && pkg.valor > 0)
+        // Valor pendiente solo aplica para COD
+        filtered = packages.filter(pkg => pkg.tipo === 'Paquetes Pago Contra Entrega (COD)' && pkg.estado === 0 && pkg.valor && pkg.valor > 0)
         break
       default:
         filtered = []
@@ -333,12 +334,12 @@ export default function ConductorDashboard() {
 
   const getCategoryTitle = (category: string) => {
     const titles: { [key: string]: string } = {
-      'shein_temu_entregados': 'Paquetes Shein/Temu Entregados',
-      'shein_temu_pendientes': 'Paquetes Shein/Temu Pendientes',
-      'shein_temu_devueltos': 'Paquetes Shein/Temu Devueltos',
-      'dropi_entregados': 'Paquetes Dropi Entregados',
-      'dropi_pendientes': 'Paquetes Dropi Pendientes',
-      'dropi_devueltos': 'Paquetes Dropi Devueltos',
+      'pagos_entregados': 'Paquetes Pagos Entregados',
+      'pagos_pendientes': 'Paquetes Pagos Pendientes',
+      'pagos_devueltos': 'Paquetes Pagos Devueltos',
+      'cod_entregados': 'Paquetes COD Entregados',
+      'cod_pendientes': 'Paquetes COD Pendientes',
+      'cod_devueltos': 'Paquetes COD Devueltos',
       'valor_pendiente': 'Entregas con Valor Pendiente'
     }
     return titles[category] || category
@@ -793,10 +794,10 @@ export default function ConductorDashboard() {
 
           {/* Estadísticas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {/* Shein/Temu Entregados */}
+            {/* Paquetes Pagos Entregados */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-green-400"
-              onClick={() => handleCategoryClick("shein_temu_entregados")}
+              onClick={() => handleCategoryClick("pagos_entregados")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-green-100 p-2 rounded-full mr-3">
@@ -804,33 +805,33 @@ export default function ConductorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Entregados</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes Pagos Entregados</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_entregados || 0}</p>
               <p className="text-green-500 font-bold text-sm">$0 COP</p>
             </button>
 
-            {/* Shein/Temu Pendientes */}
+            {/* Paquetes Pagos Pendientes */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-yellow-400"
-              onClick={() => handleCategoryClick("shein_temu_pendientes")}
+              onClick={() => handleCategoryClick("pagos_pendientes")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-yellow-100 p-2 rounded-full mr-3">
                   <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Pendientes</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes Pagos Pendientes</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_total - analysis?.stats.shein_entregados - analysis?.stats.shein_devueltos || 0}</p>
               <p className="text-red-500 font-bold text-sm">$0 COP</p>
             </button>
 
-            {/* Dropi Entregados */}
+            {/* Paquetes COD Entregados */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-blue-400"
-              onClick={() => handleCategoryClick("dropi_entregados")}
+              onClick={() => handleCategoryClick("cod_entregados")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-blue-100 p-2 rounded-full mr-3">
@@ -838,16 +839,16 @@ export default function ConductorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Entregados</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes COD Entregados</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_entregados || 0}</p>
               <p className="text-green-500 font-bold text-sm">{analysis?.stats.dropi_valor_entregado?.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) || '$0 COP'}</p>
             </button>
 
-            {/* Dropi Pendientes */}
+            {/* Paquetes COD Pendientes */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-orange-400"
-              onClick={() => handleCategoryClick("dropi_pendientes")}
+              onClick={() => handleCategoryClick("cod_pendientes")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-orange-100 p-2 rounded-full mr-3">
@@ -855,16 +856,16 @@ export default function ConductorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Pendientes</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes COD Pendientes</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_no_entregados || 0}</p>
               <p className="text-red-500 font-bold text-sm">{analysis?.stats.dropi_valor_pendiente?.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) || '$0 COP'}</p>
             </button>
 
-            {/* Shein/Temu Devueltos */}
+            {/* Paquetes Pagos Devueltos */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-red-400"
-              onClick={() => handleCategoryClick("shein_temu_devueltos")}
+              onClick={() => handleCategoryClick("pagos_devueltos")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-red-100 p-2 rounded-full mr-3">
@@ -872,16 +873,16 @@ export default function ConductorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Shein/Temu Devueltos</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes Pagos Devueltos</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.shein_devueltos || 0}</p>
               <p className="text-red-500 font-bold text-sm">$0 COP</p>
             </button>
 
-            {/* Dropi Devueltos */}
+            {/* Paquetes COD Devueltos */}
             <button
               className="card-barulogix-stat animate-fade-in hover:shadow-lg transition-all duration-200 border-l-4 border-red-500"
-              onClick={() => handleCategoryClick("dropi_devueltos")}
+              onClick={() => handleCategoryClick("cod_devueltos")}
             >
               <div className="flex items-center mb-3">
                 <div className="bg-red-100 p-2 rounded-full mr-3">
@@ -889,7 +890,7 @@ export default function ConductorDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Dropi Devueltos</h4>
+                <h4 className="text-lg font-semibold text-secondary-800 font-montserrat">Paquetes COD Devueltos</h4>
               </div>
               <p className="text-3xl font-bold text-secondary-900 font-montserrat mb-1">{analysis?.stats.dropi_devueltos || 0}</p>
               <p className="text-red-500 font-bold text-sm">{analysis?.stats.dropi_valor_devuelto?.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) || '$0 COP'}</p>
