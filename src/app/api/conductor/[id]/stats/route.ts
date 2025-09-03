@@ -135,32 +135,20 @@ export async function GET(
 
     // Calcular estadísticas usando TODOS los paquetes en memoria
     const stats = {
-      shein_temu_entregados: {
-        count: allPackages.filter(p => p.tipo === 'Paquetes Pagos' && p.estado === 1).length,
-        packages: allPackages
-          .filter(p => p.tipo === 'Paquetes Pagos' && p.estado === 1)
-          .reduce((sum, p) => sum + (p.valor || 0), 0)
-      },
-      shein_temu_pendientes: {
-        count: allPackages.filter(p => p.tipo === 'Paquetes Pagos' && p.estado !== 1).length,
-        packages: allPackages
-          .filter(p => p.tipo === 'Paquetes Pagos' && p.estado !== 1)
-          .reduce((sum, p) => sum + (p.valor || 0), 0)
-      },
-      dropi_entregados: {
-        count: allPackages.filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado === 1).length,
-        packages: allPackages
-          .filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado === 1)
-          .reduce((sum, p) => sum + (p.valor || 0), 0)
-      },
-      dropi_pendientes: {
-        count: allPackages.filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado !== 1).length,
-        packages: allPackages
-          .filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado !== 1)
-          .reduce((sum, p) => sum + (p.valor || 0), 0)
-      },
-      valor_pendiente: allPackages
-        .filter(p => p.tipo === 'Paquetes Pago Contra Entrega (COD)' && p.estado !== 1)
+      shein_entregados: allPackages.filter(p => (p.tipo === 'Paquetes Pagos' || p.tipo === 'Shein/Temu') && p.estado === 1).length,
+      shein_total: allPackages.filter(p => (p.tipo === 'Paquetes Pagos' || p.tipo === 'Shein/Temu')).length,
+      shein_devueltos: allPackages.filter(p => (p.tipo === 'Paquetes Pagos' || p.tipo === 'Shein/Temu') && p.estado === 2).length,
+      dropi_entregados: allPackages.filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 1).length,
+      dropi_no_entregados: allPackages.filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 0).length,
+      dropi_devueltos: allPackages.filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 2).length,
+      dropi_valor_entregado: allPackages
+        .filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 1)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      dropi_valor_pendiente: allPackages
+        .filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 0)
+        .reduce((sum, p) => sum + (p.valor || 0), 0),
+      dropi_valor_devuelto: allPackages
+        .filter(p => (p.tipo === 'Paquetes Pago Contra Entrega (COD)' || p.tipo === 'Dropi') && p.estado === 2)
         .reduce((sum, p) => sum + (p.valor || 0), 0),
       dias_atraso_promedio: (() => {
         const atrasados = allPackages.filter(p => {

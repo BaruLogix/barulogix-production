@@ -482,12 +482,10 @@ export default function ConductorDashboard() {
               <div className="relative">
                 <button
                   onClick={async () => {
-                    setShowNotifications(!showNotifications);
-                    // Si hay notificaciones no leídas y se está abriendo el panel, marcarlas como leídas
-                    if (!showNotifications && unreadCount > 0 && conductor) {
-                      setUnreadCount(0); // Actualizar visualmente de inmediato
+                    // Si hay notificaciones no leídas, marcarlas como leídas primero
+                    if (unreadCount > 0 && conductor) {
                       try {
-                        await fetch('/api/notifications/mark-read', {
+                        const response = await fetch('/api/notifications/mark-read', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'
@@ -497,12 +495,18 @@ export default function ConductorDashboard() {
                             mark_all: true
                           })
                         });
-                        // Recargar notificaciones para reflejar los cambios
-                        loadNotifications(conductor.id);
+                        
+                        if (response.ok) {
+                          setUnreadCount(0); // Actualizar contador inmediatamente
+                          loadNotifications(conductor.id); // Recargar notificaciones
+                        }
                       } catch (error) {
                         console.error('Error marcando notificaciones como leídas:', error);
                       }
                     }
+                    
+                    // Alternar la visibilidad del panel
+                    setShowNotifications(!showNotifications);
                   }}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     unreadCount > 0 
