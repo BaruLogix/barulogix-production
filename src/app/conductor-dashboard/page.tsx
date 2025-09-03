@@ -481,9 +481,28 @@ export default function ConductorDashboard() {
               {/* Botón de Notificaciones */}
               <div className="relative">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setShowNotifications(!showNotifications);
-                    setUnreadCount(0); // Set unread count to 0 immediately on click
+                    // Si hay notificaciones no leídas y se está abriendo el panel, marcarlas como leídas
+                    if (!showNotifications && unreadCount > 0 && conductor) {
+                      setUnreadCount(0); // Actualizar visualmente de inmediato
+                      try {
+                        await fetch('/api/notifications/mark-read', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({
+                            conductor_id: conductor.id,
+                            mark_all: true
+                          })
+                        });
+                        // Recargar notificaciones para reflejar los cambios
+                        loadNotifications(conductor.id);
+                      } catch (error) {
+                        console.error('Error marcando notificaciones como leídas:', error);
+                      }
+                    }
                   }}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     unreadCount > 0 
