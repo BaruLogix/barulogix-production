@@ -130,7 +130,23 @@ export default function ConductorDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notificationsLoading, setNotificationsLoading] = useState(false)
+
+  // Función para obtener el estado de notificaciones desde localStorage
+  const getNotificationState = (conductorId) => {
+    if (typeof window !== 'undefined') {
+      const key = `notifications_read_${conductorId}`
+      return localStorage.getItem(key) === 'true'
+    }
+    return false
+  }
+
+  // Función para guardar el estado de notificaciones en localStorage
+  const setNotificationState = (conductorId, isRead) => {
+    if (typeof window !== 'undefined') {
+      const key = `notifications_read_${conductorId}`
+      localStorage.setItem(key, isRead.toString())
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -277,7 +293,15 @@ export default function ConductorDashboard() {
 
       const data: NotificationsResponse = await response.json()
       setNotifications(data.notifications)
-      setUnreadCount(data.pagination.unread)
+      
+      // Verificar si las notificaciones ya fueron marcadas como leídas visualmente
+      const isRead = getNotificationState(conductorId)
+      if (isRead) {
+        setUnreadCount(0) // Mantener como leídas visualmente
+      } else {
+        setUnreadCount(data.pagination.unread) // Mostrar contador real
+      }
+      
       console.log('Notificaciones cargadas:', data)
     } catch (error) {
       console.error('Error cargando notificaciones:', error)
@@ -483,7 +507,10 @@ export default function ConductorDashboard() {
                 <button
                   onClick={() => {
                     setShowNotifications(!showNotifications);
-                    setUnreadCount(0); // Efecto puramente visual - se mantiene en 0
+                    if (unreadCount > 0 && conductor) {
+                      setUnreadCount(0); // Efecto visual inmediato
+                      setNotificationState(conductor.id, true); // Persistir en localStorage
+                    }
                   }}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
                     unreadCount > 0 
