@@ -124,9 +124,16 @@ export async function GET(
 
     console.log('Paquetes encontrados:', packages?.length || 0)
 
-    // Separar paquetes por tipo
-    const paquetes_shein = packages.filter(p => p.tipo === 'Shein/Temu')
-    const paquetes_dropi = packages.filter(p => p.tipo === 'Dropi')
+    // Separar paquetes por tipo (incluyendo tipos antiguos y nuevos)
+    const paquetes_shein = packages.filter(p => p.tipo === 'Shein/Temu' || p.tipo === 'Paquetes Pagos')
+    const paquetes_dropi = packages.filter(p => p.tipo === 'Dropi' || p.tipo === 'Paquetes Pago Contra Entrega (COD)')
+
+    // Debug: mostrar tipos encontrados
+    const tiposCounts = packages.reduce((acc, p) => {
+      acc[p.tipo] = (acc[p.tipo] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Tipos de paquetes encontrados:', tiposCounts);
 
     // Calcular estadísticas
     const stats = {
