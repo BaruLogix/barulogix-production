@@ -86,6 +86,14 @@ export async function GET(
       }
 
       console.log(`[CONDUCTOR STATS] TOTAL FINAL de paquetes obtenidos: ${allPackages.length}`)
+      
+      // Debug: verificar tipos de paquetes
+      const tiposCounts = allPackages.reduce((acc, p) => {
+        acc[p.tipo] = (acc[p.tipo] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`[CONDUCTOR STATS] Tipos de paquetes encontrados:`, tiposCounts);
+      
       return allPackages
     }
 
