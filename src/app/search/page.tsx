@@ -272,6 +272,150 @@ export default function SearchPage() {
     setNotFoundTrackings([])
   }
 
+  // Función para exportar a PDF
+  const exportToPDF = () => {
+    if (bulkResults.length === 0) {
+      alert('No hay resultados para exportar')
+      return
+    }
+
+    // Crear contenido HTML para el PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Reporte de Búsqueda Masiva - BaruLogix</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; color: #1e40af; }
+          .stats { display: flex; justify-content: space-around; margin: 20px 0; }
+          .stat-card { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+          .stat-number { font-size: 24px; font-weight: bold; color: #1f2937; }
+          .stat-label { font-size: 12px; color: #6b7280; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+          th { background-color: #f3f4f6; font-weight: bold; }
+          .tracking { font-family: monospace; font-weight: bold; }
+          .status-entregado { background-color: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; }
+          .status-pendiente { background-color: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; }
+          .status-devuelto { background-color: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 4px; }
+          .not-found { background-color: #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0; }
+          .not-found h3 { color: #dc2626; margin-top: 0; }
+          .not-found-list { display: flex; flex-wrap: wrap; gap: 8px; }
+          .not-found-item { background-color: #fca5a5; color: #7f1d1d; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">BaruLogix</div>
+          <h2>Reporte de Búsqueda Masiva</h2>
+          <p>Fecha de generación: ${new Date().toLocaleDateString('es-CO', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'America/Bogota'
+          })}</p>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.total_buscados || 0}</div>
+            <div class="stat-label">Buscados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.total_encontrados || 0}</div>
+            <div class="stat-label">Encontrados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.no_encontrados || 0}</div>
+            <div class="stat-label">No Encontrados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.entregados || 0}</div>
+            <div class="stat-label">Entregados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.pendientes || 0}</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${bulkStats.valor_total_cod ? bulkStats.valor_total_cod.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) : '$0'}</div>
+            <div class="stat-label">Valor COD</div>
+          </div>
+        </div>
+
+        ${notFoundTrackings.length > 0 ? `
+        <div class="not-found">
+          <h3>Trackings No Encontrados (${notFoundTrackings.length})</h3>
+          <div class="not-found-list">
+            ${notFoundTrackings.map(tracking => `<span class="not-found-item">${tracking}</span>`).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <table>
+          <thead>
+            <tr>
+              <th>Tracking</th>
+              <th>Conductor</th>
+              <th>Zona</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Fecha Entrega</th>
+              <th>Fecha Cliente</th>
+              <th>Valor</th>
+              <th>Días Atraso</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bulkResults.map(result => `
+              <tr>
+                <td class="tracking">${result.tracking}</td>
+                <td>${result.conductor?.nombre || 'N/A'}</td>
+                <td>${result.conductor?.zona || 'N/A'}</td>
+                <td>${result.tipo_texto}</td>
+                <td>
+                  <span class="status-${result.estado === 1 ? 'entregado' : result.estado === 0 ? 'pendiente' : 'devuelto'}">
+                    ${result.estado_texto}
+                  </span>
+                </td>
+                <td>${result.fecha_entrega_formateada}</td>
+                <td>${result.fecha_entrega_cliente_formateada || '-'}</td>
+                <td>${result.valor_formateado || '-'}</td>
+                <td>${result.dias_atraso > 0 ? result.dias_atraso + ' días' : '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #6b7280;">
+          <p>©2025 BaruLogix - Plataforma creada por ScibaruAI</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    // Crear un blob con el contenido HTML
+    const blob = new Blob([htmlContent], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    
+    // Crear un enlace temporal para descargar
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `busqueda-masiva-${new Date().toISOString().split('T')[0]}.html`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    // Mostrar instrucciones al usuario
+    alert('Archivo HTML descargado. Para convertir a PDF:\n1. Abre el archivo en tu navegador\n2. Presiona Ctrl+P (Cmd+P en Mac)\n3. Selecciona "Guardar como PDF"\n4. Haz clic en "Guardar"')
+  }
+
   const getEstadoText = (estado: number) => {
     switch (estado) {
       case 0: return 'No Entregado'
@@ -1003,6 +1147,297 @@ export default function SearchPage() {
             </div>
           )}
         </div>
+
+        {/* Sección de Búsqueda Masiva - Movida al final */}
+        <div className="card-barulogix-lg mb-8 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-secondary-900 font-montserrat">
+              <svg className="w-8 h-8 inline-block mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Búsqueda Masiva
+            </h2>
+            <button
+              onClick={() => setShowBulkSearch(!showBulkSearch)}
+              className="btn-secondary btn-sm"
+            >
+              {showBulkSearch ? 'Ocultar' : 'Mostrar'} Búsqueda Masiva
+            </button>
+          </div>
+
+          {showBulkSearch && (
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-800 mb-1">Instrucciones para Búsqueda Masiva</h3>
+                    <p className="text-sm text-blue-700">
+                      Ingresa los números de tracking separados por líneas (uno por línea). 
+                      El sistema buscará todos los paquetes y mostrará los detalles completos de cada uno.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="label-barulogix">Lista de Números de Tracking</label>
+                <textarea
+                  value={bulkTrackings}
+                  onChange={(e) => setBulkTrackings(e.target.value)}
+                  placeholder="Ingresa los números de tracking, uno por línea:&#10;123456789&#10;987654321&#10;456789123"
+                  className="input-barulogix-modern focus-ring min-h-[120px] resize-y"
+                  rows={6}
+                />
+                <p className="text-sm text-secondary-500 mt-1">
+                  {bulkTrackings.split('\n').filter(t => t.trim().length > 0).length} trackings ingresados
+                </p>
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  onClick={handleBulkSearch}
+                  disabled={bulkLoading || !bulkTrackings.trim()}
+                  className="btn-primary hover-glow disabled:opacity-50"
+                >
+                  {bulkLoading ? (
+                    <>
+                      <div className="loading-spinner w-4 h-4 mr-2"></div>
+                      Buscando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Buscar Todos
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={clearBulkSearch}
+                  className="btn-secondary"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Estadísticas de Búsqueda Masiva */}
+        {bulkResults.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">Buscados</p>
+                  <p className="text-2xl font-bold text-secondary-900">{bulkStats.total_buscados || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-green-100 text-green-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">Encontrados</p>
+                  <p className="text-2xl font-bold text-secondary-900">{bulkStats.total_encontrados || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-red-100 text-red-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">No Encontrados</p>
+                  <p className="text-2xl font-bold text-secondary-900">{bulkStats.no_encontrados || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-green-100 text-green-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">Entregados</p>
+                  <p className="text-2xl font-bold text-secondary-900">{bulkStats.entregados || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">Pendientes</p>
+                  <p className="text-2xl font-bold text-secondary-900">{bulkStats.pendientes || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-barulogix hover-lift animate-slide-up">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-secondary-600">Valor COD</p>
+                  <p className="text-2xl font-bold text-secondary-900">
+                    {bulkStats.valor_total_cod ? bulkStats.valor_total_cod.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }) : '$0'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trackings No Encontrados */}
+        {notFoundTrackings.length > 0 && (
+          <div className="card-barulogix-lg mb-8 animate-fade-in">
+            <h3 className="text-lg font-bold text-red-700 mb-4 font-montserrat">
+              <svg className="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Trackings No Encontrados ({notFoundTrackings.length})
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+              {notFoundTrackings.map((tracking, index) => (
+                <div key={index} className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                  <span className="font-mono text-sm text-red-700 font-medium">{tracking}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tabla de Resultados de Búsqueda Masiva */}
+        {bulkResults.length > 0 && (
+          <div className="card-barulogix-lg mb-8 animate-fade-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-secondary-900 font-montserrat">
+                Resultados de Búsqueda Masiva ({bulkResults.length} paquetes)
+              </h3>
+              <button
+                onClick={exportToPDF}
+                className="btn-primary hover-glow"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar PDF
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-secondary-200">
+                <thead className="bg-secondary-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Tracking</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Conductor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Zona</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Tipo</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Estado</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Fecha Entrega</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Fecha Cliente</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Valor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider">Días Atraso</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-secondary-200">
+                  {bulkResults.map((result, index) => (
+                    <tr key={result.id} className="hover:bg-secondary-50 animate-slide-up" style={{animationDelay: `${index * 0.05}s`}}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-3 ${
+                            result.tipo === 'Paquetes Pago Contra Entrega (COD)' ? 'bg-blue-500' : 'bg-purple-500'
+                          }`}></div>
+                          <span className="font-medium text-secondary-900 font-mono text-sm">{result.tracking}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-900">
+                        {result.conductor?.nombre || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {result.conductor?.zona || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          result.tipo === 'Paquetes Pago Contra Entrega (COD)' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {result.tipo_texto}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          result.estado === 1 ? 'bg-green-100 text-green-800' :
+                          result.estado === 0 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {result.estado_texto}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">
+                        {result.fecha_entrega_formateada}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">
+                        {result.fecha_entrega_cliente_formateada || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-700">
+                        {result.valor_formateado || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          result.dias_atraso > 5 ? 'bg-red-100 text-red-800' :
+                          result.dias_atraso > 2 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {result.dias_atraso > 0 ? `${result.dias_atraso} días` : '-'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
