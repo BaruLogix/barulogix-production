@@ -130,6 +130,7 @@ export default function ConductorDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
 
   // Función para obtener el estado de notificaciones desde localStorage
   const getNotificationState = (conductorId) => {
