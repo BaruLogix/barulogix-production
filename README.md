@@ -103,11 +103,7 @@ barulogix-production/
 ### Configuración
 Ejecuta el script SQL incluido en `/docs/schema.sql` para crear toda la estructura.
 
-## 🔑 Credenciales por Defecto
 
-### Administrador
-- **Email:** barulogix.platform@gmail.com
-- **Contraseña:** BaruAdmin2025!
 
 ## 📱 Funcionalidades por Módulo
 
