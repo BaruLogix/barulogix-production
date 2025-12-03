@@ -388,11 +388,28 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="font-semibold text-secondary-900 font-montserrat">Reportes y Exportación</p>
-                    <p className="text-sm text-secondary-600 font-segoe">Generar reportes y exportar datos</p>
-                  </div>
-                </div>
-              </button>
+                <p className="font-semibold text-secondary-900 font-montserrat">Reportes y Exportación</p>
+                <p className="text-sm text-secondary-600 font-segoe">Generar reportes y exportar datos</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => navigateTo("/dashboard/history")}
+            className="w-full p-4 border border-secondary-200 rounded-xl hover:bg-secondary-50 transition-all duration-200 text-left hover-lift"
+          >
+            <div className="flex items-center">
+              <div className="p-3 bg-gray-100 rounded-lg">
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="font-semibold text-secondary-900 font-montserrat">Historial de Operaciones</p>
+                <p className="text-sm text-secondary-600 font-segoe">Ver registro de actividades y deshacer</p>
+              </div>
+            </div>
+          </button>
 
               {user.email === 'barulogix.platform@gmail.com' && (
                 <button
