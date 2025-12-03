@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
     // Obtener historial de operaciones del usuario
     const { data: history, error } = await supabase
       .from('admin_operations_history')
-      .select(`
-        *,
-        users!admin_operations_history_user_id_fkey(nombre)
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(50)

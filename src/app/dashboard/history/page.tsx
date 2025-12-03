@@ -14,7 +14,6 @@ interface HistoryItem {
   can_undo: boolean
   created_at: string
   undone_at?: string
-  users?: { nombre: string }
 }
 
 export default function HistoryPage() {
@@ -283,12 +282,6 @@ export default function HistoryPage() {
                         <span>{formatDate(item.created_at)}</span>
                         <span>•</span>
                         <span>{item.affected_records} registros afectados</span>
-                        {item.users && (
-                          <>
-                            <span>•</span>
-                            <span>Por: {item.users.nombre}</span>
-                          </>
-                        )}
                       </div>
                       {item.details && Object.keys(item.details).length > 0 && (
                         <div className="mt-2 p-2 bg-secondary-50 rounded text-xs">
