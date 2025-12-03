@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { logOperation } from '../services/history'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { operation, conductor_id, conductor_id_2, new_state, new_type, new_date, transfer_type, single_tracking, bulk_trackings } = body
+    const { operation, conductor_id, conductor_id_2, new_state, new_type, new_date, transfer_type, single_tracking, bulk_trackings, confirmation } = body
 
     console.log('Operación solicitada:', { operation, conductor_id, conductor_id_2, new_state, new_type, new_date, transfer_type, single_tracking, bulk_trackings })
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
         break
       
       case 'transfer_packages':
-        result = await transferPackages(userId, conductor_id, conductor_id_2, transfer_type, single_tracking, bulk_trackings)
+        result = await transferPackages(userId, conductor_id, conductor_id_2, transfer_type, single_tracking, bulk_trackings, confirmation)
         break
       
       case 'update_dates':
@@ -95,6 +96,16 @@ async function changePackageStates(userId: string, conductorId: string, newState
     throw new Error('Conductor no encontrado o no pertenece a su cuenta')
   }
 
+  // Obtener los estados anteriores de los paquetes que se van a actualizar
+  const { data: oldPackages, error: oldPackagesError } = await supabase
+    .from('packages')
+    .select('id, estado')
+    .eq('conductor_id', conductorId)
+
+  if (oldPackagesError) {
+    throw new Error(`Error obteniendo estados anteriores: ${oldPackagesError.message}`)
+  }
+
   // Actualizar estados de paquetes
   const { data: updatedPackages, error: updateError } = await supabase
     .from('packages')
@@ -109,6 +120,19 @@ async function changePackageStates(userId: string, conductorId: string, newState
   const stateNames = { 0: 'No Entregado', 1: 'Entregado', 2: 'Devuelto' }
   const stateName = stateNames[newState as keyof typeof stateNames] || 'Desconocido'
 
+  // Registrar en el historial
+  await logOperation(
+    userId,
+    'change_states',
+    `Cambiar estado a "${stateName}" para todos los paquetes de "${conductor.nombre}"`,
+    {
+      conductor_id: conductorId,
+      new_state: newState,
+      old_states: oldPackages?.map(p => ({ package_id: p.id, old_state: p.estado }))
+    },
+    updatedPackages?.length || 0
+  )
+
   return {
     message: `Estados actualizados exitosamente`,
     details: `${updatedPackages?.length || 0} paquetes del conductor "${conductor.nombre}" cambiados a "${stateName}"`
@@ -116,13 +140,18 @@ async function changePackageStates(userId: string, conductorId: string, newState
 }
 
 // Transferir paquetes entre conductores
-async function transferPackages(userId: string, fromConductorId: string, toConductorId: string, transferType: string = 'all', singleTracking?: string, bulkTrackings?: string) {
+async function transferPackages(userId: string, fromConductorId: string, toConductorId: string, transferType: string = 'all', singleTracking?: string, bulkTrackings?: string, confirmation?: boolean) {
   if (!fromConductorId || !toConductorId) {
     throw new Error('Ambos conductores son requeridos')
   }
 
   if (fromConductorId === toConductorId) {
     throw new Error('Los conductores origen y destino deben ser diferentes')
+  }
+
+  // Medida anti-dummy: requerir confirmación explícita para transferir todos los paquetes
+  if (transferType === 'all' && confirmation !== true) {
+    throw new Error('Se requiere confirmación explícita para transferir todos los paquetes. Esta es una medida de seguridad para prevenir operaciones masivas accidentales.')
   }
 
   // Verificar que ambos conductores pertenecen al usuario
@@ -171,6 +200,23 @@ async function transferPackages(userId: string, fromConductorId: string, toCondu
                           transferType === 'individual' ? `paquete "${singleTracking}"` :
                           `${bulkTrackings?.split('\n').filter(t => t.trim()).length || 0} paquetes específicos`
 
+  // Registrar en el historial
+  await logOperation(
+    userId,
+    'transfer_packages',
+    `Transferir ${transferTypeText} de "${fromConductor?.nombre}" a "${toConductor?.nombre}"`,
+    {
+      transfer_type: transferType,
+      conductor_id: fromConductorId,
+      conductor_id_2: toConductorId,
+      single_tracking: singleTracking,
+      bulk_trackings: bulkTrackings,
+      from_conductor_name: fromConductor?.nombre,
+      to_conductor_name: toConductor?.nombre
+    },
+    transferredPackages?.length || 0
+  )
+
   return {
     message: `Paquetes transferidos exitosamente`,
     details: `${transferredPackages?.length || 0} paquetes transferidos (${transferTypeText}) de "${fromConductor?.nombre}" a "${toConductor?.nombre}"`
@@ -195,6 +241,16 @@ async function updatePackageDates(userId: string, conductorId: string, newDate: 
     throw new Error('Conductor no encontrado o no pertenece a su cuenta')
   }
 
+  // Obtener las fechas anteriores de los paquetes que se van a actualizar
+  const { data: oldPackages, error: oldPackagesError } = await supabase
+    .from('packages')
+    .select('id, fecha_entrega')
+    .eq('conductor_id', conductorId)
+
+  if (oldPackagesError) {
+    throw new Error(`Error obteniendo fechas anteriores: ${oldPackagesError.message}`)
+  }
+
   // Actualizar fechas de paquetes
   const { data: updatedPackages, error: updateError } = await supabase
     .from('packages')
@@ -205,6 +261,19 @@ async function updatePackageDates(userId: string, conductorId: string, newDate: 
   if (updateError) {
     throw new Error(`Error actualizando fechas: ${updateError.message}`)
   }
+
+  // Registrar en el historial
+  await logOperation(
+    userId,
+    'update_dates',
+    `Actualizar fecha a "${new Date(newDate).toLocaleDateString('es-CO')}" para todos los paquetes de "${conductor.nombre}"`,
+    {
+      conductor_id: conductorId,
+      new_date: newDate,
+      old_dates: oldPackages?.map(p => ({ package_id: p.id, old_date: p.fecha_entrega }))
+    },
+    updatedPackages?.length || 0
+  )
 
   return {
     message: `Fechas actualizadas exitosamente`,
@@ -230,16 +299,39 @@ async function changePackageTypes(userId: string, conductorId: string, newType: 
     throw new Error('Conductor no encontrado o no pertenece a su cuenta')
   }
 
+  // Obtener los tipos anteriores de los paquetes que se van a actualizar
+  const { data: oldPackages, error: oldPackagesError } = await supabase
+    .from("packages")
+    .select("id, tipo")
+    .eq("conductor_id", conductorId);
+
+  if (oldPackagesError) {
+    throw new Error(`Error obteniendo tipos anteriores: ${oldPackagesError.message}`);
+  }
+
   // Actualizar tipos de paquetes
   const { data: updatedPackages, error: updateError } = await supabase
-    .from('packages')
+    .from("packages")
     .update({ tipo: newType })
-    .eq('conductor_id', conductorId)
-    .select('id')
+    .eq("conductor_id", conductorId)
+    .select("id");
 
   if (updateError) {
     throw new Error(`Error actualizando tipos: ${updateError.message}`)
   }
+
+  // Registrar en el historial
+  await logOperation(
+    userId,
+    'change_types',
+    `Cambiar tipo a "${newType}" para todos los paquetes de "${conductor.nombre}"`,
+    {
+      conductor_id: conductorId,
+      new_type: newType,
+      old_types: oldPackages?.map(p => ({ package_id: p.id, old_type: p.tipo }))
+    },
+    updatedPackages?.length || 0
+  )
 
   return {
     message: `Tipos actualizados exitosamente`,
@@ -279,6 +371,18 @@ async function toggleAllConductors(userId: string) {
   }
 
   const action = newActiveState ? 'activados' : 'desactivados'
+
+  // Registrar en el historial
+  await logOperation(
+    userId,
+    'toggle_conductors',
+    `Se han ${action} todos los conductores`,
+    {
+      new_state: newActiveState,
+      old_states: conductors.map(c => ({ conductor_id: c.id, old_state: c.activo }))
+    },
+    updatedConductors?.length || 0
+  )
 
   return {
     message: `Conductores ${action} exitosamente`,

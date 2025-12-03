@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { logOperation } from '../services/history';
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -231,11 +232,20 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('Paquete creado exitosamente:', newPackage)
+    console.log('Paquete creado exitosamente:', newPackage);
+
+    await logOperation(
+      userId,
+      'create_package',
+      `Crear paquete individual: ${newPackage.tracking}`,
+      { package: newPackage },
+      1
+    );
+
     return NextResponse.json({ 
       package: newPackage,
       message: 'Paquete creado exitosamente'
-    }, { status: 201 })
+    }, { status: 201 });
   } catch (error) {
     console.error('ERROR CRÍTICO en packages POST:', error)
     return NextResponse.json({ 
@@ -245,3 +255,54 @@ export async function POST(request: NextRequest) {
   }
 }
 
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = request.headers.get('x-user-id');
+    if (!userId) {
+      return NextResponse.json({ error: 'ID de usuario no proporcionado' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const packageId = searchParams.get('id');
+
+    if (!packageId) {
+      return NextResponse.json({ error: 'ID de paquete requerido' }, { status: 400 });
+    }
+
+    // Verificar que el paquete pertenece al usuario
+    const { data: pkg, error: pkgError } = await supabase
+      .from('packages')
+      .select('*, conductor:conductors!inner(user_id)')
+      .eq('id', packageId)
+      .eq('conductor.user_id', userId)
+      .single();
+
+    if (pkgError || !pkg) {
+      return NextResponse.json({ error: 'Paquete no encontrado o no pertenece a su cuenta' }, { status: 404 });
+    }
+
+    // Eliminar el paquete
+    const { error: deleteError } = await supabase
+      .from('packages')
+      .delete()
+      .eq('id', packageId);
+
+    if (deleteError) {
+      throw new Error(`Error eliminando paquete: ${deleteError.message}`);
+    }
+
+    await logOperation(
+      userId,
+      'delete_package',
+      `Eliminar paquete: ${pkg.tracking}`,
+      { package: pkg },
+      1
+    );
+
+    return NextResponse.json({ message: 'Paquete eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error en DELETE de paquete:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
+}

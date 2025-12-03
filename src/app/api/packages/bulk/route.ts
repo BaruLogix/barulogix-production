@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { logOperation } from '../services/history';
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -189,12 +190,26 @@ export async function POST(request: NextRequest) {
       console.log('Paquetes insertados exitosamente:', insertedCount)
     }
 
+    await logOperation(
+      userId,
+      'create_bulk_packages',
+      `Crear paquetes masivos: ${insertedCount} paquetes de tipo "${tipo}"`,
+      {
+        tipo,
+        conductor_id,
+        fecha_entrega,
+        inserted_packages: packagesToInsert,
+        errors
+      },
+      insertedCount
+    );
+
     return NextResponse.json({
       success: true,
       inserted: insertedCount,
       total_processed: packagesToInsert.length + errors.length,
       errors: errors
-    })
+    });
 
   } catch (error) {
     console.error('ERROR CRÍTICO en packages bulk POST:', error)

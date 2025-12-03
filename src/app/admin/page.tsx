@@ -123,6 +123,95 @@ export default function AdminPage() {
   const executeOperation = async () => {
     if (!currentOperation) return
 
+    // Validaciones anti-dummies específicas para transferencias
+    if (currentOperation.type === 'transfer_packages') {
+      // Validar que se hayan seleccionado ambos conductores
+      if (!selectedConductor || !selectedConductor2) {
+        alert('❌ Error: Debe seleccionar tanto el conductor origen como el conductor destino.')
+        return
+      }
+
+      // Validar que no sean el mismo conductor
+      if (selectedConductor === selectedConductor2) {
+        alert('❌ Error: El conductor origen y destino no pueden ser el mismo.')
+        return
+      }
+
+      // Validaciones específicas por tipo de transferencia
+      if (transferType === 'individual') {
+        if (!singleTracking.trim()) {
+          alert('❌ Error: Debe ingresar el número de tracking del paquete a transferir.')
+          return
+        }
+        
+        // Confirmación doble para transferencia individual
+        const conductorOrigen = conductors.find(c => c.id === selectedConductor)?.nombre || 'Desconocido'
+        const conductorDestino = conductors.find(c => c.id === selectedConductor2)?.nombre || 'Desconocido'
+        
+        const confirmMessage = `⚠️ CONFIRMACIÓN DE TRANSFERENCIA INDIVIDUAL\n\n` +
+          `📦 Paquete: ${singleTracking.trim()}\n` +
+          `👤 De: ${conductorOrigen}\n` +
+          `👤 Para: ${conductorDestino}\n\n` +
+          `¿Está seguro de que desea transferir ÚNICAMENTE este paquete?\n\n` +
+          `⚠️ Esta acción no se puede deshacer fácilmente.`
+        
+        if (!confirm(confirmMessage)) {
+          return
+        }
+      } else if (transferType === 'bulk') {
+        if (!bulkTrackings.trim()) {
+          alert('❌ Error: Debe ingresar la lista de trackings a transferir.')
+          return
+        }
+        
+        const trackingList = bulkTrackings.split('\n').filter(t => t.trim().length > 0)
+        if (trackingList.length === 0) {
+          alert('❌ Error: La lista de trackings está vacía.')
+          return
+        }
+        
+        // Confirmación doble para transferencia masiva
+        const conductorOrigen = conductors.find(c => c.id === selectedConductor)?.nombre || 'Desconocido'
+        const conductorDestino = conductors.find(c => c.id === selectedConductor2)?.nombre || 'Desconocido'
+        
+        const confirmMessage = `⚠️ CONFIRMACIÓN DE TRANSFERENCIA MASIVA\n\n` +
+          `📦 Cantidad de paquetes: ${trackingList.length}\n` +
+          `👤 De: ${conductorOrigen}\n` +
+          `👤 Para: ${conductorDestino}\n\n` +
+          `¿Está seguro de que desea transferir estos ${trackingList.length} paquetes específicos?\n\n` +
+          `⚠️ Esta acción no se puede deshacer fácilmente.`
+        
+        if (!confirm(confirmMessage)) {
+          return
+        }
+      } else if (transferType === 'all') {
+        // Confirmación TRIPLE para transferencia de todos los paquetes
+        const conductorOrigen = conductors.find(c => c.id === selectedConductor)?.nombre || 'Desconocido'
+        const conductorDestino = conductors.find(c => c.id === selectedConductor2)?.nombre || 'Desconocido'
+        
+        const confirmMessage1 = `🚨 ADVERTENCIA: TRANSFERENCIA DE TODOS LOS PAQUETES\n\n` +
+          `Está a punto de transferir TODOS los paquetes de:\n` +
+          `👤 ${conductorOrigen} ➡️ ${conductorDestino}\n\n` +
+          `⚠️ Esta es una operación MASIVA que afectará TODOS los paquetes del conductor.\n\n` +
+          `¿Está COMPLETAMENTE seguro de que desea continuar?`
+        
+        if (!confirm(confirmMessage1)) {
+          return
+        }
+        
+        const confirmMessage2 = `🚨 SEGUNDA CONFIRMACIÓN REQUERIDA\n\n` +
+          `Para confirmar que realmente desea transferir TODOS los paquetes de ${conductorOrigen} a ${conductorDestino}, ` +
+          `escriba exactamente la palabra "CONFIRMAR" en el siguiente cuadro de diálogo.\n\n` +
+          `Si no está 100% seguro, cancele esta operación.`
+        
+        const userInput = prompt(confirmMessage2)
+        if (userInput !== 'CONFIRMAR') {
+          alert('❌ Operación cancelada. La palabra de confirmación no coincide.')
+          return
+        }
+      }
+    }
+
     setLoading(true)
     try {
       const userData = localStorage.getItem('user')
@@ -143,7 +232,8 @@ export default function AdminPage() {
         new_date: newDate,
         transfer_type: transferType,
         single_tracking: singleTracking,
-        bulk_trackings: bulkTrackings
+        bulk_trackings: bulkTrackings,
+        confirmation: currentOperation.type === 'transfer_packages' && transferType === 'all' ? true : undefined
       }
 
       const response = await fetch('/api/admin/operations', {
@@ -488,7 +578,12 @@ export default function AdminPage() {
                     (currentOperation.type === 'change_states' || 
                      currentOperation.type === 'update_dates' || 
                      currentOperation.type === 'change_types') && !selectedConductor
-                  ) || (currentOperation.type === 'transfer_packages' && (!selectedConductor || !selectedConductor2))}
+                  ) || (currentOperation.type === 'transfer_packages' && (
+                    !selectedConductor || 
+                    !selectedConductor2 ||
+                    (transferType === 'individual' && !singleTracking.trim()) ||
+                    (transferType === 'bulk' && !bulkTrackings.trim())
+                  ))}
                   className={`${currentOperation.color} text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {loading ? 'Ejecutando...' : 'Confirmar Operación'}
