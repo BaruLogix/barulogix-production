@@ -6,31 +6,41 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Función para registrar operaciones en el historial
+async function logOperation(userId: string, operationType: string, description: string, details: any, affectedRecords: number) {
+  try {
+    await supabase
+      .from('admin_operations_history')
+      .insert([
+        {
+          user_id: userId,
+          operation_type: operationType,
+          description,
+          details,
+          affected_records: affectedRecords,
+          can_undo: false, // Las operaciones de conductores no se pueden deshacer
+          created_at: new Date().toISOString()
+        }
+      ])
+  } catch (error) {
+    console.error('Error logging operation to history:', error)
+  }
+}
+
 // GET - Obtener todos los conductores del usuario logueado
 export async function GET(request: NextRequest) {
   try {
     const userId = request.headers.get('x-user-id')
-    
-    console.log("=== DEBUG CONDUCTORS GET ===");
-    console.log("User ID recibido:", userId);
-    console.log("Buscando conductores para user ID:", userId);
-    console.log("Consulta a Supabase para conductores...");
+    if (!userId) return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 })
 
-    // Obtener conductores del usuario actual
     const { data: conductors, error } = await supabase
       .from('conductors')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching conductors:', error)
-      return NextResponse.json({ error: 'Error al obtener conductores' }, { status: 500 })
-    }
+    if (error) throw new Error(`Error fetching conductors: ${error.message}`)
 
-    console.log('Conductores encontrados:', conductors?.length || 0)
-
-    // Calcular estadísticas
     const stats = {
       total: conductors.length,
       activos: conductors.filter(c => c.activo).length,
@@ -40,94 +50,74 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ conductors, stats })
   } catch (error) {
-    console.error('Error in GET /api/conductors:', error)
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }
 
-// POST - Crear nuevo conductor para el usuario logueado
+// POST - Crear nuevo conductor
 export async function POST(request: NextRequest) {
-  console.log('=== DEBUG CONDUCTORS POST API START ===');
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 })
+
     const body = await request.json()
     const { nombre, zona, telefono, email } = body
-
-    if (!nombre || !zona) {
-      console.log('Validation Error: Missing nombre or zona');
-      return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
-    }
-
-    const userId = request.headers.get('x-user-id')
-    
-    console.log('=== DEBUG CONDUCTORS POST ===')
-    console.log('User ID recibido:', userId)
-    console.log('Email proporcionado:', email)
-    
-    if (!userId) {
-      console.log('Auth Error: User ID not provided');
-      return NextResponse.json({ 
-        error: 'ID de usuario no proporcionado',
-        details: 'Debe estar logueado para crear conductores'
-      }, { status: 401 })
-    }
-
-    // Verificar si ya existe un conductor con el mismo nombre para este usuario
-    console.log('Checking for existing conductor by name:', nombre);
-    const { data: existing, error: existingError } = await supabase
-      .from('conductors')
-      .select('id')
-      .eq('nombre', nombre)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (existingError) {
-      console.error('Error verificando existente:', existingError)
-      return NextResponse.json({ error: 'Error al verificar conductor existente' }, { status: 500 })
-    }
-
-    if (existing) {
-      console.log('Conflict: Conductor with this name already exists:', existing.id);
-      return NextResponse.json({ error: 'Ya existe un conductor con ese nombre en su bodega' }, { status: 400 })
-    }
-
-    // Crear el conductor
-    const insertData = {
-      user_id: userId,
-      nombre: nombre.trim(),
-      zona: zona.trim(),
-      telefono: telefono ? telefono.trim() : null,
-      email: email ? email.trim() : null,
-      activo: true
-    }
-
-    console.log('Datos a insertar en conductors:', insertData)
+    if (!nombre || !zona) return NextResponse.json({ error: 'Nombre y zona son obligatorios' }, { status: 400 })
 
     const { data: conductor, error } = await supabase
       .from('conductors')
-      .insert(insertData)
+      .insert({ user_id: userId, nombre, zona, telefono, email, activo: true })
       .select()
       .single()
 
-    if (error) {
-      console.error('Error creando conductor en tabla conductors:', error)
-      return NextResponse.json({ 
-        error: 'Error al crear conductor', 
-        details: error.message 
-      }, { status: 500 })
-    }
+    if (error) throw new Error(`Error creando conductor: ${error.message}`)
 
-    console.log('Conductor creado exitosamente en tabla conductors:', conductor)
-    console.log('ID único del conductor:', conductor.id)
+    await logOperation(
+      userId,
+      'create_conductor',
+      `Crear conductor: ${conductor.nombre}`,
+      { conductor },
+      1
+    )
 
-    console.log('Conductor POST API finished successfully.');
     return NextResponse.json({ conductor }, { status: 201 })
-
   } catch (error) {
-    console.error('Error general en POST /api/conductors:', error)
-    return NextResponse.json({ 
-      error: 'Error interno del servidor',
-      details: error instanceof Error ? error.message : 'Error desconocido'
-    }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }
 
+// DELETE - Eliminar conductor
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) return NextResponse.json({ error: 'Usuario no autenticado' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const conductorId = searchParams.get('id')
+    if (!conductorId) return NextResponse.json({ error: 'ID de conductor requerido' }, { status: 400 })
+
+    const { data: conductor, error: conductorError } = await supabase
+      .from('conductors')
+      .select('id, nombre')
+      .eq('id', conductorId)
+      .eq('user_id', userId)
+      .single()
+
+    if (conductorError || !conductor) throw new Error('Conductor no encontrado o no pertenece a su cuenta')
+
+    const { error: deleteError } = await supabase.from('conductors').delete().eq('id', conductorId)
+    if (deleteError) throw new Error(`Error eliminando conductor: ${deleteError.message}`)
+
+    await logOperation(
+      userId,
+      'delete_conductor',
+      `Eliminar conductor: ${conductor.nombre}`,
+      { conductor },
+      1
+    )
+
+    return NextResponse.json({ message: 'Conductor eliminado exitosamente' })
+  } catch (error) {
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  }
+}
