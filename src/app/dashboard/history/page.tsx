@@ -312,7 +312,7 @@ export default function HistoryPage() {
       </div>
 
       {/* Footer */}
-      <footer className="footer-barulogix mt-12">
+      <footer className="footer-barulogix mt-12 w-full">
         <div className="footer-content">
           <div className="flex items-center">
             <svg className="w-5 h-5 mr-2 text-primary-400" fill="currentColor" viewBox="0 0 20 20">

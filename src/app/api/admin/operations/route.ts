@@ -23,7 +23,14 @@ async function logOperation(userId: string, operationType: string, description: 
         }
       ])
   } catch (error) {
-    console.error('Error logging operation to history:', error)
+    console.error("Error logging operation to history:", error)
+    console.log("--- DETALLES DEL ERROR DE LOGGING ---")
+    console.log("User ID:", userId)
+    console.log("Operation Type:", operationType)
+    console.log("Description:", description)
+    console.log("Details:", JSON.stringify(details, null, 2))
+    console.log("Affected Records:", affectedRecords)
+    console.log("--- FIN DETALLES DEL ERROR DE LOGGING ---")
     // No fallar la operación principal si falla el log
   }
 }
